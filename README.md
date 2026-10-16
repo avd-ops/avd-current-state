@@ -2,13 +2,14 @@
 
 Read-only PowerShell tooling for Azure Virtual Desktop (AVD) environments on Azure
 Commercial. The collector and validator read through Azure Resource Manager and write
-nothing; the second brain turns their output into a living knowledge base.
+nothing. Their evidence packages feed [avd-second-brain](https://github.com/nickprignano/avd-second-brain), which turns them into a
+living knowledge base of the estate.
 
 | Script | When to run | What it answers |
 |---|---|---|
 | [`avd_current_state_collector.ps1`](#current-state-collector) | Any time | *What is in this environment today?* Produces a portable evidence package. |
 | [`avd_deployment_validator.ps1`](#deployment-validator) | Before and after an AVD deployment | *Is this subscription ready to deploy, and did the deployment land correctly?* Produces a pass/fail report. |
-| [`avd_second_brain.ps1`](#second-brain) | After every collector or validator run | *What changed, what is still broken, and why is it built this way?* Keeps a Markdown knowledge base of the estate over time. |
+| [`avd_second_brain.ps1`](#second-brain) (in [avd-second-brain](https://github.com/nickprignano/avd-second-brain)) | After every collector or validator run | *What changed, what is still broken, and why is it built this way?* Keeps a Markdown knowledge base of the estate over time. |
 
 ## Read-Only by Design
 
@@ -347,29 +348,27 @@ avd-validation-20260919T141120.zip
 
 ## Second Brain
 
-`avd_second_brain.ps1` is the organisation's memory for the estate. It ingests collector
-and validator packages into a Markdown vault kept in its own **private** Git repository, and
-maintains per subscription:
-
-- an overview page with the latest inventory and validator verdicts
-- a timeline of every run
-- drift notes: resources added and removed, host pool settings, session host counts and agent versions
-- a findings register: every `FAIL` / `WARN` with its first-seen date, closed only when the same check later passes
-
-Next to the generated notes, the vault holds what people know: decisions (ADRs), runbooks,
-lessons and a glossary. A runbook that names a validator check in its `resolves-checks`
-front matter is linked from every matching finding. The vault ships a `CLAUDE.md` and
-`/ask`, `/brief` and `/capture` commands for Claude Code.
+The estate's memory moved to **[avd-second-brain](https://github.com/nickprignano/avd-second-brain)**: one second brain for the
+whole AVD lifecycle, shared with
+[avd-readiness-stratusphere](https://github.com/nickprignano/avd-readiness-stratusphere) (assessment)
+and [avd-landing-zone](https://github.com/nickprignano/avd-landing-zone) (deployment and operations).
+The script and its vault template are there, at `vault/avd_second_brain.ps1`, with the
+same parameters plus an optional `-KnowledgePath`. This repository stays the **sensor**: the collector and the validator
+produce the evidence packages the vault ingests ([contract C1](https://github.com/nickprignano/avd-second-brain/blob/main/docs/contracts.md)).
 
 ```powershell
-.\avd_second_brain.ps1 -BrainPath ..\avd-brain -Init
-.\avd_second_brain.ps1 -BrainPath ..\avd-brain -PackagePath .\avd-current-state-20261015T091500, .\avd-validation-20261016T100000.zip
+git clone https://github.com/nickprignano/avd-second-brain.git ..\avd-second-brain
+..\avd-second-brain\vault\avd_second_brain.ps1 -BrainPath ..\avd-brain -Init
+..\avd-second-brain\vault\avd_second_brain.ps1 -BrainPath ..\avd-brain -PackagePath .\avd-current-state-20261015T091500, .\avd-validation-20261016T100000.zip
 ```
 
-The script is offline: it makes no Azure call, needs no Az module, and writes only inside
-`-BrainPath`. Packages can be ingested in any order and re-running is safe. See
-[`second-brain/README.md`](second-brain/README.md) for the concept, set-up and the habits
-that keep it useful.
+What the move adds: `-Init` seeds a vault with the organization's shared runbooks, and
+`scripts/Get-VaultHarvest.ps1` proposes what a vault may contribute back to the shared
+knowledge base, generalized, without tenant data. The vault itself still belongs in its own
+**private** repository. See [the vault docs](https://github.com/nickprignano/avd-second-brain/blob/main/docs/vault.md).
+
+A change to the packages' dataset names or fields is a contract change: avd-second-brain's
+`tests/Connectors.Tests.ps1` runs minimal collector and validator packages through the vault.
 
 ---
 
