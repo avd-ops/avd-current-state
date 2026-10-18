@@ -1,4 +1,4 @@
-#requires -Modules @{ ModuleName = 'Pester'; ModuleVersion = '5.0.0' }
+﻿#requires -Modules @{ ModuleName = 'Pester'; ModuleVersion = '5.0.0' }
 # Offline tests for avd_current_state_facts.ps1 (contract C11 in avd-second-brain). The fixture
 # packages are full of things that must never reach the snapshot: names, IDs, a UPN, IPs, tags.
 
@@ -142,6 +142,28 @@ Describe 'avd_current_state_facts.ps1' {
     $r = Invoke-Facts -Packages $dir -Key $script:key -Out (Join-Path $TestDrive 'out4')
     $r.Data.subscriptions[0].hostPools[0].sessionHosts.total | Should -Be 4
     $r.Text | Should -Match '"collectedUtc": "2026-10-08T09:00:00Z"'
+  }
+
+  It 'says which design decisions the snapshot can support and which need measurement' {
+    $log = & $script:facts -PackagePath $script:pk -KeyPath $script:key -OutputPath (Join-Path $TestDrive 'out5') 6>&1 | ForEach-Object { "$_" }
+    $line = $log | Where-Object { $_ -like '*Manifest coverage:*' }
+    $line | Should -Match 'Manifest coverage: 5 of 10 design decisions can come from this snapshot \(region, network mode, host pool type, application group, power settings\)'
+    ($log -join ' ') | Should -Match 'Identity lane, VM size, Sessions per host, Host count, Profile share quota need measured usage: avd-readiness-stratusphere'
+  }
+
+  It 'counts host pool decisions only when the estate has host pools' {
+    $dir = Join-Path $TestDrive 'no-pools'
+    $pkg = New-TestCollector $dir
+    Get-ChildItem $pkg -Recurse -Filter 'avd-*.json' | Remove-Item
+    $log = & $script:facts -PackagePath $dir -KeyPath $script:key -OutputPath (Join-Path $TestDrive 'out6') 6>&1 | ForEach-Object { "$_" }
+    ($log | Where-Object { $_ -like '*Manifest coverage:*' }) | Should -Not -Match 'host pool type'
+  }
+
+  It 'vendors the fact register byte for byte from avd-second-brain' {
+    $pins = Get-Content (Join-Path $script:root 'contracts/PINS.json') -Raw | ConvertFrom-Json
+    foreach ($f in $pins.files.PSObject.Properties) {
+      (Get-FileHash (Join-Path $script:root "contracts/$($f.Name)") -Algorithm SHA256).Hash.ToLowerInvariant() | Should -Be $f.Value -Because $f.Name
+    }
   }
 
   It 'refuses packages from more than one tenant' {
