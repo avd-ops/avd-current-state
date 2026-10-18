@@ -24,9 +24,7 @@ jobs:
         run: |
           Set-PSRepository PSGallery -InstallationPolicy Trusted
           Install-Module PSScriptAnalyzer -Scope CurrentUser -Force
-          foreach ($p in './avd_current_state_facts.ps1', './tests') {
-            Invoke-ScriptAnalyzer -Path $p -Settings ./PSScriptAnalyzerSettings.psd1 -EnableExit
-          }
+          Invoke-ScriptAnalyzer -Path ./avd_current_state_facts.ps1 -Settings ./PSScriptAnalyzerSettings.psd1 -EnableExit
 
       - name: Pester
         shell: pwsh

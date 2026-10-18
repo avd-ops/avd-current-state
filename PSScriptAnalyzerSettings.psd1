@@ -1,4 +1,4 @@
-# PSScriptAnalyzer settings for the facts snapshot script and its tests (used by CI and locally).
+# PSScriptAnalyzer settings for the facts snapshot script (used by CI and locally).
 @{
   Severity     = @('Error', 'Warning')
   ExcludeRules = @(
