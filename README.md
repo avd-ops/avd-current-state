@@ -416,6 +416,28 @@ authority. A change to it is a contract change in three repos: avd-second-brain,
 and avd-swarm. The tests (`tests/Facts.Tests.ps1`, Pester, offline) build packages full of
 names, IDs and addresses and check that none reach the snapshot.
 
+### From inventory to a deployment-ready manifest
+
+After writing the snapshot, the script prints its **manifest coverage**: how many of the
+design decisions in a target-state manifest (avd-second-brain contract C14) this estate's
+Azure-side facts can support, and which ones can't be decided from Azure at all:
+
+```
+[INFO] Manifest coverage: 5 of 10 design decisions can come from this snapshot (region, network mode, host pool type, application group, power settings).
+[INFO]   Identity lane, VM size, Sessions per host, Host count, Profile share quota need measured usage: avd-readiness-stratusphere ...
+```
+
+Configuration says what someone set, not what users do. Sizing (VM size, sessions per host,
+host count), the profile share and the identity lane need measured demand, concurrency, profile
+sizes and app dependencies. [avd-readiness-stratusphere](https://github.com/nickprignano/avd-readiness-stratusphere) collects them with Liquidware
+Stratusphere UX over a 2 to 4 week window (appliances and a license for the window, so it is
+priced before it starts), and turns them, together with this snapshot and the collector
+package, into a manifest that [avd-landing-zone](https://github.com/nickprignano/avd-landing-zone) deploys. It uses the same estate
+key, so its host pool pseudonyms match this snapshot's.
+
+The decisions and facts come from `contracts/fact-register.json`, a byte-identical copy of
+avd-second-brain's fact register (contract C15), pinned with the schema in `contracts/PINS.json`.
+
 ---
 
 ## Limitations

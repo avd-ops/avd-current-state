@@ -1,0 +1,9 @@
+{
+  "description": "Vendored copies of avd-second-brain contract files. Each must be byte-identical to the file at brainCommit (tests/Facts.Tests.ps1 checks the hashes). Update the files, brainCommit and the hashes in one PR.",
+  "source": "https://github.com/nickprignano/avd-second-brain",
+  "brainCommit": "29435abb79905ce91651013e368c824aab63ee8c",
+  "files": {
+    "fact-register.json": "cc3c934352a336c885a374f777da2d1c24d7520486eacfdeabe0fab5ccf82db0",
+    "current-state-facts.schema.json": "5bff8cd98eb5d53f2038926610a48ca3f0a8c499d9b9c75373cc1119bfc79e9b"
+  }
+}

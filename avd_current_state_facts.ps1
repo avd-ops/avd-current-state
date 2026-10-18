@@ -557,6 +557,41 @@ function Find-Leak {
 
 # endregion
 
+function Get-PointerValue {
+    # Every value a JSON pointer names, with * for every array item. Missing steps give nothing.
+    param([object]$Node, [string]$Pointer)
+    $current = @(, $Node)
+    foreach ($seg in ($Pointer.Trim('/') -split '/')) {
+        $next = New-Object System.Collections.Generic.List[object]
+        foreach ($n in $current) {
+            if ($null -eq $n) { continue }
+            if ($seg -eq '*') { foreach ($item in @($n)) { $next.Add($item) } }
+            else { $v = Get-Prop $n $seg; if ($null -ne $v) { $next.Add($v) } }
+        }
+        $current = $next.ToArray()
+    }
+    return , $current
+}
+
+function Get-ManifestCoverage {
+    # Which design decisions of a target-state manifest (avd-second-brain C14) this snapshot can
+    # support, from the fact register (C15): a decision counts when the register says Azure-side
+    # facts can decide it and at least one built C11 fact for it has data in this snapshot.
+    param([object]$Snapshot, [object]$Register)
+    $supported = @(); $needs = @()
+    foreach ($d in @($Register.decisions)) {
+        $has = $false
+        if (@($d.decidableFrom) -contains 'azure') {
+            foreach ($f in @($Register.facts | Where-Object { $_.contract -eq 'C11' -and $_.status -eq 'built' -and @($_.evidences) -contains $d.id })) {
+                $values = @(Get-PointerValue -Node $Snapshot -Pointer $f.path | Where-Object { $null -ne $_ -and -not ($_ -is [array] -and $_.Count -eq 0) })
+                if ($values.Count) { $has = $true; break }
+            }
+        }
+        if ($has) { $supported += $d.label } else { $needs += $d.label }
+    }
+    [pscustomobject]@{ Total = @($Register.decisions).Count; Supported = $supported; Needs = $needs }
+}
+
 # region Main
 
 try {
@@ -666,6 +701,17 @@ try {
 
     Write-FactsLog "Facts snapshot: $outFile"
     Write-FactsLog "  $($subscriptions.Count) subscription(s), $(@($subscriptions | ForEach-Object { $_.hostPools }).Count) host pool(s), $($validations.Count) validator run(s), $($script:RedactedValues) value(s) redacted."
+    # The upsell (avd-readiness-stratusphere boundaries spec §5): what this snapshot can and can't decide.
+    $registerFile = Join-Path $PSScriptRoot 'contracts/fact-register.json'
+    if (Test-Path -LiteralPath $registerFile) {
+        $coverage = Get-ManifestCoverage -Snapshot ($json | ConvertFrom-Json) -Register (Get-Content -LiteralPath $registerFile -Raw | ConvertFrom-Json)
+        $line = "Manifest coverage: $($coverage.Supported.Count) of $($coverage.Total) design decisions can come from this snapshot"
+        if ($coverage.Supported.Count) { $line += " ($(($coverage.Supported | ForEach-Object { $_.ToLowerInvariant() }) -join ', '))" }
+        Write-FactsLog "$line."
+        if ($coverage.Needs.Count) {
+            Write-FactsLog "  $(($coverage.Needs -join ', ')) need measured usage: avd-readiness-stratusphere turns a 2-4 week Stratusphere UX window into a deployment-ready manifest (https://github.com/nickprignano/avd-readiness-stratusphere)."
+        }
+    }
     Write-Output $outFile
 } finally {
     foreach ($dir in $script:TempDirs) { if (Test-Path -LiteralPath $dir) { Remove-Item -LiteralPath $dir -Recurse -Force -ErrorAction SilentlyContinue } }
