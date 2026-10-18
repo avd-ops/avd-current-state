@@ -701,7 +701,7 @@ try {
 
     Write-FactsLog "Facts snapshot: $outFile"
     Write-FactsLog "  $($subscriptions.Count) subscription(s), $(@($subscriptions | ForEach-Object { $_.hostPools }).Count) host pool(s), $($validations.Count) validator run(s), $($script:RedactedValues) value(s) redacted."
-    # The upsell (avd-readiness-stratusphere boundaries spec §5): what this snapshot can and can't decide.
+    # The upsell (avd-readiness-stratusphere boundaries spec section 5): what this snapshot can and can't decide.
     $registerFile = Join-Path $PSScriptRoot 'contracts/fact-register.json'
     if (Test-Path -LiteralPath $registerFile) {
         $coverage = Get-ManifestCoverage -Snapshot ($json | ConvertFrom-Json) -Register (Get-Content -LiteralPath $registerFile -Raw | ConvertFrom-Json)
