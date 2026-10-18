@@ -266,7 +266,7 @@ function Add-KnownNamesFrom {
 
 # region Facts
 
-function Get-SubscriptionFacts {
+function Get-SubscriptionFact {
     param([string]$Directory, [string]$SubscriptionId, [string]$CollectedUtc)
 
     $ds = @{}
@@ -423,7 +423,8 @@ function Get-SubscriptionFacts {
 
     $counts = [ordered]@{}
     foreach ($n in ($ds.Keys | Sort-Object)) {
-        $key = ($n -split '-' | ForEach-Object -Begin { $i = 0 } -Process { if ($i++ -eq 0) { $_ } else { $_.Substring(0, 1).ToUpperInvariant() + $_.Substring(1) } }) -join ''
+        # resource-groups -> resourceGroups
+        $key = [regex]::Replace($n, '-([a-z])', { param($m) $m.Groups[1].Value.ToUpperInvariant() })
         $counts[$key] = $ds[$n].Count
     }
 
@@ -472,7 +473,7 @@ function Get-SubscriptionFacts {
     }
 }
 
-function Get-ValidationFacts {
+function Get-ValidationFact {
     param($Package, [hashtable]$Targets)
     $m = $Package.Manifest
     $subId = "$(Get-Prop $m 'SubscriptionId' '')"
@@ -602,7 +603,7 @@ try {
         # Same folder naming as the collector's Sanitize-FolderName
         $folder = Join-Path $p.Directory ($subName -replace '[^\w\-\.\s]', '_' -replace '\s+', '_')
         if (-not (Test-Path -LiteralPath $folder)) { Write-FactsLog "A subscription folder is missing from $($p.Name); skipped." -Level WARN; continue }
-        $facts = Get-SubscriptionFacts -Directory $folder -SubscriptionId $id -CollectedUtc $p.GeneratedUtc
+        $facts = Get-SubscriptionFact -Directory $folder -SubscriptionId $id -CollectedUtc $p.GeneratedUtc
 
         $targets = @{}
         foreach ($hp in @(Read-Dataset -Directory $folder -Name 'avd-host-pools')) { $targets["$(Get-Prop $hp 'Name' '')".ToLowerInvariant()] = Get-Pseudonym 'hp' (Get-Prop $hp 'Id' '') }
@@ -621,7 +622,7 @@ try {
         $subId = ($k -split '\|')[0]
         $targets = @{}
         if ($targetsBySub.ContainsKey($subId)) { $targets = $targetsBySub[$subId] }
-        $validations += Get-ValidationFacts -Package $latestVal[$k] -Targets $targets
+        $validations += Get-ValidationFact -Package $latestVal[$k] -Targets $targets
     }
 
     # Check names are code literals with few exceptions; one that carries a collected name is redacted.
