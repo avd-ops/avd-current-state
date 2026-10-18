@@ -3,6 +3,10 @@ avd-current-state-*/
 avd-validation-*/
 *.zip
 
+# Facts snapshots (redacted, but still one estate's data) and the estate's pseudonymization key
+avd-current-state-facts-*.json
+*.key
+
 # Local validator config -- holds real subscription IDs and resource names.
 # The committed template is avd-validation.config.example.json.
 avd-validation.config.json
@@ -23,3 +27,6 @@ Desktop.ini
 *~
 .vscode/
 .idea/
+
+# Pester output
+testResults.xml

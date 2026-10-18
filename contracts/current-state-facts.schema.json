@@ -1,0 +1,253 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "avd-current-state-facts/v1: a redacted current-state snapshot of one estate",
+  "description": "Contract C11. Produced offline by avd-current-state's avd_current_state_facts.ps1 from collector and validator packages; read by scripts/Import-CurrentStateFacts.ps1 into the estate's facts store, where the brain's agents read it and avd-swarm sees it only through the brain. No field holds a name, an ID, an IP address, a tag or free text: values are counts, booleans, public Azure values and keyed pseudonyms.",
+  "type": "object",
+  "required": ["schema", "estate", "generatedUtc", "producer", "sources", "subscriptions", "validations", "redactedValues"],
+  "additionalProperties": false,
+  "$defs": {
+    "utc": { "type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$" },
+    "count": { "type": "integer", "minimum": 0 },
+    "region": { "type": "string", "pattern": "^[a-z0-9]{2,40}$" },
+    "word": { "type": "string", "pattern": "^[A-Za-z]{2,40}$" },
+    "flag": { "type": ["boolean", "null"] },
+    "countMap": {
+      "type": "object",
+      "propertyNames": { "pattern": "^[A-Za-z0-9][A-Za-z0-9 ._/+()-]{0,63}$" },
+      "additionalProperties": { "type": "integer", "minimum": 0 }
+    },
+    "subscriptionId": { "type": "string", "pattern": "^sub-[0-9a-f]{8}$" },
+    "hostPoolId": { "type": "string", "pattern": "^hp-[0-9a-f]{8}$" },
+    "storageId": { "type": "string", "pattern": "^st-[0-9a-f]{8}$" },
+    "vmSize": { "type": "string", "pattern": "^Standard_[A-Za-z0-9_]{1,40}$" },
+    "imagePart": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$" }
+  },
+  "properties": {
+    "schema": { "const": "avd-current-state-facts/v1" },
+    "estate": { "type": "string", "pattern": "^est-[0-9a-f]{8}$", "description": "Keyed pseudonym of the tenant" },
+    "generatedUtc": { "$ref": "#/$defs/utc" },
+    "producer": {
+      "type": "object",
+      "required": ["name", "version"],
+      "additionalProperties": false,
+      "properties": {
+        "name": { "const": "avd_current_state_facts.ps1" },
+        "version": { "type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$" }
+      }
+    },
+    "sources": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["kind", "generatedUtc", "manifestSha256"],
+        "additionalProperties": false,
+        "properties": {
+          "kind": { "enum": ["collector", "validator"] },
+          "generatedUtc": { "$ref": "#/$defs/utc" },
+          "manifestSha256": { "type": "string", "pattern": "^[0-9a-f]{64}$", "description": "Ties the snapshot to the package in the vault without naming it" }
+        }
+      }
+    },
+    "subscriptions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "collectedUtc", "regions", "counts", "hostPools", "virtualMachines", "storageAccounts", "network", "keyVaults", "logAnalytics", "policy", "roleAssignments"],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "$ref": "#/$defs/subscriptionId" },
+          "collectedUtc": { "$ref": "#/$defs/utc" },
+          "regions": { "type": "array", "items": { "$ref": "#/$defs/region" } },
+          "counts": {
+            "type": "object",
+            "propertyNames": { "pattern": "^[a-z][A-Za-z]{1,40}$" },
+            "additionalProperties": { "$ref": "#/$defs/count" }
+          },
+          "hostPools": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["id", "region", "type", "loadBalancer", "maxSessionLimit", "sessionHosts"],
+              "additionalProperties": false,
+              "properties": {
+                "id": { "$ref": "#/$defs/hostPoolId" },
+                "region": { "type": "string", "pattern": "^([a-z0-9]{2,40}|other|unknown)$" },
+                "type": { "$ref": "#/$defs/word" },
+                "loadBalancer": { "$ref": "#/$defs/word" },
+                "preferredAppGroupType": { "$ref": "#/$defs/word" },
+                "maxSessionLimit": { "type": ["integer", "null"], "minimum": 0 },
+                "validationEnvironment": { "$ref": "#/$defs/flag" },
+                "startVmOnConnect": { "$ref": "#/$defs/flag" },
+                "rdpProperties": { "type": "array", "items": { "type": "string", "pattern": "^[a-z][a-z0-9 ]{1,40}$" }, "description": "Property names only, never values" },
+                "appGroups": { "$ref": "#/$defs/countMap" },
+                "sessionHosts": {
+                  "type": "object",
+                  "required": ["total", "status"],
+                  "additionalProperties": false,
+                  "properties": {
+                    "total": { "$ref": "#/$defs/count" },
+                    "status": { "$ref": "#/$defs/countMap" },
+                    "allowNewSession": { "$ref": "#/$defs/count" },
+                    "assigned": { "$ref": "#/$defs/count" },
+                    "sessions": { "$ref": "#/$defs/count" },
+                    "staleHeartbeat": { "$ref": "#/$defs/count", "description": "Hosts whose last heartbeat was over 30 minutes before the collector run" },
+                    "agentVersions": { "$ref": "#/$defs/countMap" },
+                    "sxsStackVersions": { "$ref": "#/$defs/countMap" },
+                    "osVersions": { "$ref": "#/$defs/countMap" },
+                    "updateStates": { "$ref": "#/$defs/countMap" }
+                  }
+                },
+                "vmSizes": { "$ref": "#/$defs/countMap" },
+                "images": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "required": ["publisher", "hosts"],
+                    "additionalProperties": false,
+                    "properties": {
+                      "publisher": { "$ref": "#/$defs/imagePart", "description": "'custom' for a gallery or managed image, whose name is never copied" },
+                      "offer": { "$ref": "#/$defs/imagePart" },
+                      "sku": { "$ref": "#/$defs/imagePart" },
+                      "hosts": { "$ref": "#/$defs/count" }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "virtualMachines": {
+            "type": "object",
+            "required": ["total"],
+            "additionalProperties": false,
+            "properties": {
+              "total": { "$ref": "#/$defs/count" },
+              "sizes": { "$ref": "#/$defs/countMap" },
+              "powerStates": { "$ref": "#/$defs/countMap" },
+              "osTypes": { "$ref": "#/$defs/countMap" }
+            }
+          },
+          "storageAccounts": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["id"],
+              "additionalProperties": false,
+              "properties": {
+                "id": { "$ref": "#/$defs/storageId" },
+                "region": { "type": "string", "pattern": "^([a-z0-9]{2,40}|other|unknown)$" },
+                "kind": { "type": "string", "pattern": "^[A-Za-z0-9]{2,40}$" },
+                "sku": { "type": "string", "pattern": "^[A-Za-z0-9_]{2,40}$" },
+                "httpsOnly": { "$ref": "#/$defs/flag" },
+                "minimumTls": { "type": "string", "pattern": "^(TLS[0-9_]{1,6}|other|unknown)$" },
+                "blobPublicAccess": { "$ref": "#/$defs/flag" },
+                "networkDefaultAction": { "type": "string", "pattern": "^[A-Za-z]{2,20}$" },
+                "largeFileShares": { "type": "string", "pattern": "^[A-Za-z]{2,20}$" },
+                "privateEndpoint": { "type": "boolean" }
+              }
+            }
+          },
+          "network": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "virtualNetworks": { "$ref": "#/$defs/count" },
+              "customDnsVirtualNetworks": { "$ref": "#/$defs/count" },
+              "ddosProtectedVirtualNetworks": { "$ref": "#/$defs/count" },
+              "subnets": { "$ref": "#/$defs/count" },
+              "subnetsWithNsg": { "$ref": "#/$defs/count" },
+              "subnetsWithRouteTable": { "$ref": "#/$defs/count" },
+              "subnetDelegations": { "$ref": "#/$defs/countMap" },
+              "defaultRoutes": { "$ref": "#/$defs/countMap", "description": "Route tables' 0.0.0.0/0 routes by next hop type" },
+              "publicIps": { "$ref": "#/$defs/count" },
+              "privateEndpoints": { "$ref": "#/$defs/countMap", "description": "By group ID (file, blob, ...)" }
+            }
+          },
+          "keyVaults": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "total": { "$ref": "#/$defs/count" },
+              "softDelete": { "$ref": "#/$defs/count" },
+              "purgeProtection": { "$ref": "#/$defs/count" }
+            }
+          },
+          "logAnalytics": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "total": { "$ref": "#/$defs/count" },
+              "retentionDays": { "$ref": "#/$defs/countMap" }
+            }
+          },
+          "policy": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "assignments": { "$ref": "#/$defs/count" },
+              "doNotEnforce": { "$ref": "#/$defs/count" }
+            }
+          },
+          "roleAssignments": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "roles": { "$ref": "#/$defs/countMap", "description": "Built-in roles from the producer's allowlist; every other role, custom roles included, is 'other'" },
+              "objectTypes": { "$ref": "#/$defs/countMap" }
+            }
+          }
+        }
+      }
+    },
+    "validations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["subscription", "mode", "generatedUtc", "verdict", "checks"],
+        "additionalProperties": false,
+        "properties": {
+          "subscription": { "$ref": "#/$defs/subscriptionId" },
+          "mode": { "type": "string", "pattern": "^[A-Za-z]{2,30}$" },
+          "generatedUtc": { "$ref": "#/$defs/utc" },
+          "verdict": { "type": "string", "pattern": "^[A-Z]{2,10}$" },
+          "counts": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "fail": { "$ref": "#/$defs/count" },
+              "warn": { "$ref": "#/$defs/count" },
+              "pass": { "$ref": "#/$defs/count" },
+              "info": { "$ref": "#/$defs/count" },
+              "skip": { "$ref": "#/$defs/count" }
+            }
+          },
+          "inputs": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "region": { "$ref": "#/$defs/region" },
+              "sessionHostCount": { "type": "integer", "minimum": 1 },
+              "sessionHostVmSize": { "$ref": "#/$defs/vmSize" }
+            }
+          },
+          "checks": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["phase", "category", "check", "status"],
+              "additionalProperties": false,
+              "properties": {
+                "phase": { "$ref": "#/$defs/word" },
+                "category": { "$ref": "#/$defs/word" },
+                "check": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9 ._:/()+,'-]{0,99}$", "description": "The validator's check name; 'redacted' when it held a collected name" },
+                "status": { "enum": ["PASS", "WARN", "FAIL", "INFO", "SKIP", "other"] },
+                "target": { "type": "string", "pattern": "^(sub|hp|st)-[0-9a-f]{8}$", "description": "The pseudonym of what the check looked at, when it is a subscription, host pool or storage account in this snapshot. The scope's name and the detail are never copied" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "redactedValues": { "$ref": "#/$defs/count", "description": "Values the producer replaced with 'other' or 'redacted' because they didn't match their field's pattern" }
+  }
+}

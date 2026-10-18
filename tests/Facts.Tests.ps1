@@ -1,0 +1,153 @@
+#requires -Modules @{ ModuleName = 'Pester'; ModuleVersion = '5.0.0' }
+# Offline tests for avd_current_state_facts.ps1 (contract C11 in avd-second-brain). The fixture
+# packages are full of things that must never reach the snapshot: names, IDs, a UPN, IPs, tags.
+
+BeforeAll {
+  $script:root = Split-Path $PSScriptRoot -Parent
+  $script:facts = Join-Path $script:root 'avd_current_state_facts.ps1'
+  $script:schema = Join-Path $script:root 'contracts/current-state-facts.schema.json'
+
+  $script:tenant = 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee'
+  $script:subId = '11111111-2222-4333-8444-555555555555'
+  $script:hpId = "/subscriptions/$($script:subId)/resourceGroups/rg-contoso-avd/providers/Microsoft.DesktopVirtualization/hostpools/hp-contoso-finance"
+  $script:stId = "/subscriptions/$($script:subId)/resourceGroups/rg-contoso-avd/providers/Microsoft.Storage/storageAccounts/stcontosoprofiles"
+  $script:secrets = @('contoso', 'hp-contoso-finance', 'stcontosoprofiles', 'rg-contoso-avd', 'Contoso Production',
+    'jane.doe', '10.20.30.40', '52.168.1.10', $script:tenant, $script:subId, 'avdhost-0', 'CostCenter', 'Finance Team')
+
+  function Write-TestJson { param($Path, $Data) New-Item -ItemType Directory -Force (Split-Path $Path) | Out-Null; ConvertTo-Json -InputObject $Data -Depth 8 | Set-Content $Path }
+
+  function New-TestCollector {
+    param([string] $Dir, [string] $Stamp = '20261001T090000', [string] $Tenant = $script:tenant, [int] $Hosts = 3)
+    $pkg = Join-Path $Dir "avd-current-state-$Stamp"
+    $utc = "$($Stamp.Substring(0,4))-$($Stamp.Substring(4,2))-$($Stamp.Substring(6,2))T09:00:00Z"
+    Write-TestJson "$pkg/manifest.json" @{ PackageName = "avd-current-state-$Stamp"; GeneratedUtc = $utc; TenantId = $Tenant; Identity = 'jane.doe@contoso.com'
+      SubscriptionDetails = @(@{ SubscriptionName = 'Contoso Production'; SubscriptionId = $script:subId; Status = 'Collected' }) }
+    $sub = Join-Path $pkg 'Contoso_Production'
+    Write-TestJson "$sub/resource-groups.json" @(@{ ResourceGroupName = 'rg-contoso-avd'; Location = 'eastus2'; Tags = '{"CostCenter":"Finance Team"}' })
+    Write-TestJson "$sub/arm-resources.json" @(@{ Name = 'hp-contoso-finance'; ResourceGroupName = 'rg-contoso-avd'; Location = 'eastus2'; ResourceId = $script:hpId })
+    Write-TestJson "$sub/avd-host-pools.json" @(@{ Name = 'hp-contoso-finance'; ResourceGroupName = 'rg-contoso-avd'; Location = 'eastus2'; HostPoolType = 'Pooled'
+        LoadBalancerType = 'BreadthFirst'; PreferredAppGroupType = 'Desktop'; MaxSessionLimit = 12; ValidationEnvironment = $false; StartVMOnConnect = $true
+        CustomRdpProperty = 'drivestoredirect:s:;full address:s:10.20.30.40;audiocapturemode:i:1;'; Tags = '{"CostCenter":"Finance Team"}'; Id = $script:hpId })
+    Write-TestJson "$sub/avd-application-groups.json" @(@{ Name = 'ag-contoso-desktop'; ApplicationGroupType = 'Desktop'; HostPoolArmPath = $script:hpId; FriendlyName = 'Contoso desktop' })
+    $vmIds = 0..($Hosts - 1) | ForEach-Object { "/subscriptions/$($script:subId)/resourceGroups/rg-contoso-avd/providers/Microsoft.Compute/virtualMachines/avdhost-$_" }
+    Write-TestJson "$sub/avd-session-hosts.json" @(0..($Hosts - 1) | ForEach-Object {
+        @{ HostPool = 'hp-contoso-finance'; Name = "hp-contoso-finance/avdhost-$_.contoso.com"; ResourceId = $vmIds[$_]; Status = if ($_ -eq 0) { 'Unavailable' } else { 'Available' }
+          AllowNewSession = $true; AssignedUser = ''; Sessions = 2; LastHeartBeat = if ($_ -eq 0) { '2026-10-01T07:00:00Z' } else { $utc }
+          OSVersion = '10.0.22631'; SxSStackVersion = 'rdp-sxs240919001'; AgentVersion = '1.0.9742.2400'; UpdateState = 'Succeeded' } })
+    Write-TestJson "$sub/virtual-machines.json" @(0..($Hosts - 1) | ForEach-Object {
+        @{ Name = "avdhost-$_"; ResourceGroupName = 'rg-contoso-avd'; Location = 'eastus2'; VMSize = 'Standard_D4ads_v5'; OsType = 'Windows'
+          ImagePublisher = if ($_ -eq 0) { $null } else { 'MicrosoftWindowsDesktop' }; ImageOffer = 'office-365'; ImageSku = 'win11-23h2-avd-m365'
+          PowerState = 'VM running'; Tags = '{"Owner":"jane.doe@contoso.com"}'; Id = $vmIds[$_] } })
+    Write-TestJson "$sub/storage-accounts.json" @(@{ StorageAccountName = 'stcontosoprofiles'; Location = 'eastus2'; Kind = 'FileStorage'; SkuName = 'Premium_LRS'
+        EnableHttpsOnly = $true; MinimumTlsVersion = 'TLS1_2'; AllowBlobPublicAccess = $false; NetworkRuleDefaultAction = 'Deny'; LargeFileShares = 'Enabled'; Id = $script:stId })
+    Write-TestJson "$sub/private-endpoints.json" @(@{ Name = 'pe-stcontosoprofiles'; TargetResource = 'stcontosoprofiles'; GroupIds = 'file'; ConnectionStatus = 'Approved' })
+    Write-TestJson "$sub/virtual-networks.json" @(@{ Name = 'vnet-contoso'; AddressSpace = '10.20.0.0/16'; DnsServers = '10.20.30.40'; SubnetCount = 1; EnableDdosProtection = $false })
+    Write-TestJson "$sub/subnets.json" @(@{ Name = 'snet-contoso-hosts'; VNetName = 'vnet-contoso'; AddressPrefix = '10.20.30.0/24'; NSG = 'nsg-contoso'; RouteTable = 'rt-contoso'; Delegations = '' })
+    Write-TestJson "$sub/route-tables.json" @(@{ Name = 'rt-contoso'; Routes = 'to-firewall:0.0.0.0/0->VirtualAppliance' })
+    Write-TestJson "$sub/public-ips.json" @(@{ Name = 'pip-contoso'; IpAddress = '52.168.1.10' })
+    Write-TestJson "$sub/role-assignments.json" @(
+      @{ DisplayName = 'Jane Doe'; SignInName = 'jane.doe@contoso.com'; RoleDefinitionName = 'Desktop Virtualization User'; ObjectType = 'User'; ObjectId = '0f1e2d3c-4b5a-4968-8778-695a4b3c2d1e' }
+      @{ DisplayName = 'Contoso Ops'; RoleDefinitionName = 'Contoso Custom Operator'; ObjectType = 'Group'; ObjectId = '1f1e2d3c-4b5a-4968-8778-695a4b3c2d1e' })
+    Write-TestJson "$sub/policy-assignments.json" @(@{ DisplayName = 'Contoso allowed locations'; EnforcementMode = 'Default' })
+    Write-TestJson "$sub/log-analytics-workspaces.json" @(@{ Name = 'law-contoso'; RetentionDays = 30; CustomerId = '2f1e2d3c-4b5a-4968-8778-695a4b3c2d1e' })
+    $pkg
+  }
+
+  function New-TestValidator {
+    param([string] $Dir, [string] $Stamp = '20261002T090000')
+    $pkg = Join-Path $Dir "avd-validation-$Stamp"
+    Write-TestJson "$pkg/manifest.json" @{ PackageName = "avd-validation-$Stamp"; GeneratedUtc = '2026-10-02T09:00:00Z'; Mode = 'PostDeployment'; Verdict = 'FAIL'
+      TenantId = $script:tenant; SubscriptionId = $script:subId; SubscriptionName = 'Contoso Production'; Identity = 'jane.doe@contoso.com'
+      Counts = @{ Fail = 1; Warn = 1; Pass = 1; Info = 0; Skip = 0 }
+      Inputs = @{ Location = 'eastus2'; ResourceGroupName = 'rg-contoso-avd'; SessionHostCount = 3; SessionHostVmSize = 'Standard_D4ads_v5'; StorageAccountName = 'stcontosoprofiles' } }
+    Write-TestJson "$pkg/validation-results.json" @(
+      @{ Phase = 'PostDeployment'; Category = 'SessionHost'; Check = 'Heartbeat freshness'; Status = 'FAIL'; Scope = 'hp-contoso-finance'; Detail = 'avdhost-0 last seen 2h ago'; Recommendation = 'Check avdhost-0' }
+      @{ Phase = 'PostDeployment'; Category = 'Storage'; Check = 'Minimum TLS'; Status = 'PASS'; Scope = 'stcontosoprofiles'; Detail = '' }
+      @{ Phase = 'PostDeployment'; Category = 'Naming'; Check = 'Host pool hp-contoso-finance name'; Status = 'WARN'; Scope = 'rg-contoso-avd'; Detail = '' })
+    $pkg
+  }
+
+  function Invoke-Facts {
+    param([string[]] $Packages, [string] $Key, [switch] $NewKey, [string] $Out)
+    $file = & $script:facts -PackagePath $Packages -KeyPath $Key -NewKey:$NewKey -OutputPath $Out 6>$null
+    [pscustomobject]@{ Path = $file; Text = Get-Content -LiteralPath $file -Raw; Data = Get-Content -LiteralPath $file -Raw | ConvertFrom-Json }
+  }
+}
+
+Describe 'avd_current_state_facts.ps1' {
+  BeforeAll {
+    $script:pk = Join-Path $TestDrive 'packages'
+    New-TestCollector $script:pk | Out-Null
+    New-TestValidator $script:pk | Out-Null
+    $script:key = Join-Path $TestDrive 'vault/.brain/facts.key'
+    $script:run = Invoke-Facts -Packages $script:pk -Key $script:key -NewKey -Out (Join-Path $TestDrive 'out1')
+  }
+
+  It 'writes a snapshot that is valid avd-current-state-facts/v1' {
+    $errs = $null
+    Test-Json -Json $script:run.Text -SchemaFile $script:schema -ErrorVariable errs -ErrorAction SilentlyContinue | Should -BeTrue -Because "$errs"
+  }
+
+  It 'never copies a name, an ID, a UPN, an IP address or a tag' {
+    foreach ($s in $script:secrets) { $script:run.Text | Should -Not -Match ([regex]::Escape($s)) }
+  }
+
+  It 'keeps the facts the brain reasons with' {
+    $sub = $script:run.Data.subscriptions[0]
+    $sub.id | Should -Match '^sub-[0-9a-f]{8}$'
+    $hp = $sub.hostPools[0]
+    $hp.id | Should -Match '^hp-[0-9a-f]{8}$'
+    $hp.type | Should -Be 'Pooled'
+    $hp.maxSessionLimit | Should -Be 12
+    $hp.rdpProperties | Should -Be @('audiocapturemode', 'drivestoredirect', 'full address')
+    $hp.appGroups.Desktop | Should -Be 1
+    $hp.sessionHosts.total | Should -Be 3
+    $hp.sessionHosts.status.Unavailable | Should -Be 1
+    $hp.sessionHosts.staleHeartbeat | Should -Be 1
+    $hp.vmSizes.Standard_D4ads_v5 | Should -Be 3
+    @($hp.images | Where-Object publisher -eq 'custom').hosts | Should -Be 1
+    $sub.storageAccounts[0].privateEndpoint | Should -BeTrue
+    $sub.network.defaultRoutes.VirtualAppliance | Should -Be 1
+    $sub.roleAssignments.roles.'Desktop Virtualization User' | Should -Be 1
+    $sub.roleAssignments.roles.other | Should -Be 1
+  }
+
+  It 'points validator checks at pseudonyms and redacts a check name that holds a resource name' {
+    $v = $script:run.Data.validations[0]
+    $v.inputs.sessionHostCount | Should -Be 3
+    ($v.checks | Where-Object check -eq 'Heartbeat freshness').target | Should -Be $script:run.Data.subscriptions[0].hostPools[0].id
+    ($v.checks | Where-Object check -eq 'Minimum TLS').target | Should -Be $script:run.Data.subscriptions[0].storageAccounts[0].id
+    @($v.checks | Where-Object check -eq 'redacted').Count | Should -Be 1
+    $script:run.Data.redactedValues | Should -BeGreaterThan 0
+  }
+
+  It 'gives the same pseudonyms with the same key, and different ones with another key' {
+    $again = Invoke-Facts -Packages $script:pk -Key $script:key -Out (Join-Path $TestDrive 'out2')
+    $again.Data.subscriptions[0].hostPools[0].id | Should -Be $script:run.Data.subscriptions[0].hostPools[0].id
+    $again.Data.estate | Should -Be $script:run.Data.estate
+    $other = Invoke-Facts -Packages $script:pk -Key (Join-Path $TestDrive 'other.key') -NewKey -Out (Join-Path $TestDrive 'out3')
+    $other.Data.subscriptions[0].hostPools[0].id | Should -Not -Be $script:run.Data.subscriptions[0].hostPools[0].id
+  }
+
+  It 'refuses a missing key unless -NewKey is given' {
+    { & $script:facts -PackagePath $script:pk -KeyPath (Join-Path $TestDrive 'typo.key') -OutputPath $TestDrive 6>$null } | Should -Throw '*Key file not found*'
+  }
+
+  It 'uses the latest collector run and reads ZIPs' {
+    $dir = Join-Path $TestDrive 'zips'
+    New-TestCollector $dir -Stamp '20261001T090000' -Hosts 2 | Out-Null
+    $newer = New-TestCollector $dir -Stamp '20261008T090000' -Hosts 4
+    Compress-Archive -Path $newer -DestinationPath "$newer.zip"
+    Remove-Item $newer -Recurse
+    $r = Invoke-Facts -Packages $dir -Key $script:key -Out (Join-Path $TestDrive 'out4')
+    $r.Data.subscriptions[0].hostPools[0].sessionHosts.total | Should -Be 4
+    $r.Text | Should -Match '"collectedUtc": "2026-10-08T09:00:00Z"'
+  }
+
+  It 'refuses packages from more than one tenant' {
+    $dir = Join-Path $TestDrive 'two-tenants'
+    New-TestCollector $dir -Stamp '20261001T090000' | Out-Null
+    New-TestCollector $dir -Stamp '20261002T090000' -Tenant 'ffffffff-bbbb-4ccc-8ddd-eeeeeeeeeeee' | Out-Null
+    { & $script:facts -PackagePath $dir -KeyPath $script:key -OutputPath $TestDrive 6>$null } | Should -Throw '*tenants*'
+  }
+}
