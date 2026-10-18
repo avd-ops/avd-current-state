@@ -9,11 +9,12 @@ living knowledge base of the estate.
 |---|---|---|
 | [`avd_current_state_collector.ps1`](#current-state-collector) | Any time | *What is in this environment today?* Produces a portable evidence package. |
 | [`avd_deployment_validator.ps1`](#deployment-validator) | Before and after an AVD deployment | *Is this subscription ready to deploy, and did the deployment land correctly?* Produces a pass/fail report. |
+| [`avd_current_state_facts.ps1`](#facts-snapshot-for-the-brain-and-avd-swarm) | After a collector or validator run | *What can the brain's agents know about this estate?* Turns the packages into one redacted facts snapshot: counts, public values and pseudonyms, no names or IDs. |
 | [`avd_second_brain.ps1`](#second-brain) (in [avd-second-brain](https://github.com/nickprignano/avd-second-brain)) | After every collector or validator run | *What changed, what is still broken, and why is it built this way?* Keeps a Markdown knowledge base of the estate over time. |
 
 ## Read-Only by Design
 
-Both scripts perform discovery only:
+The collector and validator perform discovery only (the facts script reads only local files):
 
 - They call `Get-*` and `Test-*` cmdlets exclusively, and never invoke `New-*`, `Set-*`,
   `Update-*`, `Add-*`, `Remove-*`, `Restart-*`, `Start-*` or `Stop-*` against an Azure resource.
@@ -369,6 +370,51 @@ knowledge base, generalized, without tenant data. The vault itself still belongs
 
 A change to the packages' dataset names or fields is a contract change: avd-second-brain's
 `tests/Connectors.Tests.ps1` runs minimal collector and validator packages through the vault.
+
+---
+
+## Facts snapshot for the brain and avd-swarm
+
+The packages hold tenant data: subscription and object IDs, resource and user names, IP
+addresses, tags. They belong in the customer's private vault. `avd_current_state_facts.ps1`
+makes the form of the same evidence that [avd-second-brain](https://github.com/nickprignano/avd-second-brain)'s agents read and that
+[avd-swarm](https://github.com/nickprignano/avd-swarm) sees through the brain: the fact collection layer of both, defined as
+[contract C11](https://github.com/nickprignano/avd-second-brain/blob/main/docs/contracts.md) (`avd-current-state-facts/v1`). avd-swarm never consumes a
+package or a snapshot directly; the brain cites the facts, and avd-swarm's governance gate
+re-reads live state before any change.
+
+```powershell
+# First run for an estate: -NewKey creates the estate's pseudonymization key
+.\avd_current_state_facts.ps1 -PackagePath .\avd-current-state-20261015T091500, .\avd-validation-20261016T100000.zip `
+    -KeyPath ..\avd-brain\.brain\facts.key -NewKey
+
+# Later runs: the same key gives the same pseudonyms, so the brain sees trends
+.\avd_current_state_facts.ps1 -PackagePath D:\Assessments -KeyPath ..\avd-brain\.brain\facts.key
+```
+
+It reads the latest collector run per subscription and the latest validator run per
+subscription and mode, offline, and writes `avd-current-state-facts-<timestamp>.json`.
+
+| Kept | Never kept |
+|---|---|
+| Counts, booleans, regions, VM sizes, marketplace images, SKUs, agent and OS versions, built-in role names, validator check names and statuses | Names, resource and object IDs, user names, IP addresses, tags, RDP property values, check scopes, details and recommendations |
+| Subscriptions, host pools and storage accounts as keyed pseudonyms (`hp-3fa2c1d0`) | Custom role names (counted as `other`) |
+
+- **Pseudonyms** are HMAC-SHA256 of the resource ID with the estate's key. Keep the key with
+  the vault, never in a repository. Without the key and the IDs, a pseudonym can't be reversed.
+- **Fail closed.** A value that doesn't match its field's pattern becomes `other`; a check
+  name that contains a collected name becomes `redacted`. If anything that looks like a GUID,
+  an email address, a UNC path or an IP address still gets through, the script refuses to
+  write the snapshot.
+- **One tenant per snapshot.** Packages from two tenants are refused.
+
+The brain checks the snapshot again and files it in the vault:
+`scripts/Import-CurrentStateFacts.ps1 -FactsPath <snapshot> -VaultPath <vault> -Apply`.
+
+`contracts/current-state-facts.schema.json` is a copy of the brain's schema, which is the
+authority. A change to it is a contract change in three repos: avd-second-brain, this one
+and avd-swarm. The tests (`tests/Facts.Tests.ps1`, Pester, offline) build packages full of
+names, IDs and addresses and check that none reach the snapshot.
 
 ---
 

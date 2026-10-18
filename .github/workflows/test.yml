@@ -1,0 +1,33 @@
+name: test
+
+# Offline checks on every PR and on main: script analysis and Pester tests for the facts
+# snapshot (contract C11). Read-only; nothing here calls Azure.
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  facts:
+    name: Facts snapshot analysis + tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: PSScriptAnalyzer
+        shell: pwsh
+        run: |
+          Set-PSRepository PSGallery -InstallationPolicy Trusted
+          Install-Module PSScriptAnalyzer -Scope CurrentUser -Force
+          Invoke-ScriptAnalyzer -Path ./avd_current_state_facts.ps1 -Settings ./PSScriptAnalyzerSettings.psd1 -EnableExit
+
+      - name: Pester
+        shell: pwsh
+        run: |
+          Install-Module Pester -MinimumVersion 5.5.0 -Scope CurrentUser -Force -SkipPublisherCheck
+          Invoke-Pester -Path ./tests -CI -Output Detailed
