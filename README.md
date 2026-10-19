@@ -5,6 +5,14 @@ Commercial. The collector and validator read through Azure Resource Manager and 
 nothing. Their evidence packages feed [avd-second-brain](https://github.com/nickprignano/avd-second-brain), which turns them into a
 living knowledge base of the estate.
 
+> [!WARNING]
+> **Personal project. Research and learning only. Not for production. No warranty.**
+>
+> - This is my own personal project, built on my own time **for research and learning**. It is **not affiliated with, endorsed by or supported by my employer**, and it does not represent my employer's views, products or guidance. It is not an official Microsoft product, and it is not a certified or supported tool.
+> - The scripts only read, but review the code and try them on a lab subscription first, before pointing them at subscriptions that matter. Their output is not a production-readiness certification, a compliance attestation or a security audit.
+> - It is provided **"as is", without warranty of any kind**, under the [MIT License](LICENSE). You use it at your own risk. You are responsible for where you run it and for what you do with its output.
+> - **Contributions and forks are welcome and encouraged.** See [Contributing](#contributing).
+
 | Script | When to run | What it answers |
 |---|---|---|
 | [`avd_current_state_collector.ps1`](#current-state-collector) | Any time | *What is in this environment today?* Produces a portable evidence package. |
@@ -490,6 +498,12 @@ avd-second-brain's fact register (contract C15), pinned with the schema in `cont
 
 ---
 
+## Contributing
+
+Contributions and forks are welcome and encouraged. Fork it and make it your own, or send back what you learn: open an issue for a bug, a question or an idea, or a pull request with a fix, a test, a doc or a lesson from a real run. Small pull requests are easiest to review.
+
+Before you open one, run the Pester tests in `tests/` and PSScriptAnalyzer as the [test workflow](.github/workflows/test.yml) does. Keep tenant data, IDs and secrets out of the repo, issues and pull requests. By contributing, you agree your contributions are licensed under the repo's [MIT License](LICENSE).
+
 ## License
 
-This project is licensed under the [MIT License](LICENSE).
+This project is licensed under the [MIT License](LICENSE), provided "as is", without warranty of any kind.
