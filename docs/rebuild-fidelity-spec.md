@@ -80,9 +80,14 @@ This is the collector's move to Resource Graph (avd-second-brain `docs/assess-sp
 - **Read-only still holds, with one wording change.** Resource Graph queries are `POST` requests that only read. The README's read-only section changes from "Get-* and Test-* only" to name that one exception explicitly.
 - **Windows PowerShell 5.1 and PowerShell 7**, as today. `Invoke-AzRestMethod` is in Az.Accounts; no new module.
 
-### 5.1 Package layout: additive only
+### 5.1 Package layout: one read, both forms (owner, 2026-10-20)
 
-New files go under a `rebuild/` folder per subscription: one JSON file per resource type (`rebuild/resources/microsoft.desktopvirtualization-scalingplans.json`) and one per REST read (`rebuild/rest/diagnostic-settings.json`). The 22 existing datasets and their columns don't change, and the facts script never opens `rebuild/` (a test proves its output is byte-identical with and without the folder). Version 1 may later read the existing datasets from the same rows, but that's a refactor for after the parity test passes, not part of this spec.
+The collector reads each in-scope type once, through Resource Graph or REST, and writes it twice:
+
+- **Full objects** under a `rebuild/` folder per subscription: one JSON file per resource type (`rebuild/resources/microsoft.desktopvirtualization-scalingplans.json`) and one per REST read (`rebuild/rest/diagnostic-settings.json`).
+- **The existing datasets, rebuilt from the same rows.** The 22 CSV and JSON datasets keep their file names and columns, so the facts script, the vault and anyone reading the CSVs keep working, but their values now come from the saved rows instead of separate cmdlet calls. Where a cmdlet's reshaped value and the ARM property differ (power state, a joined list), the dataset keeps its column and documents the ARM path it maps from; a test pins each column to its path.
+
+The facts script never opens `rebuild/`. Its tests keep their fixtures; a new test runs it on a package produced from Resource Graph fixture rows and checks the snapshot against the one the cmdlet-shaped fixture gives.
 
 ### 5.2 What is never collected
 
@@ -143,12 +148,12 @@ No new pseudonym kind is needed: every proposal hangs off a subscription, host p
 
 - **ARI is not a rebuild source.** Its inventory is Excel with no JSON, and it doesn't read scaling plan schedules, SMB settings, diagnostic settings, Run Command parameters or extension settings. Inventory parity with ARI wouldn't give a rebuild; it would give a wider list of resources at the wrong depth.
 - **The scope allowlist resolves "don't build a general inventory".** The collector goes deep on what a landing zone rebuild needs and nowhere else; ARI stays the pointer for everything else (avd-assess collection step 7) and the engine of the opt-in diagram (draft PR #13).
-- **One read, two consumers.** The diagram step reads Resource Graph itself today (it must not need collector changes). Once `rebuild/` exists, the diagram step can read the same saved rows instead of querying again, so the two never disagree about what was there. That stays optional: the diagram step keeps its own read for packages made before this change.
-- **D18 wording.** D18 says the collector's package format doesn't change. This spec changes it additively (section 5.1). Section 9 asks the owner to restate D18 as "existing datasets don't change; additions only".
+- **One read, many consumers.** The datasets, the full objects and, optionally, the diagram step all come from the same saved rows, so they never disagree about what was there. The diagram step keeps its own read for packages made before this change.
+- **D18 restated (owner, 2026-10-20).** D18 said the collector's package format doesn't change. The owner chose to change it: the collector moves to Resource Graph now and rebuilds its existing datasets from those rows (section 5.1). What stays from D18: ARI is an opt-in step that the collector, the validator and C11 never require.
 
 ## 9. Decisions for the owner
 
-1. **D18: additive package change.** Default: yes, new files under `rebuild/` only, existing datasets and C11 untouched.
+1. **D18: package change.** Decided (owner, 2026-10-20): the collector rebuilds its existing datasets from Resource Graph rows and adds the full objects; file names and columns stay; C11 is unchanged.
 2. **In-guest settings on hosts the landing zone didn't build.** Default: `unknown` in version 1. Options for later: an opt-in Run Command reader (an action on hosts, so it would go through avd-swarm's approval when the brain is in use, and stand alone otherwise), or an opt-in Graph read of Intune configuration.
 3. **Where the landing zone parameter list comes from.** Default: this repo keeps `rebuild/lz-parameters.json` (name, type, default, allowed values) with the avd-landing-zone commit it was taken from, and a CI job fails when that commit's `main.bicep` has parameters the file doesn't list. The pair stays self-contained: the file is a pinned copy, and the landing zone never reads this repo.
 4. **Who generates the parameter file later.** Default (not version 1): avd-landing-zone reads a rebuild map from this repo the way it reads C14 today ("read, never trusted"), so generation sits beside `ConvertFrom-AvdTargetState.ps1`.
@@ -277,7 +282,7 @@ All offline until the last step.
 | Phase | What |
 |---|---|
 | 0 | This spec (draft PR) |
-| 1 | Resource Graph and REST reader, `rebuild/scope.json`, the never-collect scrubber and scan, the additive `rebuild/` package files, tests; facts output proven unchanged |
+| 1 | Resource Graph and REST reader, `rebuild/scope.json`, the never-collect scrubber and scan, the `rebuild/` package files, the existing datasets rebuilt from the same rows, tests; facts output proven unchanged |
 | 2 | `rebuild/lz-parameters.json` with its pin and CI check; `Get-LzRebuildMap` and the round-trip fixtures; a private `rebuild-map.json` in the package and a coverage line in the summary |
 | 3 | The paired C11 and fact register change in section 7 (avd-second-brain first) |
 | 4 | Optional: the diagram step reads the saved rows |
