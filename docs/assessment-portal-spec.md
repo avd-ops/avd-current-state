@@ -120,13 +120,15 @@ All offline until the last.
 
 Phase 3 waits on the check catalog (option A) for remediation hints; until then a plan item names the claim and says `manual`.
 
-## 8. Decisions for the owner
+## 8. Decisions
 
-1. **Promote the deployment portal's components to avd-ops** so both portals share them, rather than this page copying the landing zone's. Recommended (it keeps code flowing one way between the pair).
-2. **C23 and C24 as their own contracts** in avd-assess (C22 is reserved for the check catalog). Recommended, rather than folding the review into C21: a review is a person's decision about a report, and pinning the report's hash keeps them apart.
-3. **Heredoc blocks to move `intake.json` and `review.json` into Cloud Shell**, rather than asking the operator to upload files. Recommended: it is one paste, works on an iPad, and the content is structured values only.
-4. **The page path:** `site/portal/` on this repo's Pages (`nickprignano.github.io/avd-current-state/portal/`), linked from avd-ops.dev. Recommended.
-5. **Report a problem:** the landing zone's redaction (`report.js`) can't be copied here under the one-way rule. Recommended: move its core into avd-ops as a shared script both portals vendor, in phase 4; until then the page has no report button.
+The owner accepted all five recommendations on 2026-10-20.
+
+1. **Promote the deployment portal's components to avd-ops** so both portals share them, rather than this page copying the landing zone's. Decided: it keeps code flowing one way between the pair.
+2. **C23 and C24 as their own contracts** in avd-assess (C22 is reserved for the check catalog). Decided, rather than folding the review into C21: a review is a person's decision about a report, and pinning the report's hash keeps them apart.
+3. **Heredoc blocks to move `intake.json` and `review.json` into Cloud Shell**, rather than asking the operator to upload files. Decided: it is one paste, works on an iPad, and the content is structured values only.
+4. **The page path:** `site/portal/` on this repo's Pages (`nickprignano.github.io/avd-current-state/portal/`), linked from avd-ops.dev. Decided.
+5. **Report a problem:** the landing zone's redaction (`report.js`) can't be copied here under the one-way rule. Decided: move its core into avd-ops as a shared script both portals vendor, in phase 4; until then the page has no report button.
 
 ## References
 
