@@ -53,7 +53,7 @@ ARI's Advisor cost page is not carried over, because it isn't topology.
 
 The full Resource Graph objects the collector saves under `rebuild/resources/` (draft PR #15), and nothing else. The diagram and the collector's datasets therefore come from one read and never disagree.
 
-The collector's `rebuild/scope.json` already covers VNets (with subnets and peerings), NICs, VMs, private endpoints, NSGs, route tables, NAT gateways, public IPs, resource groups and the AVD objects. The parity list also needs gateways and connections, local network gateways, ExpressRoute circuits, Virtual WAN and hubs, VPN sites, firewalls, Bastion, load balancers, application gateways, scale sets, AKS and the management group chain. **These belong in the collector as inventory**, since the owner wants our own inventory, not a second read path in the diagram step. That is a change to `scope.json` for the collector's thread to make, with `serves` naming "diagram" or "inventory" where no landing zone parameter applies. Until those types are there, the diagram draws what the package has and lists what it couldn't draw in `diagram-report.json`.
+Files are `<subscription>/rebuild/resources/<type>.json`, one per Resource Graph type. The collector's `rebuild/scope.json` covers the rebuild types (VNets with subnets and peerings, NICs, VMs, private endpoints, NSGs, route tables, NAT gateways, public IPs, resource groups, the AVD objects) and, tagged `inventory:diagram`, the rest of the parity list: virtual network gateways, connections, local network gateways, ExpressRoute circuits, Virtual WAN and hubs, VPN sites, Azure Firewall, Bastion, load balancers, application gateways, VM scale sets and AKS (draft PR #15). The management group tree comes from `properties.managementGroupAncestorsChain` on the subscription rows. **That property is unconfirmed until the sandbox run**; if it's missing, the org page shows subscriptions without a tree and the report says so. DNS Private Resolver isn't in the scope yet. Whatever type the package lacks, the diagram draws what it has and lists the missing types in `diagram-report.json`, never failing silently.
 
 ## 4. Redaction
 
@@ -120,7 +120,7 @@ Nothing goes to microsoft/ARI now. The spoke-held broken peering and the private
 |---|---|---|---|
 | 0 | This spec | None | $0 |
 | 1 | Writer, redaction, icon pack converter, `estate.html`, checks, Pester on the fake estate | None | $0 |
-| 2 | Collector scope additions for the parity types (collector's thread) | None | $0 |
+| 2 | Collector scope additions for the parity types: done in #15 (`inventory:diagram`); DNS Private Resolver still to add | None | $0 |
 | 3 | Draw from a sandbox collector run. Needs a written cost estimate and the owner's go first | Read only, through the collector | Estimate first |
 | 4 | avd-ops page with a sample diagram (open icons) | None | $0 |
 
