@@ -6,6 +6,7 @@ All notable changes, in the format of [Keep a Changelog](https://keepachangelog.
 
 ### Added
 
+- The validator's image checks report the Windows Desktop Optimization Tool (WDOT) pin a gallery image version records (`avdlz-wdot`, `avdlz-wdot-profile` tags), and recommend WDOT when none is recorded.
 - The second brain's docs consistency check on every PR (`.github/workflows/docs.yml`, pinned), reference pages for the entry points in `docs/reference/`, and the README's entry point table.
 
 ### Changed

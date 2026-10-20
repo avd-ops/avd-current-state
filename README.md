@@ -321,7 +321,7 @@ always win. Keys beginning with `_` are treated as comments.
 | Policy | Allowed-locations and allowed-SKU policies compared against the target, deny-effect assignment sweep, unexpanded initiative count |
 | Network | VNet existence and region match, custom DNS for domain join, peering health, subnet existence, usable IP capacity vs. host count plus buffer, subnet delegation, outbound egress path (NAT gateway / forced tunneling / no default route), NSG rules that would block outbound 443 to the AVD control plane |
 | Storage | Account existence, premium tier, identity-based authentication, minimum TLS, large file shares, storage firewall reachability from the session host subnet, file share existence and quota |
-| Image | Gallery image version existence, replication into the target region, end-of-life date, generalized OS state |
+| Image | Gallery image version existence, replication into the target region, end-of-life date, generalized OS state, and the [WDOT](https://github.com/The-Virtual-Desktop-Team/Windows-Desktop-Optimization-Tool) pin the version records (the `avdlz-wdot` tag the landing zone's image pipeline writes; INFO when absent) |
 | Monitoring | Log Analytics workspace existence and retention |
 | Naming | Host pool / workspace / application group name collisions |
 | Endpoints | Outbound TCP reachability to the AVD required endpoints (opt-in) |
