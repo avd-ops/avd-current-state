@@ -121,6 +121,7 @@ function Get-LzRebuildMap {
 }
 
 function Get-LzHostPoolMap {
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSReviewUnusedParameter', 'RoleAssignments', Justification = 'Read by the groupFor script block.')]
     param($HostPool, [hashtable]$Rows, [hashtable]$Rest, [object[]]$RoleAssignments, [object[]]$Parameters)
     $m = [ordered]@{}
     $hpId = Get-LzLower $HostPool.id
