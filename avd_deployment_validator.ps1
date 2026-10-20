@@ -1604,6 +1604,37 @@ function Invoke-PreflightValidation {
 
                 $version = Get-AzGalleryImageVersion -ResourceGroupName $galleryRg -GalleryName $galleryName `
                     -GalleryImageDefinitionName $definitionName -Name $versionName -ErrorAction SilentlyContinue
+
+                # Image optimization: Microsoft's Windows Desktop Optimization Tool (WDOT) is the
+                # reference. The landing zone's image pipeline runs it at a pinned commit and tags each
+                # version 'avdlz-wdot' (release@commit) and 'avdlz-wdot-profile' (profile SHA-256).
+                # Without the tag the optimization state isn't visible from the control plane.
+                if ($null -ne $version) {
+                    $tags = Get-Prop $version 'Tags'
+                    $wdotPin = ''
+                    $wdotProfile = ''
+                    if ($tags -is [System.Collections.IDictionary]) {
+                        # Tag names are case-insensitive in ARM; -eq is too.
+                        foreach ($key in @($tags.Keys)) {
+                            if ($key -eq 'avdlz-wdot') { $wdotPin = "$($tags[$key])" }
+                            elseif ($key -eq 'avdlz-wdot-profile') { $wdotProfile = "$($tags[$key])" }
+                        }
+                    } elseif ($null -ne $tags) {
+                        $wdotPin = "$(Get-Prop $tags 'avdlz-wdot' '')"
+                        $wdotProfile = "$(Get-Prop $tags 'avdlz-wdot-profile' '')"
+                    }
+                    if (-not [string]::IsNullOrWhiteSpace($wdotPin)) {
+                        Add-Check -Category 'Image' -Check 'Image optimization (WDOT)' -Status 'PASS' `
+                            -Detail "Image version records WDOT $wdotPin, profile $(if ($wdotProfile) { $wdotProfile } else { 'not recorded' })." `
+                            -Scope $ImageId
+                    } else {
+                        Add-Check -Category 'Image' -Check 'Image optimization (WDOT)' -Status 'INFO' `
+                            -Detail 'Image version records no WDOT pin, so its optimization state is not visible from the control plane.' `
+                            -Recommendation 'Optimize images with the Windows Desktop Optimization Tool (https://github.com/The-Virtual-Desktop-Team/Windows-Desktop-Optimization-Tool) at a pinned commit and tag the version with it, as the avd-landing-zone image pipeline does.' `
+                            -Scope $ImageId
+                    }
+                }
+
                 if ($null -ne $version -and -not [string]::IsNullOrWhiteSpace($Location)) {
                     $publishingProfile = Get-Prop $version 'PublishingProfile'
                     $targetRegions = @(Get-Prop $publishingProfile 'TargetRegions' @())
