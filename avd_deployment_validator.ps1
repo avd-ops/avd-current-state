@@ -2529,6 +2529,38 @@ function Test-AvdHostPool {
                 -Detail 'All session host VMs are in Succeeded provisioning state.' -Scope $poolName
         }
 
+        # One image per pool. A pool whose hosts run different images is mid-rotation, or has drifted
+        # (marketplace 'latest' resolves to a new build each time a host is added).
+        $imageKeys = @($matchedVms | ForEach-Object {
+            $reference = Get-FirstProp $_ @('StorageProfile.ImageReference')
+            if ($null -eq $reference) { return }
+            $id = "$(Get-Prop $reference 'Id' '')"
+            $exact = "$(Get-Prop $reference 'ExactVersion' '')"
+            if (-not [string]::IsNullOrWhiteSpace($id)) {
+                # A definition ID (no /versions/) resolves to a version at creation; ExactVersion says which.
+                if ($id -notmatch '/versions/' -and $exact) { "$id/versions/$exact" } else { $id }
+            } else {
+                $version = if ($exact) { $exact } else { "$(Get-Prop $reference 'Version' '')" }
+                "$(Get-Prop $reference 'Publisher' ''):$(Get-Prop $reference 'Offer' ''):$(Get-Prop $reference 'Sku' ''):$version"
+            }
+        } | Where-Object { $_ })
+        if ($imageKeys.Count -eq 0) {
+            Add-Check -Category 'SessionHostVM' -Check 'Image consistency' -Status 'SKIP' `
+                -Detail 'No image reference returned for the session host VMs.' -Scope $poolName
+        } else {
+            $images = @($imageKeys | Group-Object | Sort-Object Count -Descending)
+            if ($images.Count -eq 1) {
+                Add-Check -Category 'SessionHostVM' -Check 'Image consistency' -Status 'PASS' `
+                    -Detail "All $($imageKeys.Count) session host VM(s) run one image: $($images[0].Name)." -Scope $poolName
+            } else {
+                $summary = @($images | ForEach-Object { "$($_.Name) ($($_.Count))" })
+                Add-Check -Category 'SessionHostVM' -Check 'Image consistency' -Status 'WARN' `
+                    -Detail "Session hosts run $($images.Count) different images: $(($summary | Select-Object -First 5) -join '; ')." `
+                    -Recommendation 'Expected while a blue/green rotation is in progress. Otherwise users get different software depending on the host they land on: finish the rotation or roll it back, and deploy hosts from a gallery image version rather than marketplace latest.' `
+                    -Scope $poolName
+            }
+        }
+
         # Zone spread drives the resilience of the pool.
         $zonedVms = @($matchedVms | Where-Object { @(Get-Prop $_ 'Zones' @()).Count -gt 0 })
         if ($zonedVms.Count -eq 0) {
