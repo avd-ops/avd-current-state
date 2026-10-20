@@ -77,7 +77,7 @@ This is the collector's move to Resource Graph (avd-second-brain `docs/assess-sp
 - **One query per resource type, whole objects.** For each in-scope type the collector saves the full ARM object (`id`, `name`, `type`, `location`, `zones`, `sku`, `identity`, `tags`, `properties`) from Resource Graph, not a hand-picked column list. Fidelity then comes by construction: a property Azure adds next year is already in the package. Session hosts come from `DesktopVirtualizationResources`; host pools, app groups, workspaces and scaling plans from `Resources`; role assignments from `AuthorizationResources`; policy from `PolicyResources`; Defender plans from `SecurityResources`; backup items from `RecoveryServicesResources`. Phase 1 confirms each table against Microsoft's table reference and records the cite.
 - **REST where Resource Graph has no row.** Diagnostic settings, file service SMB settings and file shares, private endpoint DNS zone groups, managed Run Commands, budgets and backup policies are read with `GET` through `Invoke-AzRestMethod`, one call per parent the scope already found. A loop over remote calls ends on an error or an empty page (avd-landing-zone lesson 0008), and every failure is reported with status, code and body (lesson 0012).
 - **Paging.** Resource Graph pages with a skip token; the reader follows it until it is empty and records the row count per type, so a short read can't pass silently.
-- **The scope is an allowlist, not a general inventory.** `rebuild/scope.json` lists the resource types and REST reads, each with the landing zone parameters or module settings it serves. A type with no row there isn't collected. For everything else, the README keeps pointing at ARI's Excel inventory (avd-assess collection step 7).
+- **The scope is an allowlist, not a general inventory.** `rebuild/scope.json` lists the resource types and REST reads, each with the landing zone parameters or module settings it serves. A type with no row there isn't read in depth; every resource is still listed at breadth (section 8.1). ARI's Excel workbook stays an optional pointer for people who want it (avd-assess collection step 7).
 - **Read-only still holds, with one wording change.** Resource Graph queries are `POST` requests that only read. The README's read-only section changes from "Get-* and Test-* only" to name that one exception explicitly.
 - **Windows PowerShell 5.1 and PowerShell 7**, as today. `Invoke-AzRestMethod` is in Az.Accounts; no new module.
 
@@ -147,10 +147,46 @@ C11 doesn't change in this spec. The assess checks will want some of the new evi
 
 No new pseudonym kind is needed: every proposal hangs off a subscription, host pool or storage account.
 
-## 8. D18, ARI and the diagram step
+## 8. Our own inventory, ARI and the diagram step
 
-- **ARI is not a rebuild source.** Its inventory is Excel with no JSON, and it doesn't read scaling plan schedules, SMB settings, diagnostic settings, Run Command parameters or extension settings. Inventory parity with ARI wouldn't give a rebuild; it would give a wider list of resources at the wrong depth.
-- **The scope allowlist resolves "don't build a general inventory".** The collector goes deep on what a landing zone rebuild needs and nowhere else; ARI stays the pointer for everything else (avd-assess collection step 7) and the engine of the opt-in diagram (draft PR #13).
+**The owner's call (2026-10-20): the family has its own inventory, or uses a different one if a better one exists.** This collector is that inventory. ARI is not the inventory; it stays an optional pointer and the engine of the opt-in diagram (draft PR #13). The comparison below is why no other inventory is wrapped instead.
+
+### 8.1 What the inventory is
+
+Two depths from one Resource Graph pass, both in the private package:
+
+- **Breadth: every resource.** The resource list query (`resources | project id, name, type, location, tags`) already returns every resource in every subscription read, AVD or not, into the `arm-resources` dataset. Nothing is filtered by type at this depth.
+- **Depth: what a rebuild needs.** Whole ARM objects for the types and REST reads in `rebuild/scope.json` (section 5), each tied to the parameter it serves, plus the rebuild map (section 11).
+
+What makes it ours rather than a copy of someone else's: JSON a script can read (not a spreadsheet), the never-collect scrubber and fail-closed scan, the per-parameter rebuild map, the redacted C11 snapshot built from the same rows, Windows PowerShell 5.1 and Cloud Shell with two Az modules, and no dependency on anything above the landing zone and current-state pair.
+
+### 8.2 Prior art
+
+Checked 2026-10-20 against each project's docs and, for ARI, its source (the ARI diagram spike in draft PR #13). Licenses as stated there; read the LICENSE file before reusing any code.
+
+| Tool | What it covers that ours doesn't | Why not wrap it as the inventory |
+|---|---|---|
+| [Azure Resource Inventory (ARI)](https://github.com/microsoft/ARI), MIT | Formatted columns for well over a hundred resource types, Advisor and Defender findings, policy, cost hints, an Excel workbook people already know, a draw.io network diagram | Excel output, no JSON; it reads each type at list depth, so scaling plan schedules, SMB settings, diagnostic settings, Run Command parameters and extension settings are missing; PowerShell 7 with ImportExcel and several Az modules; real names in every output, no redaction. Kept as an optional pointer and as the diagram engine on redacted rows |
+| [Resource Graph Explorer](https://learn.microsoft.com/azure/governance/resource-graph/first-query-portal) "Download as CSV" | Any query a person writes, in the portal, with nothing installed | It is the same data source we read, without paging past 55,000 rows per download, JSON objects, scrubbing or repeatability; a person has to know the queries. Our collector is, in effect, a saved, tested set of these queries |
+| [Export template](https://learn.microsoft.com/azure/azure-resource-manager/templates/export-template-portal) (ARM JSON, or Bicep from the portal) | A deployable-looking template of a resource group's current state | Microsoft says export "is not a reliable way to turn pre-existing resources into templates that are usable in production": values are hard-coded, some types and password parameters are missing, and a resource group over 200 resources fails. It produces resources, not the landing zone's parameters, so it can't say what a rebuild with our modules needs. Worth a note as a cross-check, not a source |
+| [Azure Migrate](https://learn.microsoft.com/azure/migrate/discovery-methods-modes) (appliance, collector, CSV or RVTools import) | On-premises and other-cloud servers (VMware, Hyper-V, physical), guest software inventory, dependencies, performance-based sizing | It discovers servers outside Azure for migration, not Azure resources. Relevant to a later migration path into AVD, not to inventorying an AVD estate |
+| AVD documenters ([documenter-azure-azurevirtualdesktop](https://www.powershellgallery.com/packages/documenter-azure-azurevirtualdesktop/1.2.230), the AzureScout AVD module) | A formatted AVD report or PDF, some best-practice checks | Live reads with real names, report-shaped output, license not checked; nothing produces machine-readable, redacted, parameter-shaped data. Ideas only |
+
+### 8.3 Where to widen
+
+Each is a line in `rebuild/scope.json` or the resource list query, offline-tested like the rest, and none needs a new tool:
+
+1. **Breadth columns.** Add `sku`, `kind`, `managedBy` and `identity.type` to the resource list query, so the shallow inventory says what each resource is, not only that it exists. Cheapest and most useful.
+2. **Hub and shared network.** Azure Firewall, VPN and ExpressRoute gateways, Bastion and DNS Private Resolver, when the session hosts' VNet peers to them. Needed for a HubPeered rebuild and for the diagram; today the hub is read only as a VNet.
+3. **Findings beside the inventory.** Advisor recommendations (`advisorresources`) and Defender assessments (`securityresources`) for the resources in scope, as ARI does. Optional: they feed avd-assess's analysis, not the rebuild.
+4. **Out of scope on purpose.** Entra objects beyond the AVD groups' IDs (tenant-wide work belongs elsewhere), data-plane contents (Key Vault secrets, file share contents), and servers outside Azure (Azure Migrate's job).
+
+### 8.4 Recommendation
+
+Keep this collector as the family's inventory and don't wrap another one. Nothing found is both machine-readable and safe to share, and the only candidate with comparable breadth (ARI) is the wrong shape and depth for a rebuild. Take ARI's breadth ideas into section 8.3 (items 1 to 3), and keep ARI optional for people who want its workbook or its diagram.
+
+### 8.5 D18
+
 - **One read, many consumers.** The datasets, the full objects and, optionally, the diagram step all come from the same saved rows, so they never disagree about what was there. The diagram step keeps its own read for packages made before this change.
 - **D18 restated (owner, 2026-10-20).** D18 said the collector's package format doesn't change. The owner chose to change it: the collector moves to Resource Graph now and rebuilds its existing datasets from those rows (section 5.1). What stays from D18: ARI is an opt-in step that the collector, the validator and C11 never require.
 
