@@ -6,6 +6,7 @@ All notable changes, in the format of [Keep a Changelog](https://keepachangelog.
 
 ### Added
 
+- The validator's post-deployment session host VM checks report image consistency: PASS when every host in a pool runs one image (gallery version, or marketplace build by its exact version), WARN when they differ, which is expected only while a blue/green rotation is in progress.
 - The validator's image checks report the Windows Desktop Optimization Tool (WDOT) pin a gallery image version records (`avdlz-wdot`, `avdlz-wdot-profile` tags), and recommend WDOT when none is recorded.
 - The second brain's docs consistency check on every PR (`.github/workflows/docs.yml`, pinned), reference pages for the entry points in `docs/reference/`, and the README's entry point table.
 

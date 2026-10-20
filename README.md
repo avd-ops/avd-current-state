@@ -337,7 +337,7 @@ always win. Keys beginning with `_` are treated as comments.
 | Registration | Registration token presence and expiry, flagged as a security exposure while live |
 | App groups | Application groups linked to the host pool, published to exactly one workspace, `Desktop Virtualization User` role assigned, preferred app group type alignment |
 | Session hosts | Registered count vs. expected, availability status, drain mode, heartbeat freshness, agent / SxS stack / OS version drift, agent update state, pool utilization |
-| Session host VMs | VM correlation, power state, provisioning state, availability zone spread, extension provisioning failures, domain join method, monitoring agent coverage, and for Microsoft Entra joined hosts a `Virtual Machine User Login` role assignment |
+| Session host VMs | VM correlation, power state, provisioning state, image consistency (one image per pool; WARN when hosts run different images, which is expected only mid-rotation), availability zone spread, extension provisioning failures, domain join method, monitoring agent coverage, and for Microsoft Entra joined hosts a `Virtual Machine User Login` role assignment |
 | Storage | Everything in the preflight storage set, plus SMB data-plane role assignments |
 | Scaling | Scaling plan attached and enabled, Start VM on Connect consistency |
 | Identity | Desktop Virtualization power management role, graded by whether Start VM on Connect or a scaling plan is actually in use, plus whether a scaling plan has only `Power On` when it needs `Power On Off` |
