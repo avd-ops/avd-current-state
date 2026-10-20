@@ -171,6 +171,24 @@ Describe 'never-collect scrubber and final scan' {
     (ConvertTo-Json $o -Depth 20) | Should -Not -Match 'P@ss|sig=|eyJ'
   }
 
+  It 'removes the keys hub network and cluster rows can carry' {
+    $er = ConvertTo-Row @{ properties = @{ serviceKey = 'k1'; authorizations = @(@{ name = 'a'; properties = @{ authorizationKey = 'k2' } }); serviceProviderProperties = @{ bandwidthInMbps = 1000 } } }
+    $aks = ConvertTo-Row @{ properties = @{ servicePrincipalProfile = @{ clientId = 'msi'; secret = 'k3' }; kubernetesVersion = '1.30' } }
+    $safe = ConvertTo-RebuildSafeObject -InputObject @($er, $aks)
+    $safe.Removed | Should -Be 3
+    $safe.Object[0].properties.serviceProviderProperties.bandwidthInMbps | Should -Be 1000
+    $safe.Object[1].properties.kubernetesVersion | Should -Be '1.30'
+    (ConvertTo-Json $safe.Object -Depth 20) | Should -Not -Match 'k1|k2|k3'
+  }
+
+  It 'reads the inventory types the diagram needs' {
+    $types = @((Get-RebuildScope -Path (Join-Path $script:root 'rebuild/scope.json')).resourceGraph | ForEach-Object { $_.type })
+    foreach ($t in 'microsoft.resources/subscriptions', 'microsoft.network/virtualnetworkgateways', 'microsoft.network/connections', 'microsoft.network/localnetworkgateways',
+      'microsoft.network/expressroutecircuits', 'microsoft.network/virtualwans', 'microsoft.network/virtualhubs', 'microsoft.network/vpnsites', 'microsoft.network/azurefirewalls',
+      'microsoft.network/bastionhosts', 'microsoft.network/loadbalancers', 'microsoft.network/applicationgateways', 'microsoft.compute/virtualmachinescalesets',
+      'microsoft.containerservice/managedclusters') { $types | Should -Contain $t }
+  }
+
   It 'keeps arrays as arrays and leaves an empty secret property alone' {
     $safe = ConvertTo-RebuildSafeObject -InputObject (ConvertTo-Row @{ list = @('a'); token = '' })
     ($safe.Object.list -is [array]) | Should -BeTrue

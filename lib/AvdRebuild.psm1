@@ -20,7 +20,8 @@ $script:Tables = @('resources', 'resourcecontainers', 'desktopvirtualizationreso
 # stays, with a marker, so a rebuild knows a secret existed there and has to be recreated (section 5.3).
 $script:SecretNames = @('token', 'registrationToken', 'primaryKey', 'secondaryKey', 'primaryConnectionString',
     'secondaryConnectionString', 'connectionString', 'accessKeys', 'protectedSettings', 'protectedParameters',
-    'adminPassword', 'password', 'sasToken', 'sasUri', 'sasUrl', 'sharedKey', 'storageAccountKey')
+    'adminPassword', 'password', 'sasToken', 'sasUri', 'sasUrl', 'sharedKey', 'storageAccountKey',
+    'secret', 'authorizationKey', 'serviceKey')
 
 $script:SecretPatterns = [ordered]@{
     'signed URL'          = 'sig=[A-Za-z0-9%/+=]{16,}'

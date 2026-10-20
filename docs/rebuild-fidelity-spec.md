@@ -177,13 +177,13 @@ Checked 2026-10-20 against each project's docs and, for ARI, its source (the ARI
 Each is a line in `rebuild/scope.json` or the resource list query, offline-tested like the rest, and none needs a new tool:
 
 1. **Breadth columns.** Add `sku`, `kind`, `managedBy` and `identity.type` to the resource list query, so the shallow inventory says what each resource is, not only that it exists. Cheapest and most useful.
-2. **Hub and shared network.** Azure Firewall, VPN and ExpressRoute gateways, Bastion and DNS Private Resolver, when the session hosts' VNet peers to them. Needed for a HubPeered rebuild and for the diagram; today the hub is read only as a VNet.
+2. **Hub, shared network and neighbors (done, 2026-10-20).** `rebuild/scope.json` now reads, as `inventory:diagram`: virtual network gateways, connections, local network gateways, ExpressRoute circuits, Virtual WAN and its hubs, VPN sites, Azure Firewall, Bastion, load balancers, application gateways, VM scale sets and AKS clusters. Subscription rows (`resourcecontainers`) carry each subscription's management group chain (`properties.managementGroupAncestorsChain`), so no tenant-level read is needed. The scrubber also removes `secret`, `serviceKey` and `authorizationKey`. These serve the diagram (draft PR #13) and a HubPeered rebuild; DNS Private Resolver is still to add.
 3. **Findings beside the inventory.** Advisor recommendations (`advisorresources`) and Defender assessments (`securityresources`) for the resources in scope, as ARI does. Optional: they feed avd-assess's analysis, not the rebuild.
 4. **Out of scope on purpose.** Entra objects beyond the AVD groups' IDs (tenant-wide work belongs elsewhere), data-plane contents (Key Vault secrets, file share contents), and servers outside Azure (Azure Migrate's job).
 
 ### 8.4 Recommendation
 
-Keep this collector as the family's inventory and don't wrap another one. Nothing found is both machine-readable and safe to share, and the only candidate with comparable breadth (ARI) is the wrong shape and depth for a rebuild. Take ARI's breadth ideas into section 8.3 (items 1 to 3), and keep ARI optional for people who want its workbook or its diagram.
+Keep this collector as the family's inventory and don't wrap another one. Nothing found is both machine-readable and safe to share, and the only candidate with comparable breadth (ARI) is the wrong shape and depth for a rebuild. Take ARI's breadth ideas into section 8.3 (items 1 and 3; item 2 is done), and keep ARI optional for people who want its workbook or its diagram.
 
 ### 8.5 D18
 

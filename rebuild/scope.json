@@ -1,6 +1,6 @@
 {
   "schema": "avd-current-state-rebuild-scope/v1",
-  "description": "What the collector reads at rebuild fidelity (docs/rebuild-fidelity-spec.md). Each Resource Graph type is saved as whole objects under rebuild/resources/ and each REST read under rebuild/rest/; a type or read with no entry here is not collected. 'serves' names the avd-landing-zone parameters or module settings it is read for.",
+  "description": "What the collector reads at rebuild fidelity (docs/rebuild-fidelity-spec.md). Each Resource Graph type is saved as whole objects under rebuild/resources/ and each REST read under rebuild/rest/; a type or read with no entry here is not collected. 'serves' names the avd-landing-zone parameters or module settings it is read for; 'inventory:*' types are read for the inventory and the diagram (spec section 8), not the rebuild map.",
   "landingZoneCommit": "2c441569a5d584ac6beb473162ba1f1420caea3e",
   "resourceGraph": [
     { "table": "resourcecontainers", "type": "microsoft.resources/subscriptions/resourcegroups", "serves": ["namePrefix", "environmentName", "tags"] },
@@ -42,7 +42,21 @@
     { "table": "authorizationresources", "type": "microsoft.authorization/roledefinitions", "serves": ["avdUsersGroupObjectId", "avdAdminsGroupObjectId"] },
     { "table": "authorizationresources", "type": "microsoft.authorization/locks", "serves": ["estate:locks"] },
     { "table": "policyresources", "type": "microsoft.authorization/policyassignments", "serves": ["enablePolicyGuardrails", "allowedLocations"] },
-    { "table": "securityresources", "type": "microsoft.security/pricings", "serves": ["enableDefenderForCloud"] }
+    { "table": "securityresources", "type": "microsoft.security/pricings", "serves": ["enableDefenderForCloud"] },
+    { "table": "resourcecontainers", "type": "microsoft.resources/subscriptions", "serves": ["inventory:managementGroupChain"] },
+    { "table": "resources", "type": "microsoft.network/virtualnetworkgateways", "serves": ["hubVnetResourceId", "inventory:diagram"] },
+    { "table": "resources", "type": "microsoft.network/connections", "serves": ["inventory:diagram"] },
+    { "table": "resources", "type": "microsoft.network/localnetworkgateways", "serves": ["inventory:diagram"] },
+    { "table": "resources", "type": "microsoft.network/expressroutecircuits", "serves": ["inventory:diagram"] },
+    { "table": "resources", "type": "microsoft.network/virtualwans", "serves": ["inventory:diagram"] },
+    { "table": "resources", "type": "microsoft.network/virtualhubs", "serves": ["inventory:diagram"] },
+    { "table": "resources", "type": "microsoft.network/vpnsites", "serves": ["inventory:diagram"] },
+    { "table": "resources", "type": "microsoft.network/azurefirewalls", "serves": ["hubFirewallPrivateIp", "inventory:diagram"] },
+    { "table": "resources", "type": "microsoft.network/bastionhosts", "serves": ["inventory:diagram"] },
+    { "table": "resources", "type": "microsoft.network/loadbalancers", "serves": ["inventory:diagram"] },
+    { "table": "resources", "type": "microsoft.network/applicationgateways", "serves": ["inventory:diagram"] },
+    { "table": "resources", "type": "microsoft.compute/virtualmachinescalesets", "serves": ["inventory:diagram"] },
+    { "table": "resources", "type": "microsoft.containerservice/managedclusters", "serves": ["inventory:diagram"] }
   ],
   "rest": [
     { "name": "diagnostic-settings", "parentTypes": ["microsoft.desktopvirtualization/hostpools", "microsoft.desktopvirtualization/applicationgroups", "microsoft.desktopvirtualization/workspaces", "microsoft.desktopvirtualization/scalingplans", "microsoft.keyvault/vaults", "microsoft.recoveryservices/vaults", "microsoft.network/networksecuritygroups", "microsoft.automation/automationaccounts"], "path": "{id}/providers/Microsoft.Insights/diagnosticSettings", "apiVersion": "2021-05-01-preview", "serves": ["module:diagnostics"] },
