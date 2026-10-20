@@ -2,7 +2,7 @@
 
 Status: draft, 2026-10-20. Nothing is built. No Azure, no spend.
 
-This is an **opt-in step** in avd-current-state that draws a shareable diagram of what is deployed. It wraps the diagram code of [Azure Resource Inventory](https://github.com/microsoft/ARI) (ARI, MIT) and adds what ARI lacks: redaction before anything is drawn, an AVD overlay, stable output and our styling. The collector, the validator and the facts snapshot (contract C11) never need it, and their package formats don't change (avd-second-brain v1 review, decision D18).
+This is an **opt-in step** in avd-current-state that draws a shareable diagram of what is deployed. It wraps the diagram code of [Azure Resource Inventory](https://github.com/microsoft/ARI) (ARI, MIT) and adds what ARI lacks: redaction before anything is drawn, an AVD overlay, stable output and our styling. The collector, the validator and the facts snapshot (contract C11) never need it (avd-second-brain v1 review, decision D18, as restated by the owner on 2026-10-20: the collector moves to Resource Graph and saves full objects, see draft PR #15 and `docs/rebuild-fidelity-spec.md`, and ARI stays opt-in).
 
 ## 1. Why ARI, and why only after a bake-off
 
@@ -81,11 +81,11 @@ Bumping the pin is a PR that reruns the golden tests (section 7).
 
 ## 3. What the step reads
 
-The owner's rule wins over the handoff's question "collector additions": the collector's package format doesn't change, so `-Collect` reads its own rows. It uses Resource Graph REST (`POST /providers/Microsoft.ResourceGraph/resources`) through `Invoke-AzRestMethod`, which Az.Accounts already provides, one query per resource type (avd-assess collection method, step 1), paging until the result is empty or an error (avd-landing-zone lesson 0008). Raw ARM shape, the shape ARI reads; no cmdlet reshaping.
+The step reads the collector's saved rows first and fills in only what the collector doesn't keep. `-Collect` uses Resource Graph REST (`POST /providers/Microsoft.ResourceGraph/resources`) through `Invoke-AzRestMethod`, which Az.Accounts already provides, one query per resource type (avd-assess collection method, step 1), paging until the result is empty or an error (avd-landing-zone lesson 0008). Raw ARM shape, the shape ARI reads; no cmdlet reshaping.
 
 Types: management group chain for each subscription; resource groups; `virtualnetworks` (subnets and peerings inline), `networkinterfaces`, `virtualmachines`, `virtualmachinescalesets`, `privateendpoints`, `virtualnetworkgateways`, `connections`, `localnetworkgateways`, `expressroutecircuits`, `virtualwans`, `virtualhubs`, `vpnsites`, `azurefirewalls`, `bastionhosts`, `loadbalancers`, `applicationgateways`, `natgateways`, `networksecuritygroups`, `routetables`, `publicipaddresses`, `managedclusters`; AVD `hostpools`, `hostpools/sessionhosts` (from `desktopvirtualizationresources`), `applicationgroups`, `workspaces`. Advisor recommendations are not read (cost advice isn't part of a topology diagram; ARI's page stays empty).
 
-The collector is meant to become a complete current-state record (enough, later, to regenerate the landing zone as is or toward a target state), and that work is separate from this spec. When the collector's package carries these rows in raw ARM shape, draw mode reads them from the package and `-Collect` stays only as a fallback for older packages. Either way the diagram step adds no collection of its own beyond this list.
+**Where the rows come from.** Under the restated D18 the collector saves full Resource Graph objects under `rebuild/resources/` for every type in its `rebuild/scope.json` allowlist (draft PR #15). Draw mode reads those files for every type on the list above that the scope covers (VNets, NICs, VMs, private endpoints, NSGs, route tables, NAT gateways, public IPs, AVD objects, resource groups), so the diagram and the datasets come from the same read and never disagree. The collector's scope is chosen for a landing zone rebuild and leaves out several types ARI draws (gateways, connections, local network gateways, ExpressRoute, Virtual WAN and hubs, VPN sites, firewalls, Bastion, load balancers, application gateways, scale sets, AKS) and the management group chain. `-Collect` reads only those, read-only, into the step's own folder, and reads the whole list for a package made before the collector's change. The diagram never asks the collector to widen its scope; a type moves into `scope.json` only when a rebuild needs it.
 
 ## 4. Redaction
 
