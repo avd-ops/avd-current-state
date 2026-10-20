@@ -85,6 +85,8 @@ The owner's rule wins over the handoff's question "collector additions": the col
 
 Types: management group chain for each subscription; resource groups; `virtualnetworks` (subnets and peerings inline), `networkinterfaces`, `virtualmachines`, `virtualmachinescalesets`, `privateendpoints`, `virtualnetworkgateways`, `connections`, `localnetworkgateways`, `expressroutecircuits`, `virtualwans`, `virtualhubs`, `vpnsites`, `azurefirewalls`, `bastionhosts`, `loadbalancers`, `applicationgateways`, `natgateways`, `networksecuritygroups`, `routetables`, `publicipaddresses`, `managedclusters`; AVD `hostpools`, `hostpools/sessionhosts` (from `desktopvirtualizationresources`), `applicationgroups`, `workspaces`. Advisor recommendations are not read (cost advice isn't part of a topology diagram; ARI's page stays empty).
 
+The collector is meant to become a complete current-state record (enough, later, to regenerate the landing zone as is or toward a target state), and that work is separate from this spec. When the collector's package carries these rows in raw ARM shape, draw mode reads them from the package and `-Collect` stays only as a fallback for older packages. Either way the diagram step adds no collection of its own beyond this list.
+
 ## 4. Redaction
 
 Runs on the rows before ARI sees them. Same HMAC as the facts script: `<kind>-<8 hex>` over `"<kind>|<lowercased resource ID>"` with the estate key. `Get-Pseudonym` moves into one shared file both scripts load, with a test that both give the same pseudonym for the same ID.
