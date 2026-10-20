@@ -1,156 +1,139 @@
-# Spec: a redacted estate diagram (wrap and enhance ARI)
+# Spec: a redacted estate diagram (Mermaid with icons)
 
 Status: draft, 2026-10-20. Nothing is built. No Azure, no spend.
 
-This is an **opt-in step** in avd-current-state that draws a shareable diagram of what is deployed. It wraps the diagram code of [Azure Resource Inventory](https://github.com/microsoft/ARI) (ARI, MIT) and adds what ARI lacks: redaction before anything is drawn, an AVD overlay, stable output and our styling. The collector, the validator and the facts snapshot (contract C11) never need it (avd-second-brain v1 review, decision D18, as restated by the owner on 2026-10-20: the collector moves to Resource Graph and saves full objects, see draft PR #15 and `docs/rebuild-fidelity-spec.md`, and ARI stays opt-in).
+This is an **opt-in, offline step** in avd-current-state that draws a shareable diagram of what is deployed, from the rows the collector already saved. It writes Mermaid with Azure-style icons. The collector, the validator and the facts snapshot (contract C11) never need it. [Azure Resource Inventory](https://github.com/microsoft/ARI) (ARI, MIT) is prior art and a parity checklist only. It is never the inventory or the diagram engine (avd-second-brain v1 review, decision D18, as the owner restated it on 2026-10-20).
 
-## 1. Why ARI, and why only after a bake-off
+## 1. How we got here
 
-The owner's direction (2026-10-20): ours must do everything ARI's diagram already does, and wrapping ARI makes sense because it is well known. Before locking that route we ran every credible candidate offline on the same fake estate and scored them. The result and the rule are below. The bake-off scripts and outputs are working notes, not in this repo; phase 1 brings the fixture in as the first test fixture.
+### 1.1 The bake-off
 
-### 1.1 The fixture
+On 2026-10-20 we ran four approaches offline on one fake estate. The estate had a hub VNet with a `GatewaySubnet`, a spoke with two session hosts, a private endpoint subnet, a hub-to-spoke peering, and broken peerings held by the hub and by the spoke. It also had a host pool with an app group and a workspace, and a subscription under two management groups. All names were pseudonyms and all prefixes were 10.x.
 
-The ARI spike's nine fake Resource Graph rows, extended: a hub VNet with a `GatewaySubnet` (the rule ARI uses to color a hub), a spoke with a hosts subnet and two session host VMs reached through their NICs, a private endpoint subnet, a peering hub to spoke, a broken peering held by the hub **and** one held by the spoke (both to a VNet not in the rows), one host pool with two session hosts (`resourceId` to the VM), one desktop app group and one workspace, one subscription under two management groups. Every name is a pseudonym; prefixes are 10.x.
-
-### 1.2 Results
-
-PowerShell 7.4.6 on Linux, ARI `main` at `4cc602c` (2026-10-17). Times are wall clock for one run, including module load.
-
-| | ARI diagram + our post-processor | Our Mermaid writer | Graphviz through PSGraph | Diagrammer.Core |
+| | ARI diagram + post-processor | Our Mermaid writer | Graphviz through PSGraph | Diagrammer.Core |
 |---|---|---|---|---|
-| Ran offline on the fixture | Yes, 4.7 to 5.5 s | Yes, 0.7 s | Yes, 1.2 s | Its exporter hung on Linux (default path is a bundled Windows `dot.exe`); stopped |
-| ARI parity (org tree, subscription page with resource counts, VNets, subnets, peerings with flags, hub coloring, broken peering, 30+ resource kinds inside subnets, on-premises, ExpressRoute, VPN, Virtual WAN, Azure icons) | All of it, by definition | Org tree, resource group counts, VNets, subnets, peerings, hub, broken peerings. The rest would be a rewrite of about 6,000 lines of ARI's logic. No Azure icons | Same as the Mermaid writer (we wrote the logic) | Not reached |
-| Broken peering held by the spoke | **Missed** (only the hub's was drawn) | Drawn | Drawn | |
-| Private endpoint subnet | Labeled "1 Network Interface" | "1 private endpoint" | Not written in the trial | |
-| AVD overlay | Worked as a post-process of about 20 lines: the subnet's VM group becomes the host pool with the AVD icon, with app group and workspace as attributes. App group and workspace aren't drawn as boxes; the label overlaps the subnet text | Native: host pool on the subnet, app group and workspace as nodes with edges | Native, same as Mermaid | |
-| Two runs identical | Raw: no (random cell IDs, a date label, and per-VNet subnet files merged in random-name order). After the post-processor (drop the date, sort each page's cells by a key that ignores IDs, renumber): byte-identical over three runs | Yes, by construction | SVG yes; the DOT text no (PSGraph writes attributes in hashtable order) | |
-| Renders | draw.io: editable; the post-processed file rendered in the draw.io viewer. GitHub doesn't render `.drawio` inline | GitHub renders it inline; avd-ops can render it with Mermaid JS. Weak styling: a class on a subgraph didn't apply and subgraph titles overlapped | Best cluster layout; SVG and PNG | |
-| What it needs | PowerShell 7. `Install-Module AzureResourceInventory` pulled 98 MB (ARI plus ImportExcel and six Az modules) that drawing doesn't use; loading only the seven diagram scripts (6,170 lines) needs nothing else | Nothing in PowerShell; 5.1-compatible. A browser renders it | The Graphviz binary (not verified in Cloud Shell) and PSGraph (last commit 2019) | 91 MB module with 102 bundled Windows Graphviz binaries, plus PSGraph |
-| License | MIT (see 1.4) | Ours, MIT | Graphviz EPL, PSGraph MIT | MIT |
-| Upstream fit | Every fix reaches ARI's users | None | None | None |
+| Ran offline | Yes, about 5 s | Yes, 0.7 s | Yes, 1.2 s | Exporter hung on Linux (bundled Windows `dot.exe`) |
+| Breadth | All of ARI's diagram | VNets, subnets, peerings, hub, broken peerings, org tree, resource group counts | Same as ours | Not reached |
+| Broken peering held by a spoke | Missed | Drawn | Drawn | |
+| Private endpoint subnet | Read as "1 Network Interface" | "1 private endpoint" | Not written | |
+| AVD overlay | A post-process of about 20 lines | Native | Native | |
+| Two runs identical | Only after sorting and renumbering | Yes, by construction | SVG yes, DOT text no (hashtable order) | |
+| Footprint | PowerShell 7; 98 MB of modules from the Gallery, or 7 pinned scripts (6,170 lines) | None; PowerShell 5.1-compatible | Graphviz binary and PSGraph (last commit 2019) | 91 MB with Windows binaries |
 
-**Dropped without a trial, and why:**
+AzViz (reads the live Network Watcher topology API), Microsoft's azure-resource-visualizer skill (a model decides the edges), Network Watcher topology (portal only), AzureResourceMap (live .NET) and D2 (needs a binary) were dropped without a trial.
 
-- **AzViz** (MIT): its network mode draws from the Network Watcher topology API, live, per resource group. Feeding it the fixture means faking a Microsoft API we don't otherwise hold. Last commit 2025-02.
-- **Microsoft's azure-resource-visualizer skill** (MIT): a model decides the relationships, which breaks "a model never decides" and isn't repeatable. Its edge rules stay a reference.
-- **Network Watcher topology** (Azure service): portal only, real names, not scriptable into a package. Linked in docs as the live view.
-- **AzureResourceMap** (MIT): .NET, reads ARM live, author calls it a first pass.
-- **D2**: needs a binary; nothing it does that Graphviz didn't show here.
+### 1.2 The decision
 
-### 1.3 What the bake-off found that the spike didn't
+ARI won on breadth, but the owner chose **Mermaid with icons** and **our own inventory**: "mermaid + icons", and "we need our own inventory or a different one if there's a better one". The reasons are in the table. Our writer had no dependency, stayed PowerShell 5.1-compatible and produced stable output for free. It was AVD-native and right where ARI was wrong. Its gap was breadth, and the collector's Resource Graph rows (draft PR #15, `docs/rebuild-fidelity-spec.md`) close that gap without taking on ARI.
 
-1. **ARI's hub rule is a subnet named `GatewaySubnet`.** Redaction must keep Azure's reserved subnet names (section 4), or every hub is drawn as a spoke.
-2. **The instability has a second cause besides random IDs:** ARI writes one cache file per VNet under a random name and merges them in name order. Renumbering alone isn't enough; the post-processor must also sort.
-3. **Post-processing is enough for overlay and stability,** so none of our needs waits on an upstream change.
-4. **Two ARI gaps confirmed on the extended fixture:** a spoke's own broken peering isn't drawn, and a private endpoint subnet reads as a NIC.
-5. **PowerShell Gallery was reachable from this container** (`Save-Module` worked), unlike earlier sessions. Don't rely on it in CI.
+### 1.3 What we keep from ARI: the parity checklist
 
-### 1.4 License
+The diagram must show everything ARI's diagram shows (read from `Modules/Public/PublicFunctions/Diagram/` at `4cc602c`), plus what ARI gets wrong:
 
-The repo's `LICENSE` is MIT. The Gallery package (3.6.15) carries the same diagram scripts as the repo at `4cc602c`, identical apart from line endings; its manifest's `Copyright` field says "(c) Claudio Merola. All rights reserved." and its `LicenseUri` points to the repo's MIT `LICENSE`. We read that field as the manifest's usual copyright line, with MIT as the grant. Either way, this design **calls** ARI's scripts from a pinned copy and copies none of them into this repo, so the question only matters if we ever vendor them; then both notices travel with the files. This is a reading, not legal advice.
+- Management group tree with subscriptions; per subscription, resource groups with a count of each resource type.
+- VNets with address space (redacted, section 4), DDoS protection and whether custom DNS is set.
+- **Hub coloring: ARI's rule is a VNet with a subnet named `GatewaySubnet`.** We use the same rule and also call a VNet with an `AzureFirewallSubnet` a hub.
+- Peerings with state, gateway transit, forwarded traffic and VNet access. A peering to a VNet not in the rows is a **broken peering**, whichever side holds it. ARI misses the ones a spoke holds.
+- Inside each subnet: VMs (size, OS, image), scale sets, load balancers, gateways, firewalls, private endpoints (as private endpoints, not NICs), application gateways, Bastion and AKS, found through NICs. Also delegations, and the NSG and route table on the subnet.
+- On-premises side: local network gateways, VPN connections, ExpressRoute circuits with peering location, Virtual WAN hubs and VPN sites.
+- **AVD, which ARI lacks:** session hosts shown as their host pool on their subnet, app groups and workspaces linked to it, and scaling plans.
+- **Stable output, which ARI lacks:** the same rows give the same bytes.
 
-### 1.5 Decision rule, and the answer
-
-The ARI route is locked when, on the extended fixture, its wrapped output (a) draws every item on ARI's parity list that the fixture contains, (b) carries the AVD overlay, (c) is byte-identical over three runs, (d) passes the presence check (section 7), and (e) renders in draw.io. A writer of our own replaces it only if ARI fails one of these and post-processing can't fix it.
-
-**All five passed, so the ARI route is locked.** The bake-off didn't change the recommendation; it changed the plan in three places: the post-processor sorts as well as renumbers, redaction keeps reserved subnet names, and the wrapper reports what ARI misses (spoke-held broken peerings) instead of trusting it.
-
-What our own writer does better (GitHub rendering, PowerShell 5.1, AVD-native boxes, the spoke peering) is real but narrow: an AVD-only view, not a replacement. It is phase 4, optional (section 10).
-
-**Reopen** the choice if a sandbox run shows ARI failing on real Resource Graph rows in a way post-processing can't fix, or a new ARI pin changes the diagram scripts' shape.
+ARI's Advisor cost page is not carried over, because it isn't topology.
 
 ## 2. Where it lives and how it is invoked
 
-- A new entry point, `avd_current_state_diagram.ps1`, with pure functions in `AvdCurrentStateDiagram.psm1` (prefix `Get-` for functions that only build data). The notice sits at the top of both.
-- **PowerShell 7.4 only.** The collector, the validator and the facts script stay Windows PowerShell 5.1-compatible and never load this module.
-- Two modes, so the drawing is always offline:
-  - `-Collect`: one live, read-only read of Resource Graph (section 3), written to `output/diagram/<timestamp>/rows.json` in the operator's session. Reader on the subscriptions is enough.
-  - default (draw): reads `rows.json` and the estate key, redacts, draws, checks, writes `estate.drawio` and `diagram-report.json` (findings, counts, no names). No network except the one-time ARI fetch (section 2.1).
-- `-KeyPath` is the same estate key the facts script uses, so `hp-`, `sub-` and `st-` pseudonyms match the C11 snapshot.
+- A new entry point, `avd_current_state_diagram.ps1`, with pure functions in `AvdCurrentStateDiagram.psm1` (`Get-` for functions that only build data) and the notice at the top of both.
+- **Windows PowerShell 5.1 and PowerShell 7.** It writes text only, so there is no reason to drop 5.1 the way the ARI route had to.
+- **Offline only.** It reads a collector package and the estate key, and makes no Azure call and no network call. There is no `-Collect` mode: if a package lacks rows (section 3), the step says which ones and asks for a collector run.
+- `-KeyPath` is the facts script's estate key, so `hp-`, `sub-` and `st-` match the C11 snapshot.
 - Nothing reads avd-second-brain or avd-swarm. The landing zone and current-state pair stays self-contained.
 
-### 2.1 How ARI is obtained
+## 3. What it reads
 
-| Option | Verdict |
-|---|---|
-| `Install-Module AzureResourceInventory` | **No.** 98 MB of modules drawing doesn't use, a floating version, and PSGallery is unreliable in CI containers |
-| A pinned ARI commit, only the seven diagram scripts, checked by hash | **Yes.** `ari-pin.json` holds the commit and each script's SHA-256 over LF-normalized text. The wrapper fetches the seven files from github.com at that commit, or takes `-AriPath` to a local copy (an ARI clone or an installed module at the pinned version; the Gallery copy hashes the same once line endings are normalized). A hash mismatch stops the run before anything is drawn |
-| Vendor the seven scripts | Not now. MIT allows it with both notices, but we'd own 6,170 lines. Revisit only if fetching is blocked for operators |
+The full Resource Graph objects the collector saves under `rebuild/resources/` (draft PR #15), and nothing else. The diagram and the collector's datasets therefore come from one read and never disagree.
 
-Bumping the pin is a PR that reruns the golden tests (section 7).
-
-## 3. What the step reads
-
-The step reads the collector's saved rows first and fills in only what the collector doesn't keep. `-Collect` uses Resource Graph REST (`POST /providers/Microsoft.ResourceGraph/resources`) through `Invoke-AzRestMethod`, which Az.Accounts already provides, one query per resource type (avd-assess collection method, step 1), paging until the result is empty or an error (avd-landing-zone lesson 0008). Raw ARM shape, the shape ARI reads; no cmdlet reshaping.
-
-Types: management group chain for each subscription; resource groups; `virtualnetworks` (subnets and peerings inline), `networkinterfaces`, `virtualmachines`, `virtualmachinescalesets`, `privateendpoints`, `virtualnetworkgateways`, `connections`, `localnetworkgateways`, `expressroutecircuits`, `virtualwans`, `virtualhubs`, `vpnsites`, `azurefirewalls`, `bastionhosts`, `loadbalancers`, `applicationgateways`, `natgateways`, `networksecuritygroups`, `routetables`, `publicipaddresses`, `managedclusters`; AVD `hostpools`, `hostpools/sessionhosts` (from `desktopvirtualizationresources`), `applicationgroups`, `workspaces`. Advisor recommendations are not read (cost advice isn't part of a topology diagram; ARI's page stays empty).
-
-**Where the rows come from.** Under the restated D18 the collector saves full Resource Graph objects under `rebuild/resources/` for every type in its `rebuild/scope.json` allowlist (draft PR #15). Draw mode reads those files for every type on the list above that the scope covers (VNets, NICs, VMs, private endpoints, NSGs, route tables, NAT gateways, public IPs, AVD objects, resource groups), so the diagram and the datasets come from the same read and never disagree. The collector's scope is chosen for a landing zone rebuild and leaves out several types ARI draws (gateways, connections, local network gateways, ExpressRoute, Virtual WAN and hubs, VPN sites, firewalls, Bastion, load balancers, application gateways, scale sets, AKS) and the management group chain. `-Collect` reads only those, read-only, into the step's own folder, and reads the whole list for a package made before the collector's change. The diagram never asks the collector to widen its scope; a type moves into `scope.json` only when a rebuild needs it.
+The collector's `rebuild/scope.json` already covers VNets (with subnets and peerings), NICs, VMs, private endpoints, NSGs, route tables, NAT gateways, public IPs, resource groups and the AVD objects. The parity list also needs gateways and connections, local network gateways, ExpressRoute circuits, Virtual WAN and hubs, VPN sites, firewalls, Bastion, load balancers, application gateways, scale sets, AKS and the management group chain. **These belong in the collector as inventory**, since the owner wants our own inventory, not a second read path in the diagram step. That is a change to `scope.json` for the collector's thread to make, with `serves` naming "diagram" or "inventory" where no landing zone parameter applies. Until those types are there, the diagram draws what the package has and lists what it couldn't draw in `diagram-report.json`.
 
 ## 4. Redaction
 
-Runs on the rows before ARI sees them. Same HMAC as the facts script: `<kind>-<8 hex>` over `"<kind>|<lowercased resource ID>"` with the estate key. `Get-Pseudonym` moves into one shared file both scripts load, with a test that both give the same pseudonym for the same ID.
+Runs on the rows before anything is drawn. Same HMAC as the facts script: `<kind>-<8 hex>` over `"<kind>|<lowercased resource ID>"` with the estate key. `Get-Pseudonym` moves into one shared file that both scripts load, with a test that both give the same pseudonym for the same ID.
 
-- **New kinds:** `mg`, `rg`, `vnet`, `snet`, `nic`, `vm`, `vmss`, `pe`, `peer`, `gw`, `conn`, `lgw`, `er`, `vwan`, `vhub`, `fw`, `lb`, `agw`, `nsg`, `rt`, `pip`, `aks`, `ag`, `ws`, `sh`, and `res` for anything else. Existing: `sub`, `hp`, `st`.
-- **IDs keep their shape.** Every name segment in an ARM ID is swapped for its pseudonym; provider, type and `subscriptions`/`resourceGroups` segments stay; every `/` stays where it was (ARI reads by position). The same resource gets the same pseudonym wherever its ID appears.
-- **Kept as is (public Azure values):** region, VM size, image publisher, offer and SKU, OS type, disk size, peering state and flags, host pool type, app group type, and Azure's reserved subnet names: `GatewaySubnet`, `AzureFirewallSubnet`, `AzureFirewallManagementSubnet`, `AzureBastionSubnet`, `RouteServerSubnet`.
-- **Type hints ARI needs:** a NIC whose real name starts `aks-` or `gwhost` gets a pseudonym that keeps that prefix (`aks-<8 hex>`, `gwhost<8 hex>`).
-- **Dropped:** tags, DNS server addresses, NIC and public IP addresses, descriptions and every other free-text property, and any property not on the allowlist.
-- **Address prefixes:** replaced by their length (`10.1.0.0/16` becomes `/16`). The avd-assess collection method allows no addresses in facts, and the diagram follows the same rule. An operator who wants real prefixes and names runs ARI itself on their own estate; this step never writes an unredacted diagram.
-- **Fails closed.** Before writing, scan the final XML for a GUID, an email address, a UNC path, an FQDN, a non-documentation IPv4 address, or any original name of four or more characters from the rows. On a hit, write no diagram, and report the kind of hit and the cell it was in, never the value.
+- **Kinds:** existing `sub`, `hp`, `st`; new `mg`, `rg`, `vnet`, `snet`, `nic`, `vm`, `vmss`, `pe`, `peer`, `gw`, `conn`, `lgw`, `er`, `vwan`, `vhub`, `fw`, `lb`, `agw`, `nsg`, `rt`, `pip`, `aks`, `ag`, `ws`, `sh`, `sp` (scaling plan), and `res` for anything else.
+- **Kept as is (public Azure values):** region, VM size, image publisher, offer and SKU, OS type, peering state and flags, host pool type, app group type, and Azure's reserved subnet names (`GatewaySubnet`, `AzureFirewallSubnet`, `AzureFirewallManagementSubnet`, `AzureBastionSubnet`, `RouteServerSubnet`). The hub rule depends on them.
+- **Address prefixes become their length** (`10.1.0.0/16` becomes `/16`), following avd-assess's collection method, step 3 (no addresses in facts).
+- **Dropped:** tags, DNS server addresses, NIC and public IP addresses, descriptions and other free text, and any property not on the allowlist.
+- **Fails closed.** Before writing, scan every output for a GUID, an email address, a UNC path, an FQDN, a non-documentation IPv4 address, or any original name of four or more characters from the rows. On a hit, write nothing, and report the kind of hit and the node it was in, never the value.
 
-## 5. AVD overlay
+There is no unredacted mode. An operator who wants real names draws from the collector's own datasets in their private package.
 
-Post-process ARI's draw.io XML (proved in the bake-off). For each VM group ARI draws in a subnet (an object carrying `VirtualMachine-NNN` attributes), when all its VMs are session hosts of one host pool: label it `<hp-pseudonym>`, `<n> session hosts`, switch the icon to ARI's own `Windows_Virtual_Desktop.svg`, and add `AVD_Host_Pool`, `AVD_App_Group` and `AVD_Workspace` attributes. Then add app group and workspace boxes beside the subnet with edges, and move the label so it doesn't overlap the subnet name (both seen in the bake-off render). A group mixing session hosts of two pools gets one label per pool. An upstream change to `Build-ARIDiagramSubnet` comes later (section 9).
+## 5. Output
 
-## 6. Stable output
+Three files in `output/diagram/<timestamp>/` (git-ignored):
 
-The post-processor (proved in the bake-off): replace the date label with a fixed line, sort each page's cells by a key that ignores IDs (parent's label, own label, geometry, style), then renumber every ID in document order. Known gap: two cells with the same label, parent and geometry fall back to their old random IDs for order; add a pseudonym attribute to every cell before sorting so the key is always unique.
+| File | What | Renders where |
+|---|---|---|
+| `estate.mmd` | A plain Mermaid flowchart: subgraphs for VNets and subnets, text nodes, classes for hub, spoke, broken and AVD. **No icon syntax.** | GitHub, any Mermaid viewer, and as a text diff |
+| `estate.icons.mmd` | The same graph with Mermaid icon shapes (`node@{ icon: "azure:hostpool", label: "...", pos: "b" }`, Mermaid 11.3 or later) | Only where an icon pack is registered |
+| `estate.html` | One self-contained page holding a pinned Mermaid build, the icon pack and the diagram, styled with avd-ops tokens for light and dark, with a "Save SVG" button | Any browser, offline (Cloud Shell can download it) |
 
-## 7. Checks
+One writer builds the graph once and emits both texts, so the plain and icon versions can't drift. Node IDs come from pseudonyms and every list is sorted, so the same rows give the same bytes. Pester compares against golden files.
 
-ARI drops errors silently (the network step's empty `catch`), so the wrapper trusts nothing:
+### 5.1 Icons: what GitHub can show
 
-- Every VNet and subnet in the rows appears in the output (the bake-off's presence check).
-- Every subnet that holds session hosts carries the overlay.
-- Every peering to a VNet not in the rows appears as a broken peering. ARI misses those held by a spoke, so the wrapper adds them in the post-processor and records each in `diagram-report.json` until ARI draws them.
-- Offline Pester tests on the extended fixture, plus AKS and gateway-host NICs, an Azure Firewall and an ExpressRoute circuit; a golden `estate.drawio` compared byte for byte; the redaction scan tested with planted leaks (a real-looking GUID, IP and name) that must stop the run. ARI's seven scripts come from the pinned commit in CI.
+GitHub renders Mermaid with its own build, and a repository can't register an icon pack there. Icon packs are registered by page JavaScript (`mermaid.registerIconPacks`), which GitHub doesn't run. In the spike, an icon shape whose pack isn't registered rendered as a grey "?" box (Mermaid 11.4.1). Whether GitHub's build accepts the icon-shape syntax at all wasn't verified. So **icons show only where we render**: `estate.html`, an avd-ops page that vendors Mermaid and the pack, or an SVG saved from either. `estate.mmd` is the GitHub copy.
 
-## 8. Styling and publishing
+### 5.2 Icons: which set
 
-- The post-processor maps ARI's fills to avd-ops design tokens (light values; draw.io has no theme variables): hub `#dae8fc`/`#6c8ebf` to `--accent-soft`/`--accent`, spoke `#d5e8d4`/`#82b366` to `--sunken`/`--line-strong`, broken `#fad9d5`/`#ae4132` to `--bad-soft`/`--bad`, AVD to `--s-design-bg`/`--s-design-fg`. ARI's Azure icons stay.
-- Output is `estate.drawio`. SVG is the operator's choice with draw.io desktop (`drawio -x -f svg`); the step doesn't ship a browser.
-- **C11 gets no `topology` section.** The diagram stays a local output in `output/` (git-ignored), like every package. A contract change would touch three repos and isn't needed for this.
+Microsoft's terms for the [Azure architecture icons](https://learn.microsoft.com/azure/architecture/icons/) (set V24, page updated 2026-10-09) allow their use in architecture diagrams, training and documentation: "You can copy, distribute, and display the icons only for the permitted use unless granted explicit permission by Microsoft. Microsoft reserves all other rights." They also say not to crop, flip, rotate or distort them, to use them only for the Microsoft product they stand for, and to put the product name near each icon. That isn't an open license, so **the Azure SVGs are never committed to an MIT repo**: not here, not in avd-ops.
 
-## 9. Upstream plan (each step waits for the owner's yes)
+- **Azure icons, operator-supplied.** `-AzureIconsPath` points at the zip the operator downloaded from that page, accepting the terms there. The step converts the needed SVGs into a local Mermaid icon pack in `output/`. The SVG markup is unchanged except that IDs inside each icon are prefixed, so gradients from different icons don't collide. A diagram drawn with them is an architecture diagram, which is the permitted use. Each icon node carries its label below it.
+- **Open icons by default.** Without `-AzureIconsPath`, the step uses a small subset of [Tabler Icons](https://github.com/tabler/tabler-icons) (MIT) for network, subnet, server, desktop, apps, router and broken link. These can be vendored here and on avd-ops with their license.
+- avd-ops pages that show sample diagrams use the open set, unless the owner decides to host Azure icons on the site under Microsoft's documentation terms.
 
-Open an issue on microsoft/ARI first, then a PR only if the maintainers want it, in this order:
+The spike rendered all three on the fake estate: Azure icons, Tabler icons, and no pack ("?" boxes).
 
-1. Deterministic subnet merge order and an option to omit the date (small, general, and it makes ARI's own output diffable).
-2. Draw broken peerings held by a spoke (confirm on a real estate first).
-3. Classify a private endpoint subnet as private endpoints, not NICs.
-4. AVD host pool on subnets in `Build-ARIDiagramSubnet` ("AVD is a thing people do").
+### 5.3 Styling
 
-Redaction stays ours. When ARI takes a change, the matching post-processor step is removed at the next pin bump.
+The page uses avd-ops tokens: hub `--accent-soft`/`--accent`, spoke `--sunken`/`--line-strong`, broken `--bad-soft`/`--bad` dashed, AVD `--s-design-bg`/`--s-design-fg`, light and dark. Two spike findings to fix in phase 1: a `class` on a subgraph didn't apply its fill in Mermaid 11.4.1 (use `style <subgraph> ...` lines instead), and the default theme's label backgrounds clash with the tokens (set `themeVariables`).
 
-## 10. Phases
+## 6. Checks
+
+- Every VNet, subnet, peering and AVD object in the rows appears in the graph. This is counted from the graph before writing, not read back from a render.
+- Every peering to a VNet not in the rows is drawn as broken, whichever side holds it.
+- Every subnet holding session hosts carries its host pool.
+- Offline Pester tests on the fake estate, extended with a firewall, Bastion, an ExpressRoute circuit, a scale set and AKS, with golden `estate.mmd` and `estate.icons.mmd`. The redaction scan is tested with planted leaks (a GUID, an IP, a real-looking name) that must stop the run. The icon pack converter is tested on a two-icon fixture made of our own shapes, never on Microsoft's files.
+- The rendered page is checked once per Mermaid pin bump in a headless browser. That is a manual step in a container, not in CI.
+
+## 7. Publishing and contracts
+
+- **C11 gets no `topology` section.** The diagram stays a local output, like every package. A contract change would touch three repos and isn't needed.
+- The pinned Mermaid build (MIT) is fetched by version and SHA-256, or taken from `-MermaidPath`, and inlined into `estate.html`. It isn't committed to this repo. avd-ops vendors its own copy for its pages, the way it vendors its design system.
+
+## 8. Upstream
+
+Nothing goes to microsoft/ARI now. The spoke-held broken peering and the private endpoint label are worth reporting as issues one day, with the owner's yes.
+
+## 9. Phases
 
 | Phase | What | Azure | Cost |
 |---|---|---|---|
 | 0 | This spec | None | $0 |
-| 1 | Entry point, module, redaction, post-processor, checks, Pester on the fixture | None | $0 |
-| 2 | One sandbox run of `-Collect` against the existing sandbox landing zone, then draw. Needs a written cost estimate and the owner's go first; Resource Graph reads are free, the cost is whatever the landing zone runs while it's up | Read only | Estimate first |
-| 3 | Upstream issues (section 9) | None | $0 |
-| 4, optional | An AVD-only Mermaid view from the same redacted rows, for GitHub and avd-ops pages (the bake-off's 90-line writer) | None | $0 |
+| 1 | Writer, redaction, icon pack converter, `estate.html`, checks, Pester on the fake estate | None | $0 |
+| 2 | Collector scope additions for the parity types (collector's thread) | None | $0 |
+| 3 | Draw from a sandbox collector run. Needs a written cost estimate and the owner's go first | Read only, through the collector | Estimate first |
+| 4 | avd-ops page with a sample diagram (open icons) | None | $0 |
 
-## 11. Open questions
+## 10. Open questions
 
-- Whether Cloud Shell can fetch the pinned scripts from github.com in every tenant (some block it); `-AriPath` is the fallback.
-- Whether ARI's diagram code needs `ImportExcel` on a path the fixture didn't touch (on-premises, Virtual WAN).
-- Whether the phase 4 Mermaid view is wanted at all.
+- GitHub's Mermaid version and whether it accepts icon-shape syntax (decides whether `estate.icons.mmd` can ever be the GitHub copy).
+- Layout at estate size: Mermaid's flowchart layout on 50 VNets is untested. The ELK layout is the fallback to try.
+- Whether avd-ops should host Azure icons under Microsoft's documentation terms (the owner's call).
 
 ## References
 
 - avd-second-brain KB, assessment page, "Diagrams from what is deployed".
 - avd-second-brain `docs/v1-review.md`, D18.
 - avd-assess `methods/collection.md`, steps 1, 3 and 7.
+- This repo's draft `docs/rebuild-fidelity-spec.md` (PR #15).
+- [Mermaid icon packs](https://mermaid.js.org/config/icons.html); [Azure architecture icons and terms](https://learn.microsoft.com/azure/architecture/icons/).
