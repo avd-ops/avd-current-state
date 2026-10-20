@@ -106,7 +106,7 @@ A rebuild never moves a secret from the old estate to the new one; it recreates 
 | Storage account keys | New account, new keys; the landing zone turns shared key access off, so nothing uses them |
 | Entra Kerberos for the profile storage | The new storage account gets its own Entra app on enablement; the admin consent step is repeated, and the map flags it as a manual step |
 | Logic App callback URLs, Automation webhooks | Recreated by the auto shutdown deployment |
-| Anything else found (other Key Vault secrets, a domain join credential, an app's connection string) | Not recreated by the landing zone: listed as `unexpressible` with its kind, for the operator to recreate by hand |
+| Anything else the estate depends on (a domain join credential in an extension's protected settings, secrets in other Key Vaults) | The collector can't see these: it never reads protected settings or the Key Vault data plane. The map lists each Key Vault and each extension with protected settings as `unknown`, so the operator knows where to look and recreates them by hand |
 
 FSLogix profile containers are data, not secrets: moving them is a migration step outside this spec.
 
