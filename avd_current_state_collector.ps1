@@ -209,6 +209,122 @@ function Get-PropValue {
     return $Default
 }
 
+
+function Write-RebuildFile {
+    <#
+    .SYNOPSIS
+        Writes one rebuild/ file after the never-collect scrubber, and refuses to write it if the
+        final scan still finds a secret shape (docs/rebuild-fidelity-spec.md, section 5.2).
+    #>
+    param([string]$Path, [object]$Data, [string]$Label)
+    $safe = ConvertTo-RebuildSafeObject -InputObject $Data
+    if ($safe.Removed -gt 0) { Write-Log "  ${Label}: $($safe.Removed) secret value(s) left out." }
+    $json = ConvertTo-Json -InputObject $safe.Object -Depth 64 -WarningAction SilentlyContinue
+    $findings = @(Get-RebuildSecretFinding -Text $json)
+    if ($findings.Count -gt 0) {
+        $script:RebuildWithheld.Add([pscustomobject]@{ File = $Label; Findings = ($findings -join ', ') })
+        Write-Log "  ${Label}: not written, the final scan found $($findings -join ', ')." -Level ERROR
+        return $null
+    }
+    New-Item -ItemType Directory -Path (Split-Path $Path) -Force | Out-Null
+    [System.IO.File]::WriteAllText($Path, $json, [System.Text.Encoding]::UTF8)
+    return $safe.Object
+}
+
+function Read-RebuildEvidence {
+    <#
+    .SYNOPSIS
+        Reads every Resource Graph type and REST read in rebuild/scope.json for one subscription,
+        writes them under <subscription>/rebuild/, and returns the scrubbed rows keyed by type
+        ('*' holds the plain resource list for the arm-resources dataset).
+    #>
+    param([string]$SubscriptionId, [string]$SubDir)
+    $graph = {
+        param($body)
+        $r = Invoke-AzRestMethod -Method POST -Path '/providers/Microsoft.ResourceGraph/resources?api-version=2022-10-01' -Payload ($body | ConvertTo-Json -Depth 5 -Compress)
+        @{ StatusCode = $r.StatusCode; Content = $r.Content }
+    }
+    $rest = {
+        param($path)
+        $r = Invoke-AzRestMethod -Method GET -Path $path
+        @{ StatusCode = $r.StatusCode; Content = $r.Content }
+    }
+    $rebuildDir = Join-Path $SubDir 'rebuild'
+    $rows = @{}
+    $script:RebuildRest = @{}
+
+    Write-Log "  Reading the resource list through Resource Graph ..."
+    try {
+        $rows['*'] = @(Invoke-RebuildGraphQuery -Query 'resources | project id, name, type, location, tags | order by id asc' -SubscriptionId $SubscriptionId -Invoker $graph)
+        Write-Log "  Resource list — $($rows['*'].Count) item(s)."
+    } catch {
+        $rows['*'] = @()
+        Write-Log "  Resource list read failed: $($_.Exception.Message)" -Level WARN
+    }
+
+    foreach ($t in @($script:RebuildScope.resourceGraph)) {
+        Write-Log "  Reading $($t.type) through Resource Graph ..."
+        $status = 'ok'; $err = ''
+        try {
+            $found = @(Invoke-RebuildGraphQuery -Query (Get-RebuildQuery -Table $t.table -Type $t.type) -SubscriptionId $SubscriptionId -Invoker $graph)
+        } catch {
+            $found = @(); $status = 'failed'; $err = $_.Exception.Message
+            Write-Log "  $($t.type) read failed: $err" -Level WARN
+        }
+        $written = Write-RebuildFile -Path (Join-Path $rebuildDir (Join-Path 'resources' (Get-RebuildFileName -Type $t.type))) -Data $found -Label $t.type
+        $rows[$t.type] = if ($null -ne $written) { @($written) } else { @() }
+        $script:RebuildReads.Add([pscustomobject]@{ Subscription = $SubscriptionId; Read = $t.type; Source = $t.table; Items = $found.Count; Status = $status; Error = $err })
+    }
+
+    $sessionHostVms = @{}
+    foreach ($sh in @($rows['microsoft.desktopvirtualization/hostpools/sessionhosts'])) {
+        $vmId = "$(Get-RebuildValue $sh 'properties.resourceId' '')".ToLowerInvariant()
+        if ($vmId) { $sessionHostVms[$vmId] = $true }
+    }
+    foreach ($read in @($script:RebuildScope.rest)) {
+        $parents = @()
+        foreach ($p in @($read.parentTypes)) {
+            if ($p -eq 'subscription') { $parents += "/subscriptions/$SubscriptionId" }
+            else { $parents += @($rows[$p] | ForEach-Object { $_.id }) }
+        }
+        # Run Commands are read only on session hosts: that's where the landing zone keeps FSLogix's.
+        if ($read.name -eq 'run-commands') { $parents = @($parents | Where-Object { $sessionHostVms.ContainsKey("$_".ToLowerInvariant()) }) }
+        if ($parents.Count -eq 0) { continue }
+        Write-Log "  Reading $($read.name) for $($parents.Count) resource(s) ..."
+        $results = @(foreach ($parentId in $parents) {
+                $r = Invoke-RebuildRestRead -Path (Get-RebuildRestPath -Read $read -ParentId $parentId) -Invoker $rest
+                if ($r.Status -eq 'failed') { Write-Log "  $($read.name) failed for ${parentId}: $($r.Error)" -Level WARN }
+                [pscustomobject][ordered]@{ parentId = $parentId; status = $r.Status; error = $r.Error; items = @($r.Items) }
+            })
+        $written = Write-RebuildFile -Path (Join-Path $rebuildDir (Join-Path 'rest' "$($read.name).json")) -Data $results -Label $read.name
+        $script:RebuildRest[$read.name] = if ($null -ne $written) { @($written) } else { @() }
+        $failed = @($results | Where-Object { $_.status -eq 'failed' }).Count
+        $script:RebuildReads.Add([pscustomobject]@{ Subscription = $SubscriptionId; Read = $read.name; Source = 'rest'; Items = $results.Count; Status = $(if ($failed) { "failed for $failed" } else { 'ok' }); Error = '' })
+    }
+    return $rows
+}
+
+function Write-RebuildMap {
+    <#
+    .SYNOPSIS
+        Maps one subscription's evidence onto the landing zone's parameters (lib/AvdRebuildMap.psm1)
+        and writes <subscription>/rebuild/rebuild-map.json. Private: it holds names, prefixes and IDs.
+    #>
+    param([string]$SubscriptionId, [string]$SubDir, [hashtable]$Rows, [object[]]$RoleAssignments)
+    try {
+        $maps = @(Get-LzRebuildMap -Rows $Rows -Rest $script:RebuildRest -RoleAssignments $RoleAssignments -ParameterList $script:LzParameters)
+    } catch {
+        Write-Log "  Rebuild map failed: $($_.Exception.Message)" -Level WARN
+        return
+    }
+    if ($maps.Count -eq 0) { return }
+    $null = Write-RebuildFile -Path (Join-Path $SubDir (Join-Path 'rebuild' 'rebuild-map.json')) -Data $maps -Label 'rebuild-map'
+    foreach ($m in $maps) {
+        $script:RebuildCoverage.Add([pscustomobject]@{ Subscription = $SubscriptionId; HostPool = ($m.hostPool -split '/')[-1]; Coverage = $m.coverage })
+        Write-Log "  Rebuild map for $(($m.hostPool -split '/')[-1]): $(@($m.coverage.Keys | Where-Object { $m.coverage[$_] } | ForEach-Object { "$($m.coverage[$_]) $_" }) -join ', ')."
+    }
+}
+
 # endregion
 
 # ─────────────────────────────────────────────
@@ -224,16 +340,11 @@ if ($script:IsCloudShell) {
     Write-Log "Environment   : Azure Cloud Shell detected — output defaults to ~/clouddrive for persistence."
 }
 
+# Resource Graph and REST go through Invoke-AzRestMethod (Az.Accounts). Az.Resources keeps the
+# policy and role assignment datasets and the access check.
 $requiredModules = @(
     'Az.Accounts',
-    'Az.Resources',
-    'Az.Compute',
-    'Az.Network',
-    'Az.Storage',
-    'Az.KeyVault',
-    'Az.OperationalInsights',
-    'Az.RecoveryServices',
-    'Az.DesktopVirtualization'
+    'Az.Resources'
 )
 
 foreach ($mod in $requiredModules) {
@@ -241,6 +352,17 @@ foreach ($mod in $requiredModules) {
 }
 
 Write-Log "Az modules loaded."
+
+# Rebuild-fidelity reads (docs/rebuild-fidelity-spec.md): pure helpers and the scope of what is read.
+Import-Module (Join-Path $PSScriptRoot 'lib/AvdRebuild.psm1') -Force
+Import-Module (Join-Path $PSScriptRoot 'lib/AvdRebuildMap.psm1') -Force
+$script:RebuildScope    = Get-RebuildScope -Path (Join-Path $PSScriptRoot 'rebuild/scope.json')
+$script:RebuildReads    = [System.Collections.Generic.List[psobject]]::new()
+$script:RebuildWithheld = [System.Collections.Generic.List[psobject]]::new()
+$script:RebuildCoverage = [System.Collections.Generic.List[psobject]]::new()
+$script:RebuildRest     = @{}
+$script:LzParameters    = Get-Content -Raw -Path (Join-Path $PSScriptRoot 'rebuild/lz-parameters.json') | ConvertFrom-Json
+Write-Log "Rebuild scope : $(@($script:RebuildScope.resourceGraph).Count) Resource Graph types, $(@($script:RebuildScope.rest).Count) REST reads (landing zone $($script:RebuildScope.landingZoneCommit.Substring(0, 7)))."
 
 # endregion
 
@@ -357,173 +479,67 @@ foreach ($sub in $targetSubs) {
     # Store counts for this subscription
     $subCounts = @{}
 
+    # ── Resource Graph and REST reads (docs/rebuild-fidelity-spec.md) ──
+    # One read per resource type in rebuild/scope.json. The full objects go to rebuild/, and the
+    # datasets below are built from the same rows, so the two never disagree.
+    $rows = Read-RebuildEvidence -SubscriptionId $subId -SubDir $subDir
+
     # ── Core Resources ──
-    $resourceGroups = Safe-Collect 'ResourceGroups' {
-        Get-AzResourceGroup | Select-Object ResourceGroupName, Location, ProvisioningState,
-            @{N='Tags';E={ ($_.Tags | ConvertTo-Json -Compress -WarningAction SilentlyContinue) }}
-    }
+    $resourceGroups = Safe-Collect 'ResourceGroups' { Get-RebuildDataset -Name 'resource-groups' -Rows $rows }
     $subCounts['ResourceGroups'] = (Export-Dataset -SubDir $subDir -Name 'resource-groups' -Data $resourceGroups)
 
-    $armResources = Safe-Collect 'ARMResources' {
-        Get-AzResource | Select-Object Name, ResourceGroupName, ResourceType, Location, ResourceId,
-            @{N='Tags';E={ ($_.Tags | ConvertTo-Json -Compress -WarningAction SilentlyContinue) }}
-    }
+    $armResources = Safe-Collect 'ARMResources' { Get-RebuildDataset -Name 'arm-resources' -Rows $rows }
     $subCounts['ARMResources'] = (Export-Dataset -SubDir $subDir -Name 'arm-resources' -Data $armResources)
 
     # ── Networking ──
-    $vnets = Safe-Collect 'VirtualNetworks' {
-        Get-AzVirtualNetwork | Select-Object Name, ResourceGroupName, Location,
-            @{N='AddressSpace';E={ ($_.AddressSpace.AddressPrefixes -join ', ') }},
-            @{N='DnsServers';E={ ($_.DhcpOptions.DnsServers -join ', ') }},
-            @{N='SubnetCount';E={ $_.Subnets.Count }},
-            @{N='EnableDdosProtection';E={ $_.EnableDdosProtection }},
-            Id
-    }
+    $vnets = Safe-Collect 'VirtualNetworks' { Get-RebuildDataset -Name 'virtual-networks' -Rows $rows }
     $subCounts['VirtualNetworks'] = (Export-Dataset -SubDir $subDir -Name 'virtual-networks' -Data $vnets)
 
-    $subnets = Safe-Collect 'Subnets' {
-        Get-AzVirtualNetwork | ForEach-Object {
-            $vnetName = $_.Name
-            $_.Subnets | Select-Object Name,
-                @{N='VNetName';E={ $vnetName }},
-                @{N='AddressPrefix';E={ ($_.AddressPrefix -join ', ') }},
-                @{N='NSG';E={ if ($_.NetworkSecurityGroup) { ($_.NetworkSecurityGroup.Id -split '/')[-1] } else { '' } }},
-                @{N='RouteTable';E={ if ($_.RouteTable) { ($_.RouteTable.Id -split '/')[-1] } else { '' } }},
-                @{N='ServiceEndpoints';E={ ($_.ServiceEndpoints.Service -join ', ') }},
-                @{N='Delegations';E={ ($_.Delegations.ServiceName -join ', ') }},
-                @{N='PrivateEndpointNetworkPolicies';E={ $_.PrivateEndpointNetworkPolicies }},
-                Id
-        }
-    }
+    $subnets = Safe-Collect 'Subnets' { Get-RebuildDataset -Name 'subnets' -Rows $rows }
     $subCounts['Subnets'] = (Export-Dataset -SubDir $subDir -Name 'subnets' -Data $subnets)
 
-    $nsgs = Safe-Collect 'NSGs' {
-        Get-AzNetworkSecurityGroup | Select-Object Name, ResourceGroupName, Location,
-            @{N='SecurityRuleCount';E={ $_.SecurityRules.Count }},
-            @{N='DefaultRuleCount';E={ $_.DefaultSecurityRules.Count }},
-            Id
-    }
+    $nsgs = Safe-Collect 'NSGs' { Get-RebuildDataset -Name 'nsgs' -Rows $rows }
     $subCounts['NSGs'] = (Export-Dataset -SubDir $subDir -Name 'nsgs' -Data $nsgs)
 
-    $nsgRules = Safe-Collect 'NSGRules' {
-        Get-AzNetworkSecurityGroup | ForEach-Object {
-            $nsgName = $_.Name
-            $_.SecurityRules | Select-Object Name,
-                @{N='NSGName';E={ $nsgName }},
-                Direction, Priority, Access, Protocol,
-                @{N='SourceAddressPrefix';E={ ($_.SourceAddressPrefix -join ', ') }},
-                @{N='SourcePortRange';E={ ($_.SourcePortRange -join ', ') }},
-                @{N='DestinationAddressPrefix';E={ ($_.DestinationAddressPrefix -join ', ') }},
-                @{N='DestinationPortRange';E={ ($_.DestinationPortRange -join ', ') }}
-        }
-    }
+    $nsgRules = Safe-Collect 'NSGRules' { Get-RebuildDataset -Name 'nsg-rules' -Rows $rows }
     $subCounts['NSGRules'] = (Export-Dataset -SubDir $subDir -Name 'nsg-rules' -Data $nsgRules)
 
-    $routeTables = Safe-Collect 'RouteTables' {
-        Get-AzRouteTable | Select-Object Name, ResourceGroupName, Location,
-            @{N='RouteCount';E={ $_.Routes.Count }},
-            @{N='DisableBgpRoutePropagation';E={ $_.DisableBgpRoutePropagation }},
-            @{N='Routes';E={ ($_.Routes | ForEach-Object { "$($_.Name):$($_.AddressPrefix)->$($_.NextHopType)" }) -join '; ' }},
-            Id
-    }
+    $routeTables = Safe-Collect 'RouteTables' { Get-RebuildDataset -Name 'route-tables' -Rows $rows }
     $subCounts['RouteTables'] = (Export-Dataset -SubDir $subDir -Name 'route-tables' -Data $routeTables)
 
-    $publicIPs = Safe-Collect 'PublicIPs' {
-        Get-AzPublicIpAddress | Select-Object Name, ResourceGroupName, Location,
-            PublicIpAllocationMethod, IpAddress, Sku,
-            @{N='AssociatedTo';E={ if ($_.IpConfiguration) { ($_.IpConfiguration.Id -split '/')[-3] } else { '' } }},
-            Id
-    }
+    $publicIPs = Safe-Collect 'PublicIPs' { Get-RebuildDataset -Name 'public-ips' -Rows $rows }
     $subCounts['PublicIPs'] = (Export-Dataset -SubDir $subDir -Name 'public-ips' -Data $publicIPs)
 
     # ── Compute ──
-    $vms = Safe-Collect 'VirtualMachines' {
-        Get-AzVM -Status | Select-Object Name, ResourceGroupName, Location,
-            @{N='VMSize';E={ $_.HardwareProfile.VmSize }},
-            @{N='OsType';E={ $_.StorageProfile.OsDisk.OsType }},
-            @{N='OsDiskSize';E={ $_.StorageProfile.OsDisk.DiskSizeGB }},
-            @{N='ImagePublisher';E={ $_.StorageProfile.ImageReference.Publisher }},
-            @{N='ImageOffer';E={ $_.StorageProfile.ImageReference.Offer }},
-            @{N='ImageSku';E={ $_.StorageProfile.ImageReference.Sku }},
-            @{N='ImageVersion';E={ $_.StorageProfile.ImageReference.ExactVersion }},
-            @{N='DataDiskCount';E={ $_.StorageProfile.DataDisks.Count }},
-            @{N='PowerState';E={ ($_.Statuses | Where-Object { $_.Code -like 'PowerState/*' }).DisplayStatus }},
-            @{N='ProvisioningState';E={ $_.ProvisioningState }},
-            @{N='AvailabilitySet';E={ if ($_.AvailabilitySetReference) { ($_.AvailabilitySetReference.Id -split '/')[-1] } else { '' } }},
-            @{N='Tags';E={ ($_.Tags | ConvertTo-Json -Compress -WarningAction SilentlyContinue) }},
-            Id
-    }
+    $vms = Safe-Collect 'VirtualMachines' { Get-RebuildDataset -Name 'virtual-machines' -Rows $rows }
     $subCounts['VirtualMachines'] = (Export-Dataset -SubDir $subDir -Name 'virtual-machines' -Data $vms)
 
-    $vmExtensions = Safe-Collect 'VMExtensions' {
-        Get-AzVM | ForEach-Object {
-            $vmName = $_.Name; $rg = $_.ResourceGroupName
-            try {
-                Get-AzVMExtension -ResourceGroupName $rg -VMName $vmName -ErrorAction SilentlyContinue |
-                    Select-Object @{N='VMName';E={ $vmName }}, Name, Publisher, ExtensionType,
-                        TypeHandlerVersion, ProvisioningState, @{N='AutoUpgrade';E={ $_.AutoUpgradeMinorVersion }}
-            } catch { $null }
-        }
-    }
+    $vmExtensions = Safe-Collect 'VMExtensions' { Get-RebuildDataset -Name 'vm-extensions' -Rows $rows }
     $subCounts['VMExtensions'] = (Export-Dataset -SubDir $subDir -Name 'vm-extensions' -Data $vmExtensions)
 
     # ── Storage ──
-    $storageAccounts = Safe-Collect 'StorageAccounts' {
-        Get-AzStorageAccount | Select-Object StorageAccountName, ResourceGroupName, Location,
-            @{N='Kind';E={ $_.Kind }},
-            @{N='SkuName';E={ $_.Sku.Name }},
-            @{N='AccessTier';E={ $_.AccessTier }},
-            @{N='EnableHttpsOnly';E={ $_.EnableHttpsTrafficOnly }},
-            @{N='MinimumTlsVersion';E={ $_.MinimumTlsVersion }},
-            @{N='AllowBlobPublicAccess';E={ $_.AllowBlobPublicAccess }},
-            @{N='NetworkRuleDefaultAction';E={ $_.NetworkRuleSet.DefaultAction }},
-            @{N='LargeFileShares';E={ $_.LargeFileSharesState }},
-            @{N='Tags';E={ ($_.Tags | ConvertTo-Json -Compress -WarningAction SilentlyContinue) }},
-            Id
-    }
+    $storageAccounts = Safe-Collect 'StorageAccounts' { Get-RebuildDataset -Name 'storage-accounts' -Rows $rows }
     $subCounts['StorageAccounts'] = (Export-Dataset -SubDir $subDir -Name 'storage-accounts' -Data $storageAccounts)
 
     # ── Key Vault ──
-    $keyVaults = Safe-Collect 'KeyVaults' {
-        Get-AzKeyVault | Select-Object VaultName, ResourceGroupName, Location,
-            @{N='EnableSoftDelete';E={ $_.EnableSoftDelete }},
-            @{N='EnablePurgeProtection';E={ $_.EnablePurgeProtection }},
-            @{N='SkuName';E={ $_.Sku }},
-            @{N='Tags';E={ ($_.Tags | ConvertTo-Json -Compress -WarningAction SilentlyContinue) }},
-            ResourceId
-    }
+    $keyVaults = Safe-Collect 'KeyVaults' { Get-RebuildDataset -Name 'key-vaults' -Rows $rows }
     $subCounts['KeyVaults'] = (Export-Dataset -SubDir $subDir -Name 'key-vaults' -Data $keyVaults)
 
     # ── Log Analytics ──
-    $logAnalytics = Safe-Collect 'LogAnalyticsWorkspaces' {
-        Get-AzOperationalInsightsWorkspace | Select-Object Name, ResourceGroupName, Location,
-            @{N='Sku';E={ $_.Sku }},
-            @{N='RetentionDays';E={ $_.RetentionInDays }},
-            CustomerId, ResourceId
-    }
+    $logAnalytics = Safe-Collect 'LogAnalyticsWorkspaces' { Get-RebuildDataset -Name 'log-analytics-workspaces' -Rows $rows }
     $subCounts['LogAnalyticsWorkspaces'] = (Export-Dataset -SubDir $subDir -Name 'log-analytics-workspaces' -Data $logAnalytics)
 
     # ── Recovery Services ──
-    $recVaults = Safe-Collect 'RecoveryServicesVaults' {
-        Get-AzRecoveryServicesVault | Select-Object Name, ResourceGroupName, Location,
-            @{N='Type';E={ $_.Type }},
-            @{N='ProvisioningState';E={ Get-PropValue $_ @('Properties.ProvisioningState','ProvisioningState') '' }},
-            @{N='Tags';E={ ($_.Tags | ConvertTo-Json -Compress -WarningAction SilentlyContinue) }},
-            ID
-    }
+    $recVaults = Safe-Collect 'RecoveryServicesVaults' { Get-RebuildDataset -Name 'recovery-services-vaults' -Rows $rows }
     $subCounts['RecoveryServicesVaults'] = (Export-Dataset -SubDir $subDir -Name 'recovery-services-vaults' -Data $recVaults)
 
     # ── Private Endpoints ──
-    $privateEndpoints = Safe-Collect 'PrivateEndpoints' {
-        Get-AzPrivateEndpoint | Select-Object Name, ResourceGroupName, Location,
-            @{N='Subnet';E={ if ($_.Subnet) { ($_.Subnet.Id -split '/')[-1] } else { '' } }},
-            @{N='VNet';E={ if ($_.Subnet) { ($_.Subnet.Id -split '/')[8] } else { '' } }},
-            @{N='TargetResource';E={ ($_.PrivateLinkServiceConnections | ForEach-Object { ($_.PrivateLinkServiceId -split '/')[-1] }) -join ', ' }},
-            @{N='GroupIds';E={ ($_.PrivateLinkServiceConnections | ForEach-Object { $_.GroupIds -join ',' }) -join '; ' }},
-            @{N='ConnectionStatus';E={ ($_.PrivateLinkServiceConnections | ForEach-Object { $_.PrivateLinkServiceConnectionState.Status }) -join ', ' }},
-            Id
-    }
+    $privateEndpoints = Safe-Collect 'PrivateEndpoints' { Get-RebuildDataset -Name 'private-endpoints' -Rows $rows }
     $subCounts['PrivateEndpoints'] = (Export-Dataset -SubDir $subDir -Name 'private-endpoints' -Data $privateEndpoints)
+
+    # Policy and role assignments stay on cmdlets: Get-AzPolicyAssignment includes assignments
+    # inherited from management groups, and Get-AzRoleAssignment adds display names from Graph.
+    # Their full Resource Graph rows are saved under rebuild/ as well.
 
     # ── Policy Assignments ──
     $policyAssignments = Safe-Collect 'PolicyAssignments' {
@@ -544,77 +560,24 @@ foreach ($sub in $targetSubs) {
     }
     $subCounts['RoleAssignments'] = (Export-Dataset -SubDir $subDir -Name 'role-assignments' -Data $roleAssignments)
 
+    # ── Rebuild map: the landing zone parameters this estate maps to (docs/rebuild-fidelity-spec.md) ──
+    Write-RebuildMap -SubscriptionId $subId -SubDir $subDir -Rows $rows -RoleAssignments @($roleAssignments)
+
     # ── AVD Host Pools ──
-    $hostPools = Safe-Collect 'AVDHostPools' {
-        Get-AzWvdHostPool | Select-Object Name, ResourceGroupName, Location,
-            @{N='HostPoolType';E={ $_.HostPoolType }},
-            @{N='LoadBalancerType';E={ $_.LoadBalancerType }},
-            @{N='PreferredAppGroupType';E={ $_.PreferredAppGroupType }},
-            @{N='MaxSessionLimit';E={ $_.MaxSessionLimit }},
-            @{N='ValidationEnvironment';E={ $_.ValidationEnvironment }},
-            @{N='StartVMOnConnect';E={ $_.StartVMOnConnect }},
-            @{N='CustomRdpProperty';E={ $_.CustomRdpProperty }},
-            @{N='Tags';E={ ($_.Tag | ConvertTo-Json -Compress -WarningAction SilentlyContinue) }},
-            Id
-    }
+    $hostPools = Safe-Collect 'AVDHostPools' { Get-RebuildDataset -Name 'avd-host-pools' -Rows $rows }
     $subCounts['AVDHostPools'] = (Export-Dataset -SubDir $subDir -Name 'avd-host-pools' -Data $hostPools)
 
     # ── AVD Workspaces ──
-    $avdWorkspaces = Safe-Collect 'AVDWorkspaces' {
-        Get-AzWvdWorkspace | Select-Object Name, ResourceGroupName, Location,
-            @{N='FriendlyName';E={ $_.FriendlyName }},
-            @{N='Description';E={ $_.Description }},
-            @{N='AppGroupReferences';E={ ($_.ApplicationGroupReference -join '; ') }},
-            @{N='Tags';E={ ($_.Tag | ConvertTo-Json -Compress -WarningAction SilentlyContinue) }},
-            Id
-    }
+    $avdWorkspaces = Safe-Collect 'AVDWorkspaces' { Get-RebuildDataset -Name 'avd-workspaces' -Rows $rows }
     $subCounts['AVDWorkspaces'] = (Export-Dataset -SubDir $subDir -Name 'avd-workspaces' -Data $avdWorkspaces)
 
     # ── AVD Application Groups ──
-    $appGroups = Safe-Collect 'AVDApplicationGroups' {
-        Get-AzWvdApplicationGroup | Select-Object Name, ResourceGroupName, Location,
-            @{N='ApplicationGroupType';E={ $_.ApplicationGroupType }},
-            @{N='HostPoolArmPath';E={ $_.HostPoolArmPath }},
-            @{N='FriendlyName';E={ $_.FriendlyName }},
-            @{N='Description';E={ $_.Description }},
-            @{N='Tags';E={ ($_.Tag | ConvertTo-Json -Compress -WarningAction SilentlyContinue) }},
-            Id
-    }
+    $appGroups = Safe-Collect 'AVDApplicationGroups' { Get-RebuildDataset -Name 'avd-application-groups' -Rows $rows }
     $subCounts['AVDApplicationGroups'] = (Export-Dataset -SubDir $subDir -Name 'avd-application-groups' -Data $appGroups)
 
     # ── AVD Session Hosts ──
-    $sessionHosts = Safe-Collect 'AVDSessionHosts' {
-        $allSH = @()
-        foreach ($hp in $hostPools) {
-            $hpName = $hp.Name
-            $hpRg   = $hp.ResourceGroupName
-            try {
-                $shs = Get-AzWvdSessionHost -HostPoolName $hpName -ResourceGroupName $hpRg -ErrorAction SilentlyContinue
-                foreach ($sh in $shs) {
-                    $allSH += [pscustomobject]@{
-                        HostPool           = $hpName
-                        Name               = $sh.Name
-                        ResourceId         = $sh.Id
-                        Status             = $sh.Status
-                        AllowNewSession    = $sh.AllowNewSession
-                        AssignedUser       = $sh.AssignedUser
-                        Sessions           = $sh.Session
-                        LastHeartBeat      = $sh.LastHeartBeat
-                        OSVersion          = $sh.OsVersion
-                        SxSStackVersion    = $sh.SxSStackVersion
-                        AgentVersion       = $sh.AgentVersion
-                        UpdateState        = $sh.UpdateState
-                        StatusTimestamp     = $sh.StatusTimestamp
-                    }
-                }
-            } catch {
-                Write-Log "  Could not retrieve session hosts for host pool '$hpName': $($_.Exception.Message)" -Level WARN
-            }
-        }
-        $allSH
-    }
+    $sessionHosts = Safe-Collect 'AVDSessionHosts' { Get-RebuildDataset -Name 'avd-session-hosts' -Rows $rows }
     $subCounts['AVDSessionHosts'] = (Export-Dataset -SubDir $subDir -Name 'avd-session-hosts' -Data $sessionHosts)
-
     # ── Record subscription outcome ──
     $script:SubscriptionResults.Add([pscustomobject]@{
         SubscriptionName = $subName
@@ -685,6 +648,30 @@ Add-Line ""
 
 if ($hpCount -eq 0) {
     Add-Line "> **Note:** No AVD host pools were discovered. The environment may not yet have AVD deployed, or the collector identity may lack `Desktop Virtualization Reader` permissions."
+    Add-Line ""
+}
+
+# Rebuild-fidelity reads
+Add-Line "## Rebuild Evidence"
+Add-Line ""
+$readsFailed = @($script:RebuildReads | Where-Object { $_.Status -ne 'ok' })
+Add-Line ("Full Azure objects for what a landing zone rebuild needs are under each subscription's ``rebuild/`` folder " +
+          "(scope: ``rebuild/scope.json``, landing zone $($script:RebuildScope.landingZoneCommit.Substring(0, 7))). " +
+          "Secrets are never collected: a rebuild recreates them.")
+Add-Line ""
+Add-Line "| Reads | Failed | Files withheld by the secret scan |"
+Add-Line "|---|---|---|"
+Add-Line "| $($script:RebuildReads.Count) | $($readsFailed.Count) | $($script:RebuildWithheld.Count) |"
+Add-Line ""
+foreach ($f in $readsFailed) { Add-Line "- $($f.Read): $($f.Status)" }
+if ($readsFailed.Count -gt 0) { Add-Line "" }
+if ($script:RebuildCoverage.Count -gt 0) {
+    $statuses = @(Get-LzStatusList)
+    Add-Line "Landing zone parameters per host pool ($(@($script:LzParameters.parameters).Count) in all; ``rebuild/rebuild-map.json`` has each value and its evidence):"
+    Add-Line ""
+    Add-Line ("| Host pool | " + ($statuses -join ' | ') + " |")
+    Add-Line ("|---|" + (($statuses | ForEach-Object { '---' }) -join '|') + "|")
+    foreach ($c in $script:RebuildCoverage) { Add-Line ("| $($c.HostPool) | " + (($statuses | ForEach-Object { $c.Coverage[$_] }) -join ' | ') + " |") }
     Add-Line ""
 }
 
@@ -807,6 +794,7 @@ $manifest = [pscustomobject]@{
     SubscriptionsSkipped   = $skippedSubs.Count
     SubscriptionDetails    = $script:SubscriptionResults
     GrandTotals      = $grandTotals
+    RebuildScope     = [pscustomobject]@{ LandingZoneCommit = $script:RebuildScope.landingZoneCommit; Reads = $script:RebuildReads; Withheld = $script:RebuildWithheld; Coverage = $script:RebuildCoverage }
     Warnings         = $script:Warnings
     Files            = $manifestFiles
 }
