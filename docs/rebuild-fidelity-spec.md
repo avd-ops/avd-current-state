@@ -93,7 +93,22 @@ Even in the private package, the reader drops these before writing, and a final 
 - Keys and connection strings (`primaryKey`, `secondaryKey`, `connectionString`, `accessKeys`), and any `protectedParameters` or `protectedSettings` value a Run Command or extension returns.
 - Key Vault data plane: no secret names, versions or values.
 
-The scan's patterns (JWT, SAS, account key shape) get fixtures and a test. A rebuild generates fresh secrets; the landing zone already does (`deploy.sh` makes the break-glass password and the registration token).
+The scan's patterns (JWT, SAS, account key shape) get fixtures and a test.
+
+### 5.3 Secrets are recreated, never carried
+
+A rebuild never moves a secret from the old estate to the new one; it recreates each one (owner, 2026-10-20). The rebuild map lists every secret the rebuild must recreate by kind and where it lives, never its value or its Key Vault name, so nothing is forgotten:
+
+| Secret | How the rebuild recreates it |
+|---|---|
+| Break-glass local admin password | `deploy.sh` generates a new one and stores it in the new Key Vault (today's behavior) |
+| Host pool registration token | Issued by the new host pool at deploy time and passed as a protected Run Command parameter (today's behavior) |
+| Storage account keys | New account, new keys; the landing zone turns shared key access off, so nothing uses them |
+| Entra Kerberos for the profile storage | The new storage account gets its own Entra app on enablement; the admin consent step is repeated, and the map flags it as a manual step |
+| Logic App callback URLs, Automation webhooks | Recreated by the auto shutdown deployment |
+| Anything else found (other Key Vault secrets, a domain join credential, an app's connection string) | Not recreated by the landing zone: listed as `unexpressible` with its kind, for the operator to recreate by hand |
+
+FSLogix profile containers are data, not secrets: moving them is a migration step outside this spec.
 
 ## 6. In-guest settings
 
