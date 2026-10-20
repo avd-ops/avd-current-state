@@ -87,6 +87,8 @@ The collector reads each in-scope type once, through Resource Graph or REST, and
 - **Full objects** under a `rebuild/` folder per subscription: one JSON file per resource type (`rebuild/resources/microsoft.desktopvirtualization-scalingplans.json`) and one per REST read (`rebuild/rest/diagnostic-settings.json`).
 - **The existing datasets, rebuilt from the same rows.** The 22 CSV and JSON datasets keep their file names and columns, so the facts script, the vault and anyone reading the CSVs keep working, but their values now come from the saved rows instead of separate cmdlet calls. Where a cmdlet's reshaped value and the ARM property differ (power state, a joined list), the dataset keeps its column and documents the ARM path it maps from; a test pins each column to its path.
 
+Two datasets keep their cmdlets, because Resource Graph lacks what they hold: `policy-assignments` (`Get-AzPolicyAssignment` includes assignments inherited from management groups) and `role-assignments` (`Get-AzRoleAssignment` adds display names from Microsoft Graph). Their full Resource Graph rows are saved under `rebuild/` too.
+
 The facts script never opens `rebuild/`. Its tests keep their fixtures; a new test runs it on a package produced from Resource Graph fixture rows and checks the snapshot against the one the cmdlet-shaped fixture gives.
 
 ### 5.2 What is never collected

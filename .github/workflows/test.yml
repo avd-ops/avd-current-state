@@ -1,7 +1,7 @@
 name: test
 
 # Offline checks on every PR and on main: script analysis and Pester tests for the facts
-# snapshot (contract C11). Read-only; nothing here calls Azure.
+# snapshot (contract C11) and the collector's Resource Graph helpers (lib/). Read-only; nothing here calls Azure.
 on:
   pull_request:
   push:
@@ -25,6 +25,7 @@ jobs:
           Set-PSRepository PSGallery -InstallationPolicy Trusted
           Install-Module PSScriptAnalyzer -Scope CurrentUser -Force
           Invoke-ScriptAnalyzer -Path ./avd_current_state_facts.ps1 -Settings ./PSScriptAnalyzerSettings.psd1 -EnableExit
+          Invoke-ScriptAnalyzer -Path ./lib -Recurse -Settings ./PSScriptAnalyzerSettings.psd1 -EnableExit
 
       - name: Pester
         shell: pwsh

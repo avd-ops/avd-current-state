@@ -28,6 +28,9 @@ The collector and validator perform discovery only (the facts script reads only 
 
 - They call `Get-*` and `Test-*` cmdlets exclusively, and never invoke `New-*`, `Set-*`,
   `Update-*`, `Add-*`, `Remove-*`, `Restart-*`, `Start-*` or `Stop-*` against an Azure resource.
+- The collector reads through Azure Resource Graph and REST `GET` requests with
+  `Invoke-AzRestMethod`. A Resource Graph query is sent as a `POST`, the one exception, and it
+  only reads. Every request the collector makes is listed in [`rebuild/scope.json`](rebuild/scope.json).
 - The one `Set-AzContext` call selects the target subscription. It changes local PowerShell
   session state, not Azure.
 - Files are written only inside the local output folder.
@@ -52,15 +55,14 @@ recorded in every output package.
 
 | Module | Collector | Validator | Purpose |
 |---|---|---|---|
-| Az.Accounts | Required | Required | Authentication, subscription and context management |
-| Az.Resources | Required | Required | Resource groups, ARM resources, policy, role assignments, locks, providers |
-| Az.Compute | Required | Required | Virtual machines and extensions; VM SKU catalog and gallery images |
-| Az.Network | Required | Required | VNets, subnets, NSGs, route tables, public IPs, private endpoints |
-| Az.Storage | Required | Required | Storage accounts; Azure Files shares |
-| Az.DesktopVirtualization | Required | Required | Host pools, workspaces, application groups, session hosts |
-| Az.KeyVault | Required | — | Key Vaults |
-| Az.OperationalInsights | Required | Optional | Log Analytics workspaces |
-| Az.RecoveryServices | Required | Optional | Recovery Services vaults; backup coverage |
+| Az.Accounts | Required | Required | Authentication, subscription and context management; the collector's Resource Graph and REST reads (`Invoke-AzRestMethod`) |
+| Az.Resources | Required | Required | Policy and role assignments (collector); resource groups, ARM resources, locks, providers (validator) |
+| Az.Compute | — | Required | Virtual machines and extensions; VM SKU catalog and gallery images |
+| Az.Network | — | Required | VNets, subnets, NSGs, route tables, public IPs, private endpoints |
+| Az.Storage | — | Required | Storage accounts; Azure Files shares |
+| Az.DesktopVirtualization | — | Required | Host pools, workspaces, application groups, session hosts |
+| Az.OperationalInsights | — | Optional | Log Analytics workspaces |
+| Az.RecoveryServices | — | Optional | Recovery Services vaults; backup coverage |
 | Az.Monitor | — | Optional | Diagnostic settings |
 
 If one of the validator's **optional** modules is unavailable, only its own checks report
@@ -98,6 +100,7 @@ Authenticates, discovers subscriptions, validates read access, and inventories A
 resources plus supporting platform infrastructure. It produces:
 
 - Per-subscription **CSV and JSON** evidence files for every collected dataset
+- Per-subscription **`rebuild/`** folder: the full Azure objects a landing zone rebuild needs, one JSON file per resource type (`rebuild/resources/`) and per REST read (`rebuild/rest/`), as listed in [`rebuild/scope.json`](rebuild/scope.json). The CSV and JSON datasets are built from the same rows. Secrets (registration tokens, keys, signed URLs, protected parameters) are never written; a rebuild recreates them, and a final scan refuses to write a file that still looks like one. See [docs/rebuild-fidelity-spec.md](docs/rebuild-fidelity-spec.md)
 - A **summary.md** with executive summary, AVD workload overview, architecture observations, and stakeholder takeaways
 - A **manifest.json** documenting package contents, subscription outcomes, and collection metadata
 - Az module version records (**az-module-versions.csv** / **az-module-versions.json**)
@@ -454,7 +457,7 @@ avd-second-brain's fact register (contract C15), pinned with the schema in `cont
 
 ### Both scripts
 
-- **ARM-level only.** Neither script inspects OS-level configuration, Group Policy, FSLogix registry settings, Intune policy, or Microsoft Entra conditional access.
+- **ARM-level only.** Neither script inspects OS-level configuration, Group Policy, FSLogix registry settings, Intune policy, or Microsoft Entra conditional access. The collector reads FSLogix settings only where a managed Run Command applied them (the landing zone's session hosts).
 - **Network effective state is not evaluated.** NSG effective rules, NVA and firewall inspection, and DNS resolution behavior require separate validation from inside the session host subnet.
 - **No Entra ID object enumeration.** Users, groups and conditional access policies are outside ARM scope.
 - **Read-only.** No Azure resource is created, modified or deleted.
@@ -482,6 +485,8 @@ avd-second-brain's fact register (contract C15), pinned with the schema in `cont
 | Subscription skipped with "AccessDenied" | Identity lacks Reader on that subscription | Grant at least Reader, then re-run |
 | AVD host pools show 0 | No AVD deployed, or missing `Desktop Virtualization Reader` | Verify AVD exists; check RBAC |
 | Session hosts empty for a host pool | Hosts powered off, or agent not registered | Check the host pool in the portal |
+| A `rebuild/` read shows `failed` in summary.md | The identity can't read that resource type (budgets need Cost Management Reader or Reader on the subscription) | The error line in the log has the HTTP status and body. Grant the read, or accept the gap |
+| "not written, the final scan found ..." | A value shaped like a secret got past the scrubber | The file is withheld on purpose. Report the resource type (never the value) so the scrubber learns the property |
 | Module install fails | No PSGallery access, or execution policy restriction | Pre-install the Az modules or adjust execution policy |
 | Output missing after the Cloud Shell session ends | Files written outside `~/clouddrive/` are ephemeral | Re-run without `-OutputPath` so Cloud Shell detection defaults to `~/clouddrive/` |
 | Cloud Shell disconnected mid-run | Idle timeout while the tab was backgrounded | Keep the tab active; use `-SubscriptionNames` to scope to fewer subscriptions per run |
