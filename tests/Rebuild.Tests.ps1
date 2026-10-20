@@ -306,13 +306,16 @@ Describe 'collector: Read-RebuildEvidence with a fake Azure' {
   BeforeAll {
     # Load only the collector's rebuild functions from its syntax tree, so nothing signs in or runs.
     $ast = [System.Management.Automation.Language.Parser]::ParseFile((Join-Path $script:root 'avd_current_state_collector.ps1'), [ref]$null, [ref]$null)
-    foreach ($f in $ast.FindAll({ param($n) $n -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $n.Name -in 'Write-RebuildFile', 'Read-RebuildEvidence' }, $true)) {
+    foreach ($f in $ast.FindAll({ param($n) $n -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $n.Name -in 'Write-RebuildFile', 'Read-RebuildEvidence', 'Write-RebuildMap' }, $true)) {
       . ([scriptblock]::Create($f.Extent.Text))
     }
     function Write-Log { param([string]$Message, [string]$Level = 'INFO') $script:log += "[$Level] $Message" }
     $script:RebuildScope = Get-RebuildScope -Path (Join-Path $script:root 'rebuild/scope.json')
     $script:RebuildReads = [System.Collections.Generic.List[psobject]]::new()
     $script:RebuildWithheld = [System.Collections.Generic.List[psobject]]::new()
+    $script:RebuildCoverage = [System.Collections.Generic.List[psobject]]::new()
+    Import-Module (Join-Path $script:root 'lib/AvdRebuildMap.psm1') -Force
+    $script:LzParameters = Get-Content -Raw (Join-Path $script:root 'rebuild/lz-parameters.json') | ConvertFrom-Json
     $script:log = @()
     $script:calls = [System.Collections.Generic.List[string]]::new()
     $testRows = Get-TestRowSet
@@ -357,6 +360,17 @@ Describe 'collector: Read-RebuildEvidence with a fake Azure' {
     @($script:calls | Where-Object { $_ -match '/runCommands\?' }).Count | Should -Be 3
     ($script:RebuildReads | Where-Object Read -eq 'budgets').Status | Should -Be 'failed for 1'
     ($script:log -join "`n") | Should -Match 'budgets failed.*HTTP 403.*AuthorizationFailed'
+  }
+
+  It 'writes the rebuild map with every parameter accounted for' {
+    Write-RebuildMap -SubscriptionId $script:subId -SubDir $script:subDir -Rows $script:result -RoleAssignments @()
+    $map = @(Get-Content -Raw (Join-Path $script:subDir 'rebuild/rebuild-map.json') | ConvertFrom-Json)
+    $map.Count | Should -Be 1
+    $map[0].parameters.fslogixProfileSizeMiB.value | Should -Be 30720
+    $map[0].parameters.monthlyBudgetAmount.status | Should -Be 'unknown'
+    $map[0].parameters.localAdminPassword.status | Should -Be 'secret'
+    $script:RebuildCoverage.Count | Should -Be 1
+    ($script:RebuildCoverage[0].Coverage.Values | Measure-Object -Sum).Sum | Should -Be @($script:LzParameters.parameters).Count
   }
 
   It 'returns rows the datasets are built from' {

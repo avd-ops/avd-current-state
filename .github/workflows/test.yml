@@ -32,3 +32,34 @@ jobs:
         run: |
           Install-Module Pester -MinimumVersion 5.5.0 -Scope CurrentUser -Force -SkipPublisherCheck
           Invoke-Pester -Path ./tests -CI -Output Detailed
+
+  lz-parameters:
+    name: Landing zone parameter list matches its pin
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # rebuild/lz-parameters.json must list exactly the parameters of avd-landing-zone's main.bicep at
+      # the pinned commit (docs/rebuild-fidelity-spec.md, section 9). A newer landing zone only warns:
+      # moving the pin is a change of its own, with the rebuild map rules that go with it.
+      - name: Compare with the pinned main.bicep
+        shell: pwsh
+        run: |
+          $list = Get-Content -Raw ./rebuild/lz-parameters.json | ConvertFrom-Json
+          $scope = Get-Content -Raw ./rebuild/scope.json | ConvertFrom-Json
+          if ($list.landingZoneCommit -ne $scope.landingZoneCommit) { throw "lz-parameters.json pins $($list.landingZoneCommit), scope.json pins $($scope.landingZoneCommit)." }
+          function Get-BicepParameterName([string]$Ref) {
+            $text = (Invoke-WebRequest -UseBasicParsing "https://raw.githubusercontent.com/nickprignano/avd-landing-zone/$Ref/bicep/main.bicep").Content
+            [regex]::Matches($text, '(?m)^param\s+(\w+)\s') | ForEach-Object { $_.Groups[1].Value }
+          }
+          $ours = @($list.parameters | ForEach-Object { $_.name })
+          $pinned = @(Get-BicepParameterName $list.landingZoneCommit)
+          $diff = @(Compare-Object $pinned $ours)
+          if ($diff.Count) {
+            $diff | ForEach-Object { Write-Host "$(if ($_.SideIndicator -eq '<=') { 'missing from lz-parameters.json' } else { 'not in the pinned main.bicep' }): $($_.InputObject)" }
+            throw 'rebuild/lz-parameters.json does not match the pinned landing zone.'
+          }
+          Write-Host "All $($ours.Count) parameters match the pinned commit."
+          $latest = @(Get-BicepParameterName 'master')
+          $drift = @(Compare-Object $pinned $latest)
+          if ($drift.Count) { Write-Host "::warning::The landing zone's master has $($drift.Count) parameter change(s) since the pin: $(($drift | ForEach-Object { $_.InputObject }) -join ', ')." }

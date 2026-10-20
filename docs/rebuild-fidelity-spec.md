@@ -31,11 +31,12 @@ For each landing zone parameter, the collector must be able to say one of:
 | `found` | The value is read directly (a VM size, a retention period) |
 | `derived` | The value follows from evidence by a written rule (Standalone vs HubPeered from the egress path) |
 | `secret` | Never collected; the rebuild generates a new one (the break-glass password, a registration token) |
+| `deployTime` | Looked up or pinned by `deploy.sh` when the landing zone is deployed, not carried from the estate (the tenant's Azure Virtual Desktop service principal, the runbook URI) |
 | `ambiguous` | Evidence disagrees (two host pools with different session limits): the rebuild needs a person's choice |
 | `unexpressible` | The estate uses something the landing zone has no parameter for (AD DS join, RemoteApp): the rebuild can't be exact until the landing zone grows |
 | `unknown` | Not readable with Reader (in-guest settings on a host the landing zone didn't build, a hub in a subscription out of scope) |
 
-Faithful for version 1 means: on an estate the landing zone built, every parameter comes back `found`, `derived` or `secret`, with the value it was deployed with. On any other estate, every difference from the landing zone's vocabulary is named, not dropped.
+Faithful for version 1 means: on an estate the landing zone built, every parameter comes back `found`, `derived`, `secret` or `deployTime`, with the value it was deployed with. On any other estate, every difference from the landing zone's vocabulary is named, not dropped.
 
 The landing zone also hard-codes many settings in its modules (scaling plan schedules, NSG rules, Trusted Launch, SMB security, alert rules). They aren't parameters today, but an existing estate may differ on every one of them, so "exactly as is" needs them too. The matrix covers both.
 
@@ -275,6 +276,7 @@ Columns: the landing zone parameter or module setting; what a rebuild reads; tod
 The test that says version 1 is done:
 
 1. **Offline.** A fixture of Resource Graph rows and REST bodies shaped like what the landing zone's `dev` parameters deploy, with every name a `contoso` placeholder and every prefix `10.x`, omitting empty properties the way ARM does (avd-landing-zone lesson 0021). A pure function, `Get-LzRebuildMap`, turns them into the parameter map, and a Pester test checks every parameter's status and value against `parameters/dev.bicepparam`. A second fixture, a brownfield estate (AD DS join, a RemoteApp group, no scaling plan), checks that each difference comes back `unexpressible` or `unknown`, never silently dropped.
+   A parameter the estate gives no reason to set (the hub parameters on a Standalone estate) maps to the landing zone default as `derived`, with a note. Each entry in `rebuild-map.json` carries its status, value, the evidence it came from (resource IDs or the REST read) and a note.
 2. **One sandbox run, later.** Deploy the landing zone's `dev` parameters, collect, compare, tear down. Only with a written cost estimate and the owner's go, smallest sizes, teardown evidence. When the real rows disagree with the fixture, the fixture is fixed and the case added (real runs are the source of truth).
 
 ## 12. Build order
@@ -285,7 +287,7 @@ All offline until the last step.
 |---|---|
 | 0 | This spec (draft PR) |
 | 1 | Resource Graph and REST reader, `rebuild/scope.json`, the never-collect scrubber and scan, the `rebuild/` package files, the existing datasets rebuilt from the same rows, tests; facts output proven unchanged |
-| 2 | `rebuild/lz-parameters.json` with its pin and CI check; `Get-LzRebuildMap` and the round-trip fixtures; a private `rebuild-map.json` in the package and a coverage line in the summary |
+| 2 | `rebuild/lz-parameters.json` with its pin and CI check; `Get-LzRebuildMap` and the round-trip fixtures; a private `rebuild-map.json` in the package and a coverage line in the summary (built: `lib/AvdRebuildMap.psm1`, `tests/RebuildMap.Tests.ps1`, the `lz-parameters` CI job) |
 | 3 | The paired C11 and fact register change in section 7 (avd-second-brain first) |
 | 4 | Optional: the diagram step reads the saved rows |
 | 5 | The sandbox round trip, with the owner's go |

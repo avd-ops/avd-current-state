@@ -251,6 +251,7 @@ function Read-RebuildEvidence {
     }
     $rebuildDir = Join-Path $SubDir 'rebuild'
     $rows = @{}
+    $script:RebuildRest = @{}
 
     Write-Log "  Reading the resource list through Resource Graph ..."
     try {
@@ -295,11 +296,33 @@ function Read-RebuildEvidence {
                 if ($r.Status -eq 'failed') { Write-Log "  $($read.name) failed for ${parentId}: $($r.Error)" -Level WARN }
                 [pscustomobject][ordered]@{ parentId = $parentId; status = $r.Status; error = $r.Error; items = @($r.Items) }
             })
-        $null = Write-RebuildFile -Path (Join-Path $rebuildDir (Join-Path 'rest' "$($read.name).json")) -Data $results -Label $read.name
+        $written = Write-RebuildFile -Path (Join-Path $rebuildDir (Join-Path 'rest' "$($read.name).json")) -Data $results -Label $read.name
+        $script:RebuildRest[$read.name] = if ($null -ne $written) { @($written) } else { @() }
         $failed = @($results | Where-Object { $_.status -eq 'failed' }).Count
         $script:RebuildReads.Add([pscustomobject]@{ Subscription = $SubscriptionId; Read = $read.name; Source = 'rest'; Items = $results.Count; Status = $(if ($failed) { "failed for $failed" } else { 'ok' }); Error = '' })
     }
     return $rows
+}
+
+function Write-RebuildMap {
+    <#
+    .SYNOPSIS
+        Maps one subscription's evidence onto the landing zone's parameters (lib/AvdRebuildMap.psm1)
+        and writes <subscription>/rebuild/rebuild-map.json. Private: it holds names, prefixes and IDs.
+    #>
+    param([string]$SubscriptionId, [string]$SubDir, [hashtable]$Rows, [object[]]$RoleAssignments)
+    try {
+        $maps = @(Get-LzRebuildMap -Rows $Rows -Rest $script:RebuildRest -RoleAssignments $RoleAssignments -ParameterList $script:LzParameters)
+    } catch {
+        Write-Log "  Rebuild map failed: $($_.Exception.Message)" -Level WARN
+        return
+    }
+    if ($maps.Count -eq 0) { return }
+    $null = Write-RebuildFile -Path (Join-Path $SubDir (Join-Path 'rebuild' 'rebuild-map.json')) -Data $maps -Label 'rebuild-map'
+    foreach ($m in $maps) {
+        $script:RebuildCoverage.Add([pscustomobject]@{ Subscription = $SubscriptionId; HostPool = ($m.hostPool -split '/')[-1]; Coverage = $m.coverage })
+        Write-Log "  Rebuild map for $(($m.hostPool -split '/')[-1]): $(@($m.coverage.Keys | Where-Object { $m.coverage[$_] } | ForEach-Object { "$($m.coverage[$_]) $_" }) -join ', ')."
+    }
 }
 
 # endregion
@@ -332,9 +355,13 @@ Write-Log "Az modules loaded."
 
 # Rebuild-fidelity reads (docs/rebuild-fidelity-spec.md): pure helpers and the scope of what is read.
 Import-Module (Join-Path $PSScriptRoot 'lib/AvdRebuild.psm1') -Force
+Import-Module (Join-Path $PSScriptRoot 'lib/AvdRebuildMap.psm1') -Force
 $script:RebuildScope    = Get-RebuildScope -Path (Join-Path $PSScriptRoot 'rebuild/scope.json')
 $script:RebuildReads    = [System.Collections.Generic.List[psobject]]::new()
 $script:RebuildWithheld = [System.Collections.Generic.List[psobject]]::new()
+$script:RebuildCoverage = [System.Collections.Generic.List[psobject]]::new()
+$script:RebuildRest     = @{}
+$script:LzParameters    = Get-Content -Raw -Path (Join-Path $PSScriptRoot 'rebuild/lz-parameters.json') | ConvertFrom-Json
 Write-Log "Rebuild scope : $(@($script:RebuildScope.resourceGraph).Count) Resource Graph types, $(@($script:RebuildScope.rest).Count) REST reads (landing zone $($script:RebuildScope.landingZoneCommit.Substring(0, 7)))."
 
 # endregion
@@ -533,6 +560,9 @@ foreach ($sub in $targetSubs) {
     }
     $subCounts['RoleAssignments'] = (Export-Dataset -SubDir $subDir -Name 'role-assignments' -Data $roleAssignments)
 
+    # ── Rebuild map: the landing zone parameters this estate maps to (docs/rebuild-fidelity-spec.md) ──
+    Write-RebuildMap -SubscriptionId $subId -SubDir $subDir -Rows $rows -RoleAssignments @($roleAssignments)
+
     # ── AVD Host Pools ──
     $hostPools = Safe-Collect 'AVDHostPools' { Get-RebuildDataset -Name 'avd-host-pools' -Rows $rows }
     $subCounts['AVDHostPools'] = (Export-Dataset -SubDir $subDir -Name 'avd-host-pools' -Data $hostPools)
@@ -635,6 +665,15 @@ Add-Line "| $($script:RebuildReads.Count) | $($readsFailed.Count) | $($script:Re
 Add-Line ""
 foreach ($f in $readsFailed) { Add-Line "- $($f.Read): $($f.Status)" }
 if ($readsFailed.Count -gt 0) { Add-Line "" }
+if ($script:RebuildCoverage.Count -gt 0) {
+    $statuses = @(Get-LzStatusList)
+    Add-Line "Landing zone parameters per host pool ($(@($script:LzParameters.parameters).Count) in all; ``rebuild/rebuild-map.json`` has each value and its evidence):"
+    Add-Line ""
+    Add-Line ("| Host pool | " + ($statuses -join ' | ') + " |")
+    Add-Line ("|---|" + (($statuses | ForEach-Object { '---' }) -join '|') + "|")
+    foreach ($c in $script:RebuildCoverage) { Add-Line ("| $($c.HostPool) | " + (($statuses | ForEach-Object { $c.Coverage[$_] }) -join ' | ') + " |") }
+    Add-Line ""
+}
 
 # Per-subscription detail
 Add-Line "## Subscription Detail"
@@ -755,7 +794,7 @@ $manifest = [pscustomobject]@{
     SubscriptionsSkipped   = $skippedSubs.Count
     SubscriptionDetails    = $script:SubscriptionResults
     GrandTotals      = $grandTotals
-    RebuildScope     = [pscustomobject]@{ LandingZoneCommit = $script:RebuildScope.landingZoneCommit; Reads = $script:RebuildReads; Withheld = $script:RebuildWithheld }
+    RebuildScope     = [pscustomobject]@{ LandingZoneCommit = $script:RebuildScope.landingZoneCommit; Reads = $script:RebuildReads; Withheld = $script:RebuildWithheld; Coverage = $script:RebuildCoverage }
     Warnings         = $script:Warnings
     Files            = $manifestFiles
 }
