@@ -1,5 +1,7 @@
 # AVD Tooling for Azure Commercial
 
+Part of [avd-ops](https://avd-ops.dev/), the open toolkit for Azure Virtual Desktop.
+
 Read-only PowerShell tooling for Azure Virtual Desktop (AVD) environments on Azure
 Commercial. The collector and validator read through Azure Resource Manager and write
 nothing. Their evidence packages feed [avd-second-brain](https://github.com/nickprignano/avd-second-brain), which turns them into a
