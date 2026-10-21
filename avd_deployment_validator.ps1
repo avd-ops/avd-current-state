@@ -325,6 +325,77 @@ function Get-PolicyParameterValue {
     return $entry
 }
 
+function Resolve-PolicyParameterReference {
+    <#
+    .SYNOPSIS
+        Resolves a value that may be an ARM "[parameters('name')]" reference.
+    .DESCRIPTION
+        Inside an initiative, a member definition's parameter is usually a reference to an
+        initiative parameter. The assignment's value wins; otherwise the initiative's
+        default applies. A plain value is returned as is. Returns $null when a reference
+        can't be resolved, or for any other template expression.
+    #>
+    param($Value, [object]$Assignment, [object]$SetDefinition)
+    if ($Value -isnot [string]) { return $Value }
+    if ($Value -notmatch '^\s*\[') { return $Value }
+    if ($Value -notmatch "^\s*\[\s*parameters\(\s*'([^']+)'\s*\)\s*\]\s*$") { return $null }
+    $name = $Matches[1]
+    $assigned = Get-PolicyParameterValue -Assignment $Assignment -ParameterName $name
+    if ($null -ne $assigned) { return $assigned }
+    $declared = Get-Prop (Get-FirstProp $SetDefinition @('Parameter', 'Parameters', 'Properties.Parameters') $null) $name
+    return (Get-Prop $declared 'defaultValue')
+}
+
+function Get-PolicyMemberParameterValue {
+    <#
+    .SYNOPSIS
+        Reads a definition parameter as one assignment sets it, directly or through an initiative.
+    .DESCRIPTION
+        For a direct assignment, the assignment's value. For an initiative member, the
+        member's value, which may refer to an initiative parameter. Either way the
+        definition's own default applies last. Returns $null when none of them is known.
+    #>
+    param([object]$Definition, [string]$ParameterName, [object]$Assignment, [object]$Member = $null, [object]$SetDefinition = $null)
+    $value = $null
+    if ($null -ne $Member) {
+        $memberParameters = Get-FirstProp $Member @('parameters', 'Parameters') $null
+        $entry = Get-Prop $memberParameters $ParameterName
+        if ($null -ne $entry) {
+            $raw = Get-Prop $entry 'value'
+            if ($null -eq $raw) { $raw = $entry }
+            $value = Resolve-PolicyParameterReference -Value $raw -Assignment $Assignment -SetDefinition $SetDefinition
+        }
+    } else {
+        $value = Get-PolicyParameterValue -Assignment $Assignment -ParameterName $ParameterName
+    }
+    if ($null -ne $value) { return $value }
+    $declared = Get-Prop (Get-FirstProp $Definition @('Parameter', 'Parameters', 'Properties.Parameters') $null) $ParameterName
+    return (Get-Prop $declared 'defaultValue')
+}
+
+function Get-PolicyDefinitionEffect {
+    <#
+    .SYNOPSIS
+        Returns the effect a definition has under one assignment, or '' when it can't be resolved.
+    .DESCRIPTION
+        Most built-in definitions take their effect as a parameter ("[parameters('effect')]"),
+        so the effect is resolved through the member and assignment parameters before it is
+        compared. A rule that arrives as JSON text is parsed first.
+    #>
+    param([object]$Definition, [object]$Assignment, [object]$Member = $null, [object]$SetDefinition = $null)
+    $rule = Get-FirstProp $Definition @('PolicyRule', 'Properties.PolicyRule') $null
+    if ($rule -is [string]) {
+        try { $rule = $rule | ConvertFrom-Json } catch { return '' }
+    }
+    $effect = Get-Prop (Get-Prop $rule 'then') 'effect' ''
+    if ("$effect" -match "^\s*\[\s*parameters\(\s*'([^']+)'\s*\)\s*\]\s*$") {
+        $effect = Get-PolicyMemberParameterValue -Definition $Definition -ParameterName $Matches[1] `
+            -Assignment $Assignment -Member $Member -SetDefinition $SetDefinition
+    }
+    if ($null -eq $effect -or "$effect" -match '^\s*\[') { return '' }
+    return "$effect".Trim()
+}
+
 function ConvertTo-DisplayString {
     <#
     .SYNOPSIS Flattens a value into a single-line, CSV-safe string.
@@ -1211,100 +1282,159 @@ function Invoke-PreflightValidation {
             -Recommendation 'Deny-effect policies are the most common cause of an AVD deployment failing partway through.'
 
         # Well-known built-in definitions whose parameters can be compared directly
-        # against the requested deployment target.
+        # against the requested deployment target, whether assigned on their own or
+        # as a member of an initiative.
         $allowedLocationsIds = @(
             'e56962a6-4747-49cd-b67b-bf8b01975c4c',   # Allowed locations
             'e765b5de-1225-4ba3-bd56-1ac6695af988'    # Allowed locations for resource groups
         )
         $allowedSkuId = 'cccc23c7-8427-4f53-ad12-b6a63eb452b3'  # Allowed virtual machine size SKUs
 
+        function Add-AllowedListCheck {
+            param([string]$Check, [string]$What, [string]$Target, $AllowedValue, [string]$Label, [string]$EnforcementMode)
+            if ($null -eq $AllowedValue) {
+                Add-Check -Category 'Policy' -Check $Check -Status 'WARN' `
+                    -Detail "'$Label' is an allowed-$What policy but its list could not be read." `
+                    -Recommendation "Confirm the permitted values in the portal. '$Target' may be blocked even though this check could not evaluate it." `
+                    -Scope $Label
+                return
+            }
+            $allowed = @($AllowedValue)
+            if ($allowed -contains $Target) {
+                Add-Check -Category 'Policy' -Check $Check -Status 'PASS' `
+                    -Detail "'$Label' permits '$Target'." -Scope $Label
+            } elseif ($EnforcementMode -eq 'DoNotEnforce') {
+                Add-Check -Category 'Policy' -Check $Check -Status 'INFO' `
+                    -Detail "'$Label' does not permit '$Target', but its enforcement mode is DoNotEnforce, so it will not block the deployment." `
+                    -Recommendation "Expect it to report the deployment as non-compliant. Permitted: $($allowed -join ', ')." `
+                    -Scope $Label
+            } else {
+                Add-Check -Category 'Policy' -Check $Check -Status 'FAIL' `
+                    -Detail "'$Label' does not permit '$Target'. Permitted: $($allowed -join ', ')." `
+                    -Recommendation 'Choose a permitted value or request a policy exemption for the target scope.' `
+                    -Scope $Label
+            }
+        }
+
+        # Every assignment is reduced to the definitions it applies: itself, or the members
+        # of its initiative. Each definition is read once; a cap on reads keeps a large
+        # estate's run short, and whatever the cap leaves out is reported, never dropped.
+        $definitionLookupCap = 200
+        $definitionCache = @{}
+        $lookups = 0
+        $capHit = $false
+        $inspectedDefinitions = 0
+        $assignmentsInspected = 0
+        $initiativesExpanded = 0
+        $unresolvedEffects = 0
+        $denyAssignments = [System.Collections.Generic.List[string]]::new()
+        $notEnforced = [System.Collections.Generic.List[string]]::new()
+        $unreadInitiatives = [System.Collections.Generic.List[string]]::new()
+
         foreach ($assignment in $assignments) {
+            if ($capHit) { break }
+            $assignmentsInspected++
             $definitionId = Get-FirstProp $assignment @('PolicyDefinitionId', 'Properties.PolicyDefinitionId') ''
             $displayName  = Get-FirstProp $assignment @('DisplayName', 'Properties.DisplayName') (Get-Prop $assignment 'Name' 'unnamed')
-            $definitionGuid = Get-ResourceNameFromId -ResourceId $definitionId -FromEnd 1
+            $enforcement  = "$(Get-FirstProp $assignment @('EnforcementMode', 'Properties.EnforcementMode') 'Default')"
 
-            if ($allowedLocationsIds -contains $definitionGuid -and -not [string]::IsNullOrWhiteSpace($Location)) {
-                $allowedValue = Get-PolicyParameterValue -Assignment $assignment -ParameterName 'listOfAllowedLocations'
-                if ($null -eq $allowedValue) {
-                    Add-Check -Category 'Policy' -Check 'Allowed locations policy' -Status 'WARN' `
-                        -Detail "'$displayName' is an allowed-locations policy but its region list could not be read." `
-                        -Recommendation 'Confirm the permitted regions in the portal. The target region may be blocked even though this check could not evaluate it.' `
-                        -Scope $displayName
-                    continue
+            $entries = [System.Collections.Generic.List[object]]::new()
+            if ($definitionId -like '*/policySetDefinitions/*') {
+                $set = $null
+                try { $set = Get-AzPolicySetDefinition -Id $definitionId -ErrorAction Stop } catch { $set = $null }
+                $setMembers = @(Get-FirstProp $set @('PolicyDefinition', 'PolicyDefinitions', 'Properties.PolicyDefinitions') @())
+                if ($setMembers.Count -eq 0) { $unreadInitiatives.Add($displayName); continue }
+                $initiativesExpanded++
+                foreach ($member in $setMembers) {
+                    $entries.Add([pscustomobject]@{
+                        Id     = "$(Get-FirstProp $member @('policyDefinitionId', 'PolicyDefinitionId') '')"
+                        Member = $member
+                        Set    = $set
+                    })
                 }
-                $allowed = @($allowedValue)
-                if ($allowed -contains $Location) {
-                    Add-Check -Category 'Policy' -Check 'Allowed locations policy' -Status 'PASS' `
-                        -Detail "'$displayName' permits '$Location'." -Scope $displayName
-                } else {
-                    Add-Check -Category 'Policy' -Check 'Allowed locations policy' -Status 'FAIL' `
-                        -Detail "'$displayName' does not permit '$Location'. Permitted: $($allowed -join ', ')." `
-                        -Recommendation 'Deploy into a permitted region or request a policy exemption for the target scope.' `
-                        -Scope $displayName
-                }
-            }
-
-            if ($definitionGuid -eq $allowedSkuId -and -not [string]::IsNullOrWhiteSpace($SessionHostVmSize)) {
-                $allowedValue = Get-PolicyParameterValue -Assignment $assignment -ParameterName 'listOfAllowedSKUs'
-                if ($null -eq $allowedValue) {
-                    Add-Check -Category 'Policy' -Check 'Allowed VM SKU policy' -Status 'WARN' `
-                        -Detail "'$displayName' is an allowed-SKU policy but its SKU list could not be read." `
-                        -Recommendation 'Confirm the permitted SKUs in the portal. The planned VM size may be blocked even though this check could not evaluate it.' `
-                        -Scope $displayName
-                    continue
-                }
-                $allowed = @($allowedValue)
-                if ($allowed -contains $SessionHostVmSize) {
-                    Add-Check -Category 'Policy' -Check 'Allowed VM SKU policy' -Status 'PASS' `
-                        -Detail "'$displayName' permits '$SessionHostVmSize'." -Scope $displayName
-                } else {
-                    Add-Check -Category 'Policy' -Check 'Allowed VM SKU policy' -Status 'FAIL' `
-                        -Detail "'$displayName' does not permit '$SessionHostVmSize'." `
-                        -Recommendation "Choose a permitted SKU or request an exemption. Permitted: $($allowed -join ', ')." `
-                        -Scope $displayName
-                }
-            }
-        }
-
-        # Generic deny sweep. Resolving every definition is expensive, so cap the number
-        # of lookups and report the residual as INFO rather than silently truncating.
-        $definitionLookupCap = 60
-        $inspected = 0
-        $denyAssignments = [System.Collections.Generic.List[string]]::new()
-        foreach ($assignment in $assignments) {
-            if ($inspected -ge $definitionLookupCap) { break }
-            $definitionId = Get-FirstProp $assignment @('PolicyDefinitionId', 'Properties.PolicyDefinitionId') ''
-            if ([string]::IsNullOrWhiteSpace($definitionId)) { continue }
-            if ($definitionId -notlike '*/policyDefinitions/*') { continue }  # initiatives are not walked
-            $inspected++
-            try {
-                $definition = Get-AzPolicyDefinition -Id $definitionId -ErrorAction Stop
-                $rule = Get-FirstProp $definition @('PolicyRule', 'Properties.PolicyRule') $null
-                $effect = Get-Prop (Get-Prop $rule 'then') 'effect' ''
-                if ("$effect" -match 'deny') {
-                    $denyAssignments.Add((Get-FirstProp $assignment @('DisplayName', 'Properties.DisplayName') (Get-Prop $assignment 'Name' 'unnamed')))
-                }
-            } catch {
+            } elseif ($definitionId -like '*/policyDefinitions/*') {
+                $entries.Add([pscustomobject]@{ Id = $definitionId; Member = $null; Set = $null })
+            } else {
                 continue
             }
+
+            foreach ($entry in $entries) {
+                $definitionGuid = Get-ResourceNameFromId -ResourceId $entry.Id -FromEnd 1
+                $label = if ($null -ne $entry.Set) { "$displayName (initiative member $definitionGuid)" } else { $displayName }
+
+                if ($allowedLocationsIds -contains $definitionGuid -and -not [string]::IsNullOrWhiteSpace($Location)) {
+                    $value = Get-PolicyMemberParameterValue -Definition $null -ParameterName 'listOfAllowedLocations' `
+                        -Assignment $assignment -Member $entry.Member -SetDefinition $entry.Set
+                    Add-AllowedListCheck -Check 'Allowed locations policy' -What 'locations' -Target $Location `
+                        -AllowedValue $value -Label $label -EnforcementMode $enforcement
+                }
+                if ($definitionGuid -eq $allowedSkuId -and -not [string]::IsNullOrWhiteSpace($SessionHostVmSize)) {
+                    $value = Get-PolicyMemberParameterValue -Definition $null -ParameterName 'listOfAllowedSKUs' `
+                        -Assignment $assignment -Member $entry.Member -SetDefinition $entry.Set
+                    Add-AllowedListCheck -Check 'Allowed VM SKU policy' -What 'SKU' -Target $SessionHostVmSize `
+                        -AllowedValue $value -Label $label -EnforcementMode $enforcement
+                }
+
+                if ([string]::IsNullOrWhiteSpace($entry.Id)) { $unresolvedEffects++; continue }
+                if (-not $definitionCache.ContainsKey($entry.Id)) {
+                    if ($lookups -ge $definitionLookupCap) { $capHit = $true; break }
+                    $lookups++
+                    try { $definitionCache[$entry.Id] = Get-AzPolicyDefinition -Id $entry.Id -ErrorAction Stop }
+                    catch { $definitionCache[$entry.Id] = $null }
+                }
+                $definition = $definitionCache[$entry.Id]
+                if ($null -eq $definition) { $unresolvedEffects++; continue }
+                $inspectedDefinitions++
+
+                $effect = Get-PolicyDefinitionEffect -Definition $definition -Assignment $assignment `
+                    -Member $entry.Member -SetDefinition $entry.Set
+                if ($effect -eq '') { $unresolvedEffects++; continue }
+                if ($effect -ne 'deny') { continue }
+
+                $denyLabel = $displayName
+                if ($null -ne $entry.Set) {
+                    $memberName = Get-FirstProp $definition @('DisplayName', 'Properties.DisplayName') $definitionGuid
+                    $denyLabel = "$displayName > $memberName"
+                }
+                if ($enforcement -eq 'DoNotEnforce') { $notEnforced.Add($denyLabel) } else { $denyAssignments.Add($denyLabel) }
+            }
         }
 
+        $scopeNote = "$inspectedDefinitions definition(s) across $assignmentsInspected assignment(s)"
+        if ($initiativesExpanded -gt 0) { $scopeNote += ", including $initiativesExpanded expanded initiative(s)" }
         if ($denyAssignments.Count -gt 0) {
             Add-Check -Category 'Policy' -Check 'Deny policy exposure' -Status 'WARN' `
-                -Detail "$($denyAssignments.Count) deny-effect assignment(s): $(($denyAssignments | Select-Object -First 10) -join ', ')." `
-                -Recommendation "Only the built-in allowed-locations and allowed-SKU policies are compared against your target automatically. If any assignment above restricts regions or VM sizes, confirm by hand that it permits '$Location' and the planned size. A deny on public IPs, required tags or disk encryption also commonly blocks session host creation."
+                -Detail "$($denyAssignments.Count) enforced deny effect(s) in $($scopeNote): $(($denyAssignments | Select-Object -First 10) -join '; ')." `
+                -Recommendation "Only the built-in allowed-locations and allowed-SKU policies are compared against your target automatically. If any deny above restricts regions or VM sizes, confirm by hand that it permits '$Location' and the planned size. A deny on public IPs, required tags or disk encryption also commonly blocks session host creation."
         } else {
             Add-Check -Category 'Policy' -Check 'Deny policy exposure' -Status 'PASS' `
-                -Detail "No deny-effect policy definitions found in the first $inspected assignment(s) inspected."
+                -Detail "No enforced deny effect in $scopeNote."
         }
 
-        $initiativeCount = @($assignments | Where-Object {
-            (Get-FirstProp $_ @('PolicyDefinitionId', 'Properties.PolicyDefinitionId') '') -like '*/policySetDefinitions/*'
-        }).Count
-        if ($initiativeCount -gt 0) {
-            Add-Check -Category 'Policy' -Check 'Policy initiatives' -Status 'INFO' `
-                -Detail "$initiativeCount initiative (policy set) assignment(s) were not expanded." `
-                -Recommendation 'Initiatives can contain deny effects. Review them in the portal, or run a what-if deployment.'
+        if ($notEnforced.Count -gt 0) {
+            Add-Check -Category 'Policy' -Check 'Deny policies not enforced' -Status 'INFO' `
+                -Detail "$($notEnforced.Count) deny effect(s) sit in DoNotEnforce assignments and will not block: $(($notEnforced | Select-Object -First 10) -join '; ')." `
+                -Recommendation 'They still report non-compliance. Confirm with the policy owner that enforcement will not be switched on before go-live.'
+        }
+
+        if ($unresolvedEffects -gt 0) {
+            Add-Check -Category 'Policy' -Check 'Policy effects not resolved' -Status 'INFO' `
+                -Detail "$unresolvedEffects definition(s) had an effect that could not be resolved (an unreadable definition, or an effect set by a template expression)." `
+                -Recommendation 'Review those assignments in the portal, or run a what-if deployment to see whether any of them denies.'
+        }
+
+        if ($unreadInitiatives.Count -gt 0) {
+            Add-Check -Category 'Policy' -Check 'Policy initiatives' -Status 'WARN' `
+                -Detail "$($unreadInitiatives.Count) initiative assignment(s) could not be expanded: $(($unreadInitiatives | Select-Object -First 10) -join ', ')." `
+                -Recommendation 'Their members can contain deny effects that were not evaluated. Confirm Reader can read the policy set definitions, or review them in the portal.'
+        }
+
+        if ($capHit) {
+            # The assignment the cap stopped in counts as not inspected: it was only partly read.
+            $skipped = $assignments.Count - $assignmentsInspected + 1
+            Add-Check -Category 'Policy' -Check 'Policy lookup cap' -Status 'INFO' `
+                -Detail "Stopped after $definitionLookupCap definition reads; $skipped assignment(s) were not inspected or only partly read." `
+                -Recommendation 'Review the remaining assignments in the portal, or run a what-if deployment.'
         }
     }
 
@@ -3032,7 +3162,7 @@ Add-ReportLine ''
 Add-ReportLine '- **ARM-level only.** This validator reads Azure Resource Manager configuration. It does not inspect OS-level state, Group Policy, FSLogix registry configuration, Intune policy, or Microsoft Entra conditional access.'
 Add-ReportLine '- **Effective network state is not evaluated.** NSG effective rules, firewall and NVA rule sets, and DNS resolution behaviour need separate validation from inside the session host subnet.'
 Add-ReportLine '- **Endpoint probes reflect the machine running this script**, not a session host, unless the script was run on one.'
-Add-ReportLine '- **Policy initiatives are not expanded.** Deny effects inside an assigned initiative are reported as unexpanded, not evaluated.'
+Add-ReportLine '- **Policy effects are read, not simulated.** Initiatives are expanded and parameterized effects are resolved, but policy conditions, exemptions and effects set by other template expressions are not evaluated, so a deny listed here may not apply to this deployment.'
 Add-ReportLine '- **Quota reflects the moment of the run.** Another deployment can consume the headroom reported here.'
 Add-ReportLine '- **Single subscription per run.** Deployments spanning subscriptions need one run per subscription.'
 Add-ReportLine '- **Read-only.** No Azure resource is created, modified or deleted.'

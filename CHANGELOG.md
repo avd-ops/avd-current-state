@@ -14,4 +14,5 @@ All notable changes, in the format of [Keep a Changelog](https://keepachangelog.
 
 ### Changed
 
+- The validator's policy checks expand initiative (policy set) assignments: each member's effect is resolved through the initiative and assignment parameters, allowed-locations and allowed-SKU members are compared against the target like direct assignments, deny effects in DoNotEnforce assignments are reported apart as not blocking, and parameterized effects on direct assignments are now resolved too (before, only a hard-coded `deny` was found).
 - The vendored contracts (`contracts/`) move to avd-second-brain commit `fccd644`: the fact register gains the group-behavior privacy class and its facts.
