@@ -2,7 +2,7 @@
 
 Status: accepted by the owner, 2026-10-21 (option A and the three open questions as recommended). Nothing is built yet. No Azure, no spend; every phase is offline first.
 
-The owner asked (2026-10-20) for the preflight and postflight checks to be shared between this repo and [avd-landing-zone](https://github.com/nickprignano/avd-landing-zone), with this repo also running the [avd-assess](https://github.com/nickprignano/avd-assess) method. The checks live here; the landing zone refers out to them. The research behind this spec (prior art, an inventory of both repos' checks, five options) is summarized in section 6.
+The owner asked (2026-10-20) for the preflight and postflight checks to be shared between this repo and [avd-landing-zone](https://github.com/avd-ops/avd-landing-zone), with this repo also running the [avd-assess](https://github.com/avd-ops/avd-assess) method. The checks live here; the landing zone refers out to them. The research behind this spec (prior art, an inventory of both repos' checks, five options) is summarized in section 6.
 
 ## 1. Rules it keeps
 
@@ -18,7 +18,7 @@ The owner asked (2026-10-20) for the preflight and postflight checks to be share
 |---|---|---|
 | `lib/AvdChecks.psm1` | here | Readers, the evaluator, coded checks. Windows PowerShell 5.1 and PowerShell 7 |
 | `checks/catalog.json` | here | Every preflight and postflight check: ID, title, phase, gate, pillar, severity, fact IDs, claims, and a `rule` or an `impl` |
-| C22 `avd-check-catalog/v1` | avd-assess `contracts/schemas/check-catalog.schema.json`, pinned here | The catalog's schema. avd-assess is the authority for foundation formats ([its contracts README](https://github.com/nickprignano/avd-assess/blob/main/contracts/README.md)); C22 was reserved for this |
+| C22 `avd-check-catalog/v1` | avd-assess `contracts/schemas/check-catalog.schema.json`, pinned here | The catalog's schema. avd-assess is the authority for foundation formats ([its contracts README](https://github.com/avd-ops/avd-assess/blob/main/contracts/README.md)); C22 was reserved for this |
 | `assess/` with `PINS.json` | here | `method.json`, `index.json` from avd-assess at a commit (avd-assess phase 4) |
 | `avd_deployment_validator.ps1` | here | The one runner: `-Mode Preflight\|PostDeployment\|Both [-Assess] [-IntakePath]` |
 | `vendor/avd-current-state/` with `PINS.json` | avd-landing-zone | Byte-identical copies of `lib/AvdChecks.psm1` and `checks/catalog.json` at a commit here, and a hash test |

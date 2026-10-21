@@ -2,7 +2,7 @@
 
 Status: draft, 2026-10-20. Nothing is built. No Azure, no spend.
 
-The goal of avd-current-state is full current-state visibility: enough evidence that the package can later be turned around into an [avd-landing-zone](https://github.com/nickprignano/avd-landing-zone) parameter file and deployment, either **exactly as it is** or as a **target state** with avd-assess findings applied (owner, 2026-10-20). Generating the landing zone package is not version 1. Collecting at that fidelity is.
+The goal of avd-current-state is full current-state visibility: enough evidence that the package can later be turned around into an [avd-landing-zone](https://github.com/avd-ops/avd-landing-zone) parameter file and deployment, either **exactly as it is** or as a **target state** with avd-assess findings applied (owner, 2026-10-20). Generating the landing zone package is not version 1. Collecting at that fidelity is.
 
 This spec measures today's collector against what a faithful rebuild needs, lists the gaps (section 4 and the matrix in section 10), and proposes how to close them without breaking the rules that already hold:
 

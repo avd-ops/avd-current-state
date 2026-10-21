@@ -1,7 +1,7 @@
 {
   "schema": "avd-current-state-lz-parameters/v1",
   "description": "The avd-landing-zone parameters a rebuild map covers, taken from bicep/main.bicep at landingZoneCommit. Defaults are the Bicep text. CI fails when that commit's main.bicep lists a parameter this file doesn't (.github/workflows/test.yml).",
-  "source": "https://github.com/nickprignano/avd-landing-zone/blob/2c441569a5d584ac6beb473162ba1f1420caea3e/bicep/main.bicep",
+  "source": "https://github.com/avd-ops/avd-landing-zone/blob/2c441569a5d584ac6beb473162ba1f1420caea3e/bicep/main.bicep",
   "landingZoneCommit": "2c441569a5d584ac6beb473162ba1f1420caea3e",
   "parameters": [
     {
@@ -274,7 +274,7 @@
     {
       "name": "autoShutdownRunbookUri",
       "type": "string",
-      "default": "'https://raw.githubusercontent.com/nickprignano/avd-landing-zone/master/scripts/automation/Invoke-AvdPowerAction.ps1'"
+      "default": "'https://raw.githubusercontent.com/avd-ops/avd-landing-zone/master/scripts/automation/Invoke-AvdPowerAction.ps1'"
     },
     {
       "name": "enableDefenderForCloud",
