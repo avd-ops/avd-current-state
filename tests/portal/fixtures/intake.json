@@ -1,0 +1,10 @@
+{
+  "schema": "avd-intake/v1",
+  "estate": "est-0a1b2c3d",
+  "answeredOn": "2026-10-20",
+  "residency": { "required": true, "regions": ["eastus2", "centralus"] },
+  "preferredRegions": ["eastus2", "centralus"],
+  "existingHub": "azure-hub",
+  "identityConstraints": "entra-only",
+  "workingHours": { "start": "07:00", "end": "19:00", "days": ["Mon", "Tue", "Wed", "Thu", "Fri"], "timeZone": "America/Chicago" }
+}

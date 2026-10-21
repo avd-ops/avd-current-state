@@ -667,6 +667,18 @@ Write-Log 'Az modules loaded.'
 
 # endregion
 
+# The assessment portal's state line (docs/assessment-portal-spec.md, section 3): counts, the mode and the
+# verdict only. It comes from lib/ beside this script; a copy of the script on its own skips the line.
+function Write-PortalState {
+    param([string]$Status, [hashtable]$Counts = @{}, [string]$Verdict = '')
+    $module = Join-Path $PSScriptRoot 'lib/AvdPortalState.psm1'
+    if (-not (Test-Path -LiteralPath $module)) { return }
+    Import-Module $module -Force
+    $stateContext = @{ mode = $Mode; package = $script:PackageName }
+    if ($Verdict) { $stateContext.verdict = $Verdict }
+    Write-Host (Get-AvdcsStateLine -Stage 'analyze' -Status $Status -Context $stateContext -Counts $Counts)
+}
+
 # ---------------------------------------------
 # region Authentication
 # ---------------------------------------------
@@ -679,6 +691,7 @@ if (-not $script:Context) {
         $script:Context = Get-AzContext
     } catch {
         Write-Log "Authentication failed: $($_.Exception.Message)" -Level ERROR
+        Write-PortalState -Status 'failed'
         exit 2
     }
 }
@@ -707,6 +720,7 @@ try {
     }
 } catch {
     Write-Log "Subscription resolution failed: $($_.Exception.Message)" -Level ERROR
+    Write-PortalState -Status 'failed'
     exit 2
 }
 
@@ -715,6 +729,7 @@ try {
     $script:Context = Get-AzContext
 } catch {
     Write-Log "Unable to set context to subscription '$($targetSubscription.Name)': $($_.Exception.Message)" -Level ERROR
+    Write-PortalState -Status 'failed'
     exit 2
 }
 
@@ -3106,6 +3121,7 @@ if ($script:IsCloudShell -and -not $script:CloudDriveInUse) {
     Write-Log "         Read it now with:  Get-Content '$reportPath'" -Level WARN
 }
 Write-Log '==================================================='
+Write-PortalState -Status 'done' -Verdict $verdict -Counts @{ fail = [int]$failCount; warn = [int]$warnCount; pass = [int]$passCount; info = [int]$infoCount; skip = [int]$skipCount }
 
 if ($PassThru) { $results }
 

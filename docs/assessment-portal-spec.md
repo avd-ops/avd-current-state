@@ -1,6 +1,6 @@
 # Spec: the assessment portal
 
-Status: draft, 2026-10-20. Nothing is built. No Azure, no spend.
+Status: accepted, 2026-10-20. Phase 1 built 2026-10-21 (Collect, Discover, Analyze; see section 7). No Azure, no spend.
 
 The owner asked (2026-10-20) for one page that walks an operator through a whole assessment, the way the [avd-landing-zone deployment portal](https://github.com/nickprignano/avd-landing-zone/tree/master/site/portal) walks them through a deployment. It lives here, because avd-current-state is the signal engine: it collects what is there now and judges it against the standards in [avd-assess](https://github.com/nickprignano/avd-assess). The landing zone stays the deployment engine; the brain and avd-swarm stay optional layers on top.
 
@@ -47,10 +47,10 @@ The collector and the validator end with one machine-readable line, the same ide
 | Field | Meaning |
 |---|---|
 | `v` | Schema version (1). Fields are added, never renamed without a bump. |
-| `stage` | `collect`, `analyze` |
+| `stage` | `collect` (the collector), `facts` (the facts script, which gives the estate its pseudonym), `analyze` (the validator) |
 | `status` | `done`, `partial` (some subscriptions failed), `failed` |
-| `context` | What the next block needs: `subscriptions` (count), `packagePath` (relative), `estate` (the `est-` pseudonym), `assessmentPath` (analyze) |
-| `counts` | Collect: datasets and rows; analyze: `pass`, `warn`, `gap`, `unknown` and the readiness results' `pass`, `warn`, `fail` |
+| `context` | What the next block needs: `package` (the package folder's name), `estate` (the `est-` pseudonym, facts), `snapshot` (the facts file's name), `mode` and `verdict` (analyze). `lib/AvdPortalState.psm1` refuses any other key and any value that looks like an ID, an email address or a path |
+| `counts` | Collect: subscriptions, skipped, datasets, rows, host pools, session hosts, warnings; facts: subscriptions, host pools, validations, redacted; analyze: the readiness results' `fail`, `warn`, `pass`, `info`, `skip` (the C21 outcomes `pass`, `warn`, `gap`, `unknown` join when the validator's assess mode lands) |
 | `coverage` | Collect: the rebuild map's counts per status (#15) |
 
 It holds no names or IDs: only counts, relative paths and the estate pseudonym. Tests pin the line for each script.
@@ -112,7 +112,7 @@ All offline until the last.
 | Phase | What |
 |---|---|
 | 0 | This spec |
-| 1 | avd-ops: promote the portal components (design system 1.1.0), the landing zone re-vendors them. Here: `site/` with the vendored design system, the stepper shell, Settings, Collect and Analyze blocks, the state line in both scripts, Discover writing `intake.json` and the notes file, Pages workflow |
+| 1 | avd-ops: promote the portal components (design system 1.1.0), the landing zone re-vendors them. Here: `site/` with the vendored design system, the stepper shell, Settings, Collect and Analyze blocks, the state line in both scripts, Discover writing `intake.json` and the notes file, Pages workflow. **Built** 2026-10-21. Analyze runs the validator's post-deployment checks until its assess mode lands; `intake.json` is checked against avd-assess's C19 example and schema at a pinned commit in CI |
 | 2 | avd-assess: C23. Here: Review (findings table, dispositions, carry-forward), `review.json` |
 | 3 | avd-assess: C24. Here: Plan, `plan.json` and `plan.md`, using `rebuild/lz-parameters.json` and the check catalog's remediation hints |
 | 4 | Publish to the operator's own subscription (the landing zone's #74 pattern), and a Report a problem button that redacts in the browser (decision 5 below) |

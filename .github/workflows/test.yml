@@ -33,6 +33,32 @@ jobs:
           Install-Module Pester -MinimumVersion 5.5.0 -Scope CurrentUser -Force -SkipPublisherCheck
           Invoke-Pester -Path ./tests -CI -Output Detailed
 
+  portal:
+    name: Assessment portal engine + page
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Engine and page tests
+        run: node --test "tests/portal/*.test.mjs"
+
+      # The engine's intake.json fixture must be avd-assess's C19 example, byte for byte, and valid against
+      # the C19 schema at the pinned avd-assess commit (the foundation contracts live there, brain decision 0021).
+      - name: intake.json matches avd-assess contract C19
+        env:
+          ASSESS_COMMIT: 09bc9c449494db639ad083eaea6dd7d215250e52
+        run: |
+          pip install --quiet jsonschema
+          base="https://raw.githubusercontent.com/nickprignano/avd-assess/$ASSESS_COMMIT/contracts"
+          curl -fsSL "$base/schemas/intake.schema.json" -o /tmp/intake.schema.json
+          curl -fsSL "$base/examples/assess/intake.example.json" -o /tmp/intake.example.json
+          cmp /tmp/intake.example.json tests/portal/fixtures/intake.json
+          python3 -c "import json,jsonschema; jsonschema.Draft202012Validator(json.load(open('/tmp/intake.schema.json'))).validate(json.load(open('tests/portal/fixtures/intake.json'))); print('intake.json is valid avd-intake/v1')"
+
   lz-parameters:
     name: Landing zone parameter list matches its pin
     runs-on: ubuntu-latest

@@ -6,6 +6,7 @@ All notable changes, in the format of [Keep a Changelog](https://keepachangelog.
 
 ### Added
 
+- The assessment portal (`site/portal/`, phase 1 of `docs/assessment-portal-spec.md`): Collect, Discover (writes `intake.json`, C19, and private discovery notes) and Analyze, published to GitHub Pages; the collector, the facts script and the validator end with an `AVDCS-STATE` line the page reads (`lib/AvdPortalState.psm1`).
 - The validator's post-deployment session host VM checks report image consistency: PASS when every host in a pool runs one image (gallery version, or marketplace build by its exact version), WARN when they differ, which is expected only while a blue/green rotation is in progress.
 - The validator's image checks report the Windows Desktop Optimization Tool (WDOT) pin a gallery image version records (`avdlz-wdot`, `avdlz-wdot-profile` tags), and recommend WDOT when none is recorded.
 - The second brain's docs consistency check on every PR (`.github/workflows/docs.yml`, pinned), reference pages for the entry points in `docs/reference/`, and the README's entry point table.

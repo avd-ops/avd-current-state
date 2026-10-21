@@ -1,0 +1,10 @@
+PS /home/user/avd-current-state> ./avd_current_state_collector.ps1 -SubscriptionNames 'Contoso Prod','Contoso Dev'
+[2026-10-21 09:00:01] [INFO] Rebuild scope : 31 Resource Graph types, 9 REST reads (landing zone 1a2b3c4).
+WARNING: Subscription Contoso Dev: read access check failed; skipped.
+[2026-10-21 09:04:12] [INFO]  Collection Complete
+[2026-10-21 09:04:12] [INFO] Subscriptions   : 1 collected, 1 skipped
+<<<AVDCS-STATE {"v":1,"stage":"collect","status":"partial","context":{"package":"avd-current-state-20261021T090000"},"counts":{"datasets":14,"hostPools":3,"rows":230,"sessionHosts":12,"skipped":1,"subscriptions":1,"warnings":1},"coverage":{"found":40,"secret":3,"unknown":2}} AVDCS-STATE>>>
+PS /home/user/avd-current-state> ./avd_current_state_facts.ps1 -PackagePath ./avd-assessment -KeyPath ./avd-assessment/estate.key
+[INFO] Facts snapshot: /home/user/avd-assessment/avd-current-state-facts-20261021T090500.json
+<<<AVDCS-STATE {"v":1,"stage":"facts","status":"done","context":{"estate":"est-0a1b2c3d","snapshot":"avd-current-state-facts-20261021T090500.json"},"counts":{"hostPools":3,"redacted":4,"subscriptions":1,"validations":0}} AVDCS-STATE>>>
+/home/user/avd-assessment/avd-current-state-facts-20261021T090500.json

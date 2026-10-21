@@ -1,0 +1,205 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AVD Assessment Portal</title>
+<meta name="description" content="Walks an Azure Virtual Desktop assessment step by step: collect the inventory, run the discovery interview, analyze against the standards. Everything stays in your browser.">
+<link rel="icon" href="../assets/brand/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../assets/avd-ops.css">
+<link rel="stylesheet" href="../assets/avd-ops-portal.css">
+<style>
+  /* The assessment portal (docs/assessment-portal-spec.md). Tokens, fonts and the shared portal components come
+     from the avd-ops design system, vendored in ../assets/ (avd-ops docs/design-system.md), so the page makes
+     no request to another site. This block holds only this page's layout. */
+  header.top .brand{display:flex;align-items:center;gap:var(--space-2);flex-wrap:wrap;min-width:0;margin-right:auto}
+  header.top .brand a.home{display:inline-flex;align-items:center;gap:var(--space-2);font:700 1.05rem var(--display);color:var(--fg);text-decoration:none}
+  header.top .brand a.home:hover{color:var(--accent)}
+  header.top .brand h1{font:700 1.05rem var(--display)}
+  .toplinks{display:flex;align-items:center;gap:var(--space-1) 14px;flex-wrap:wrap;font-size:.95rem}
+  .toplinks a{color:var(--muted);text-decoration:none}
+  .toplinks a:hover{color:var(--accent)}
+  .top-intro{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(0,1fr);gap:var(--space-3) var(--space-5);align-items:start;padding-block:18px 6px}
+  @media (max-width:720px){.top-intro{grid-template-columns:minmax(0,1fr)}}
+  .panel-head{display:flex;align-items:baseline;gap:var(--space-3);margin-bottom:var(--space-2)}
+  .panel-head h2{margin:0}
+  .panel-head button{margin-left:auto}
+  .gap{margin-top:var(--space-3)}
+  .result-line{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:var(--space-3) 0}
+  .days{display:flex;flex-wrap:wrap;gap:var(--space-2)}
+  .days label{display:inline-flex;gap:6px;align-items:center;border:1px solid var(--line-strong);border-radius:var(--pill);padding:4px 12px 4px 9px;cursor:pointer;font-size:.92rem;background:var(--surface)}
+  .days label:has(input:checked){border-color:var(--accent);background:var(--accent-soft)}
+  .days input{accent-color:var(--accent);margin:0}
+  .errors{margin:var(--space-3) 0 0;padding:var(--space-3) var(--space-4);border:1px solid var(--bad);border-radius:var(--radius-sm);background:var(--bad-soft);color:var(--fg)}
+  .errors ul{margin:var(--space-1) 0 0;padding-left:1.2rem}
+  .private{font-size:.82rem;color:var(--muted)}
+  .private::before{content:"Private: ";font-weight:600}
+  .actions{display:flex;flex-wrap:wrap;gap:var(--space-3);align-items:center;margin-top:var(--space-4)}
+  .later{border-left:3px solid var(--line-strong);padding-left:var(--space-3);color:var(--muted)}
+  [aria-invalid="true"]{border-color:var(--bad)!important}
+</style>
+</head>
+<body class="portal">
+<main>
+  <header class="top">
+    <div class="brand"><a class="home" href="https://avd-ops.dev/"><img class="mark" src="../assets/brand/mark.svg" alt="" width="26" height="26">avd-ops</a><span class="sep" aria-hidden="true">/</span><h1>AVD assessment portal</h1></div>
+    <div class="toplinks"><a href="https://github.com/nickprignano/avd-current-state">About avd-current-state</a>
+      <button type="button" class="secondary" id="settings-link" aria-controls="settings-panel" aria-expanded="false">Assessment settings</button></div>
+  </header>
+
+  <div class="top-intro">
+    <p class="lede">Walks an <a href="https://github.com/nickprignano/avd-current-state">avd-current-state</a> assessment step by step. Run each command in <a href="https://shell.azure.com/powershell" target="_blank" rel="noopener">Azure Cloud Shell (PowerShell)</a>, paste the output back here, and answer the discovery questions. Everything happens in your browser: nothing you paste or type is sent anywhere, and every command only reads.</p>
+    <p class="disclaimer" id="disclaimer"><strong>Personal project, not for production.</strong> Provided as is, without warranty of any kind (<a href="https://github.com/nickprignano/avd-current-state/blob/main/LICENSE">MIT License</a>). Not affiliated with, endorsed by or supported by the author's employer, and not an official Microsoft product. Not a certification, a compliance attestation or a security audit.</p>
+  </div>
+
+  <section class="panel accent hidden" id="settings-panel" aria-labelledby="settings-title">
+    <div class="panel-head"><h2 id="settings-title">Assessment settings</h2><button type="button" class="linkbtn" id="settings-close">Close</button></div>
+    <p class="muted">Used to build the commands. Kept only in this browser.</p>
+    <div class="row">
+      <label class="field"><span>Subscriptions to collect</span><textarea class="prose" id="subscriptions" autocomplete="off" placeholder="One per line, by name. Empty: every subscription you can read."></textarea></label>
+    </div>
+    <div class="row gap">
+      <label class="field"><span>Subscription to validate</span><input type="text" id="validationSubscription" autocomplete="off" placeholder="Empty: the first one above"></label>
+      <label class="field"><span>Resource group (optional)</span><input type="text" id="resourceGroup" autocomplete="off" placeholder="Empty: every host pool in the subscription"></label>
+    </div>
+    <div class="actions">
+      <button type="button" class="secondary" id="reset">Start over</button>
+      <span class="muted">Clears the saved progress, answers, notes and settings from this browser.</span>
+    </div>
+  </section>
+
+  <ol class="steps" id="steps" aria-label="Assessment progress">
+    <li data-phase="Assess" data-stage="collect"><button type="button"><span class="n">1</span><span class="lbl">Collect</span></button></li>
+    <li data-stage="discover"><button type="button"><span class="n">2</span><span class="lbl">Discover</span></button></li>
+    <li data-stage="analyze"><button type="button"><span class="n">3</span><span class="lbl">Analyze</span></button></li>
+    <li data-stage="review"><button type="button"><span class="n">4</span><span class="lbl">Review</span></button></li>
+    <li data-stage="plan"><button type="button"><span class="n">5</span><span class="lbl">Plan</span></button></li>
+  </ol>
+
+  <section class="panel stage" id="stage-collect" aria-labelledby="collect-title">
+    <h2 id="collect-title">Collect the inventory <span class="muted">stage 1 of 5</span></h2>
+    <p class="intro">The collector reads what is in your subscriptions through Resource Graph and writes an evidence package in Cloud Shell. Then the facts script gives the estate a pseudonym, which the later stages use instead of any name. Both only read.</p>
+    <div class="slot">
+      <div class="stop" id="collect-run">
+        <p class="label">Run in Cloud Shell</p>
+        <div class="term"><div class="term-head"><span class="term-label">Collect and pseudonymize</span><button type="button" data-copy="collect-cmd">Copy</button></div><pre id="collect-cmd"></pre></div>
+      </div>
+      <div class="stop" id="collect-paste-stop">
+        <p class="label">Paste the output</p>
+        <label class="field"><span>Everything from the command to the last line</span><textarea class="paste" id="collect-paste" spellcheck="false" autocomplete="off"></textarea></label>
+        <div class="actions"><button type="button" id="collect-read">Read the output</button><span class="muted">Read in this browser. The paste itself isn't saved.</span></div>
+        <div id="collect-result" aria-live="polite"></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel stage hidden" id="stage-discover" aria-labelledby="discover-title">
+    <h2 id="discover-title">Discovery interview <span class="muted">stage 2 of 5</span></h2>
+    <p class="intro">What telemetry can't know. The answers become <code>intake.json</code> (avd-intake/v1), which holds only choices, region names, times and the estate pseudonym. The narrative goes in your private notes, a file that stays on your device.</p>
+    <div class="row">
+      <label class="field"><span>Estate</span><input type="text" id="estate" autocomplete="off" placeholder="est-0a1b2c3d" aria-describedby="estate-hint"><small id="estate-hint">Filled in from the Collect stage.</small></label>
+      <label class="field"><span>Answered on</span><input type="text" id="answeredOn" autocomplete="off" placeholder="2026-10-21"></label>
+    </div>
+
+    <fieldset class="gap">
+      <legend>Residency and regions</legend>
+      <label class="switch"><input type="checkbox" id="residencyRequired"><span><strong>Data must stay in named regions</strong><br><span class="muted">Regulation or contract, not preference.</span></span></label>
+      <div class="row">
+        <label class="field"><span>Regions data must stay in</span><input type="text" id="residencyRegions" autocomplete="off" placeholder="eastus2, centralus"></label>
+        <label class="field"><span>Preferred regions, most preferred first (up to 3)</span><input type="text" id="preferredRegions" autocomplete="off" placeholder="eastus2, centralus"></label>
+      </div>
+      <label class="field gap"><span class="private">notes</span><textarea class="prose" data-note="residency" aria-label="Private notes on residency and regions"></textarea></label>
+    </fieldset>
+
+    <fieldset>
+      <legend>Network</legend>
+      <label class="field"><span>The network the landing zone has to join</span>
+        <select id="existingHub"><option value="">Choose one</option><option value="none">None: a new, standalone network</option><option value="azure-hub">An Azure hub virtual network</option><option value="vwan">A Virtual WAN hub</option><option value="other">Something else</option></select></label>
+      <label class="field gap"><span class="private">notes</span><textarea class="prose" data-note="network" aria-label="Private notes on the network"></textarea></label>
+    </fieldset>
+
+    <fieldset>
+      <legend>Identity</legend>
+      <label class="field"><span>The identity lane the estate is held to</span>
+        <select id="identityConstraints"><option value="">Choose one</option><option value="entra-only">Microsoft Entra ID only</option><option value="hybrid-ad">Hybrid with Active Directory</option><option value="entra-ds">Microsoft Entra Domain Services</option><option value="undecided">Not decided yet</option></select></label>
+      <label class="field gap"><span class="private">notes</span><textarea class="prose" data-note="identity" aria-label="Private notes on identity"></textarea></label>
+    </fieldset>
+
+    <fieldset>
+      <legend>Working hours</legend>
+      <div class="row">
+        <label class="field"><span>Most users start</span><input type="time" id="start" value="07:00"></label>
+        <label class="field"><span>Most users finish</span><input type="time" id="end" value="19:00"></label>
+        <label class="field"><span>Time zone</span><input type="text" id="timeZone" autocomplete="off" list="zones" placeholder="America/Chicago"></label>
+      </div>
+      <div class="days gap" id="days" role="group" aria-label="Working days">
+        <label><input type="checkbox" value="Mon" checked> Mon</label><label><input type="checkbox" value="Tue" checked> Tue</label><label><input type="checkbox" value="Wed" checked> Wed</label><label><input type="checkbox" value="Thu" checked> Thu</label><label><input type="checkbox" value="Fri" checked> Fri</label><label><input type="checkbox" value="Sat"> Sat</label><label><input type="checkbox" value="Sun"> Sun</label>
+      </div>
+      <label class="field gap"><span class="private">notes</span><textarea class="prose" data-note="hours" aria-label="Private notes on working hours"></textarea></label>
+    </fieldset>
+
+    <fieldset>
+      <legend>Users and use cases</legend>
+      <p class="muted">Who works on the estate, what they run, and what hurts today. Notes only for now; the structured use case record comes with avd-assess's discovery guide.</p>
+      <label class="field"><span class="private">notes</span><textarea class="prose" data-note="users" aria-label="Private notes on users and use cases"></textarea></label>
+    </fieldset>
+
+    <fieldset>
+      <legend>Anything else</legend>
+      <label class="field"><span class="private">notes</span><textarea class="prose" data-note="other" aria-label="Private notes, anything else"></textarea></label>
+    </fieldset>
+
+    <div class="actions"><button type="button" id="intake-build">Build intake.json</button><a class="btnlink secondary" id="notes-download" href="#" download="discovery-notes.md">Download discovery notes</a></div>
+    <div id="intake-errors" aria-live="polite"></div>
+    <div id="intake-out" class="hidden gap">
+      <div class="slot">
+        <div class="stop good">
+          <p class="label">Run in Cloud Shell</p>
+          <p class="muted">Writes <code>intake.json</code> beside the evidence packages, where the validator will read it. It holds no names, so this block is safe to paste.</p>
+          <div class="term"><div class="term-head"><span class="term-label">Write intake.json</span><button type="button" data-copy="intake-cmd">Copy</button></div><pre id="intake-cmd"></pre></div>
+          <div class="actions"><a class="btnlink secondary" id="intake-download" href="#" download="intake.json">Download intake.json</a></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel stage hidden" id="stage-analyze" aria-labelledby="analyze-title">
+    <h2 id="analyze-title">Analyze against the standards <span class="muted">stage 3 of 5</span></h2>
+    <p class="intro">The validator checks every host pool after deployment: wiring, app group access, session host health, profile storage, scaling, diagnostics and backup. Scoring against the avd-assess method, with <code>intake.json</code>, joins this step when the validator's assess mode lands.</p>
+    <div class="slot">
+      <div class="stop" id="analyze-run">
+        <p class="label">Run in Cloud Shell</p>
+        <div class="term"><div class="term-head"><span class="term-label">Validate</span><button type="button" data-copy="analyze-cmd">Copy</button></div><pre id="analyze-cmd"></pre></div>
+      </div>
+      <div class="stop" id="analyze-paste-stop">
+        <p class="label">Paste the output</p>
+        <label class="field"><span>Everything from the command to the last line</span><textarea class="paste" id="analyze-paste" spellcheck="false" autocomplete="off"></textarea></label>
+        <div class="actions"><button type="button" id="analyze-read">Read the output</button><span class="muted">Read in this browser. The paste itself isn't saved.</span></div>
+        <div id="analyze-result" aria-live="polite"></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel stage hidden" id="stage-review" aria-labelledby="review-title">
+    <h2 id="review-title">Review the findings <span class="muted">stage 4 of 5</span></h2>
+    <p class="later">Coming next. You'll load <code>assessment.json</code>, see each finding with its outcome and the standard behind it, and choose Fix, Accept or Defer with a reason. The choices are saved as <code>review.json</code> (avd-assessment-review/v1); private notes per finding go to your notes file.</p>
+  </section>
+
+  <section class="panel stage hidden" id="stage-plan" aria-labelledby="plan-title">
+    <h2 id="plan-title">Plan the remediation <span class="muted">stage 5 of 5</span></h2>
+    <p class="later">Coming after Review. The findings you chose to fix become an ordered plan: what good looks like and why, the landing zone setting that changes it where one is known, and what is out of the landing zone's reach. Saved as <code>plan.json</code> (avd-remediation-plan/v1) and <code>plan.md</code>.</p>
+  </section>
+
+  <nav class="stepnav" aria-label="Stage navigation">
+    <button type="button" class="secondary" id="back">Back</button>
+    <span class="where" id="where"></span>
+    <button type="button" id="next">Next</button>
+  </nav>
+
+  <footer class="disclaimer">Personal project, not for production. Provided as is, without warranty of any kind, under the <a href="https://github.com/nickprignano/avd-current-state/blob/main/LICENSE">MIT License</a>. Not affiliated with, endorsed by or supported by the author's employer, Liquidware or Microsoft. Contributions and forks are welcome: <a href="https://github.com/nickprignano/avd-current-state">avd-current-state on GitHub</a>.</footer>
+</main>
+<datalist id="zones"><option value="UTC"><option value="America/New_York"><option value="America/Chicago"><option value="America/Denver"><option value="America/Los_Angeles"><option value="America/Toronto"><option value="America/Sao_Paulo"><option value="Europe/London"><option value="Europe/Dublin"><option value="Europe/Amsterdam"><option value="Europe/Berlin"><option value="Europe/Paris"><option value="Asia/Singapore"><option value="Asia/Tokyo"><option value="Asia/Kolkata"><option value="Australia/Sydney"></datalist>
+<script src="assess-core.js"></script>
+<script src="portal.js"></script>
+</body>
+</html>
