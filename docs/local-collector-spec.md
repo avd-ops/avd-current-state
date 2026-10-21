@@ -112,7 +112,7 @@ Facts that shape the Run Command path (`learn.microsoft.com/azure/virtual-machin
 - Whatever starts it, host mode prints only a compact, name-free summary (counts, enums and the bundle's path on the host) that fits in 4,096 bytes, and keeps the bundle on the host's disk (3.2). Sending the bundle itself to a blob in the run store is phase 5's choice, made in the landing zone with its own review, since it moves personal data off the host.
 - Run Command needs outbound 443 to Azure, and does not run when the VM agent is not ready, so a broken host is exactly where it may fail: the Bastion path stays the fallback. Hosts that are not Azure VMs differ: Windows 365 Cloud PCs have no Run Command and use paths (a) and (c); Arc-enabled servers, Azure Local VMs among them, have their own Run Command (`Microsoft.HybridCompute/machines/runCommands`, preview, written with `runCommands/write`), which phase 5 treats the same way as the VM kind, and their own metadata service, so their `vmId` comes from the Arc agent or stays `none` (question 10).
 
-Signing: the code-signing convention (avd-ops decision 0008, section 5.2) was written for the avd-linecheck log bundle. Since the bundle is built here, the same design moves with it: the release workflow, the `environment:release` federated credential and the Artifact Signing profile belong to `avd-ops/avd-current-state` instead of `avd-ops/avd-linecheck`, and 0008 is amended to say so (an avd-ops PR). Like every repo, this one gets immutable releases, a `v*` tag ruleset and attestations at no cost (0008 section 5.1); the Artifact Signing account is created only when the first on-box release is ready. The admin scripts stay unsigned as 0008 section 5.1 decided. Signing remains a prerequisite for shipping any on-box mode; its account is parked in avd-linecheck #3, which moves to this repo or is re-pointed at it.
+Signing: the code-signing convention (avd-ops decision 0008, section 5.2) was written for the avd-linecheck log bundle. Since the bundle is built here, the same design moves with it: the release workflow, the `environment:release` federated credential and the Artifact Signing profile belong to `avd-ops/avd-current-state` instead of `avd-ops/avd-linecheck`, and 0008 is amended to say so (an avd-ops PR). Like every repo, this one gets immutable releases, a `v*` tag ruleset and attestations at no cost (0008 section 5.1); the Artifact Signing account is created only when the first on-box release is ready. The admin scripts stay unsigned as 0008 section 5.1 decided. Signing remains a prerequisite for shipping any on-box mode; its account is parked in roadmap issue avd-current-state #41 (moved from avd-linecheck #3, now closed).
 
 ## 6. Privacy
 
@@ -171,7 +171,7 @@ So this repo builds only the join: one source list, one allowlisted fact extract
 
 - The **page stays page-first** and never depends on the collector (avd-linecheck section 3). It links to the collector's signed release and explains who deploys it.
 - **avd-linecheck spec section 17 stays the design** of the session and device modes (sources, privacy, CLM, bundle layout, user-added files). Its layout in 17.8 (`collector/` in avd-linecheck) becomes `lib/AvdLocal.psm1`, `local/sources.json` and the assembled script here, and 17.8 and question 11 there point at this spec. That edit is made in avd-linecheck by its own thread, not here.
-- avd-linecheck #3 (the signing account) is unchanged in substance; it moves to this repo or is re-pointed at it, and the federated credential names this repository.
+- The signing account is roadmap issue avd-current-state #41 (moved from avd-linecheck #3); the federated credential names this repository. avd-linecheck #5 points its 17.8 and question 11 here.
 - **linecheck is the end-user portal** and is hosted on GitHub Pages, so anyone who clones it can use it for free (owner, 2026-10-21). The collector is not part of the page and is not served from it; the page links to this repo's release.
 - The page's **guided steps** (avd-linecheck section 18, PR #4) are the user's path on any device; the collector is the helpdesk's path on managed Windows. A step page may say "your helpdesk can collect logs for you" and link the collector's README, never a command.
 
@@ -180,7 +180,7 @@ So this repo builds only the join: one source list, one allowlisted fact extract
 Spikes, offline or free first:
 
 - **S1 (offline):** readers return plain objects; fixtures are JSON captured from the readers, so the pure functions run on Linux; `lib/AvdLocal.psm1` against a synthetic profile and registry tree with a junction in it; the CLM runspace and reader tests on a Windows job; the network and program-allowlist tests; the assembled script test (which strips the signature block and checks the family notice comes first).
-- **S2 (free):** device and session modes on a Windows 11 device as a standard user (avd-linecheck S5a, the same run).
+- **S2 (free):** device and session modes on a Windows 11 device as a standard user (avd-linecheck S5a: one spike, run once, recorded here).
 - **S3 (free, reading):** Intune Collect diagnostics' list against `sources.json`.
 - **S4 (sandbox):** preflight on the landing zone's jumpbox and host mode on one landing zone host, elevated and not, recording which sources need admin and how Run Command's 4 KB limit holds. Needs a cost estimate and the owner's exact `go batch <id> $<total>`; it can ride a batch that already deploys a landing zone, with avd-linecheck S5b.
 
@@ -192,7 +192,7 @@ Build order, each a PR, offline first:
 | 1 | avd-assess | Proposed fact IDs and `runsOn` in the C22 proposal |
 | 2 | here | `lib/AvdLocal.psm1`, `local/sources.json`, `-Mode Device` and `-Mode Session` (the linecheck bundle), unsigned, CI only, no release |
 | 3 | here | `-Mode Host` and `-Mode Preflight`, `local-facts.json`, the validator's `-LocalPath`, the facts script's `-LocalPath` |
-| 4 | here, avd-ops | Release workflow with Artifact Signing once the signing account exists (avd-linecheck #3, the owner's go and cost line) |
+| 4 | here, avd-ops | Release workflow with Artifact Signing once the signing account exists (#41, the owner's go and cost line) |
 | 5 | avd-landing-zone, then avd-second-brain and avd-swarm | Optional Run Command delivery of host mode from the landing zone; the swarm action, paired |
 
 ## 11. Cost
