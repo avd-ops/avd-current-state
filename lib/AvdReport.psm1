@@ -14,7 +14,9 @@
 
 Set-StrictMode -Version Latest
 
-$script:Results = @{ FAIL = 'r-fail'; WARN = 'r-warn'; PASS = 'r-pass'; INFO = 'r-info'; SKIP = 'r-skip' }
+# Case-sensitive: the scripts write results in capitals, and "Info" or "Skip" in a data column is not a result.
+$script:Results = New-Object System.Collections.Hashtable ([StringComparer]::Ordinal)
+foreach ($r in 'FAIL', 'WARN', 'PASS', 'INFO', 'SKIP') { $script:Results[$r] = 'r-' + $r.ToLowerInvariant() }
 $script:Verdicts = @{ 'READY' = 'v-good'; 'READY WITH WARNINGS' = 'v-caution'; 'NOT READY' = 'v-bad' }
 $script:Csp = "default-src 'none'; style-src 'unsafe-inline'; img-src data:; font-src data:; base-uri 'none'; form-action 'none'"
 
@@ -30,6 +32,10 @@ function Get-AvdcsReportAsset {
     param(
         [Parameter(Mandatory = $true)][string]$Root
     )
+    # .NET reads resolve against the process folder, not the PowerShell location, so resolve -Root first.
+    $resolved = Resolve-Path -LiteralPath $Root -ErrorAction SilentlyContinue
+    if (-not $resolved) { return $null }
+    $Root = $resolved.ProviderPath
     $assets = Join-Path $Root 'site/assets'
     $files = @((Join-Path $assets 'avd-ops.css'), (Join-Path $assets 'avd-ops-shell.css'), (Join-Path $Root 'lib/report/report.css'), (Join-Path $assets 'brand/mark.svg'))
     foreach ($f in $files) { if (-not (Test-Path -LiteralPath $f)) { return $null } }
@@ -53,12 +59,26 @@ function Get-AvdcsReportAsset {
 
 function ConvertTo-AvdcsHtmlText {
     # Escapes a Markdown line's text, then applies the inline marks the reports use: **bold**, *italic*, `code`.
+    # Code spans are cut out first, so an asterisk inside one (a wildcard such as *.wvd.microsoft.com) stays.
     param([string]$Text)
-    $t = $Text.Replace('&', '&amp;').Replace('<', '&lt;').Replace('>', '&gt;').Replace('"', '&quot;')
-    $t = [regex]::Replace($t, '`([^`]+)`', '<code>$1</code>')
-    $t = [regex]::Replace($t, '\*\*(.+?)\*\*', '<strong>$1</strong>')
-    $t = [regex]::Replace($t, '(?<![\w*])\*([^*\s][^*]*?)\*(?![\w*])', '<em>$1</em>')
-    $t
+    $parts = [regex]::Split($Text, '(`[^`]+`)')
+    $sb = New-Object System.Text.StringBuilder
+    foreach ($part in $parts) {
+        if ($part.Length -ge 2 -and $part.StartsWith('`') -and $part.EndsWith('`')) {
+            [void]$sb.Append('<code>' + (ConvertTo-AvdcsEscaped $part.Substring(1, $part.Length - 2)) + '</code>')
+            continue
+        }
+        $t = ConvertTo-AvdcsEscaped $part
+        $t = [regex]::Replace($t, '\*\*(.+?)\*\*', '<strong>$1</strong>')
+        $t = [regex]::Replace($t, '(?<![\w*])\*([^*\s][^*]*?)\*(?![\w*])', '<em>$1</em>')
+        [void]$sb.Append($t)
+    }
+    $sb.ToString()
+}
+
+function ConvertTo-AvdcsEscaped {
+    param([string]$Text)
+    $Text.Replace('&', '&amp;').Replace('<', '&lt;').Replace('>', '&gt;').Replace('"', '&quot;')
 }
 
 function Split-AvdcsTableRow {
@@ -74,14 +94,14 @@ function ConvertTo-AvdcsTableHtml {
     param([string[]]$Rows)
     $head = Split-AvdcsTableRow $Rows[0]
     $body = @($Rows | Select-Object -Skip 2 | ForEach-Object { , (Split-AvdcsTableRow $_) })
-    $numeric = @(for ($c = 0; $c -lt $head.Count; $c++) {
+    # A column of whole numbers aligns right; a column of results only is as narrow as its pills.
+    $numeric = @()
+    $resultCol = @()
+    for ($c = 0; $c -lt $head.Count; $c++) {
         $cells = @($body | ForEach-Object { if ($c -lt $_.Count) { $_[$c] } })
-        ($cells.Count -gt 0) -and -not @($cells | Where-Object { $_ -notmatch '^\d+$' }).Count
-    })
-    $resultCol = @(for ($c = 0; $c -lt $head.Count; $c++) {
-        $cells = @($body | ForEach-Object { if ($c -lt $_.Count) { $_[$c] } })
-        ($cells.Count -gt 0) -and -not @($cells | Where-Object { -not $script:Results.ContainsKey($_) }).Count
-    })
+        $numeric += ($cells.Count -gt 0) -and -not @($cells | Where-Object { $_ -notmatch '^\d+$' }).Count
+        $resultCol += ($cells.Count -gt 0) -and -not @($cells | Where-Object { -not $script:Results.ContainsKey($_) }).Count
+    }
     $sb = New-Object System.Text.StringBuilder
     [void]$sb.Append('<div class="tbl"><table><thead><tr>')
     for ($c = 0; $c -lt $head.Count; $c++) {
@@ -146,7 +166,8 @@ function ConvertTo-AvdcsReportHtml {
             [void]$out.Append('<div class="verdict ' + $cls + '" role="status"><span><span class="lbl">Overall</span><br>' + (ConvertTo-AvdcsHtmlText $word) + '</span></div>')
             $i++; continue
         }
-        if ($line -match '^\*\*[^*]+:\*\* ') {
+        # Two or more label lines in a row are run details; a single one ("**Important:** ...") is prose.
+        if ($line -match '^\*\*[^*]+:\*\* ' -and $i + 1 -lt $n -and $Markdown[$i + 1] -match '^\*\*[^*]+:\*\* ') {
             [void]$out.Append('<dl class="run">')
             while ($i -lt $n -and $Markdown[$i] -match '^\*\*([^*]+):\*\* (.*)$') {
                 [void]$out.Append('<dt>' + (ConvertTo-AvdcsHtmlText $Matches[1]) + '</dt><dd>' + (ConvertTo-AvdcsHtmlText $Matches[2]) + '</dd>')
@@ -159,7 +180,12 @@ function ConvertTo-AvdcsReportHtml {
         if ($line.StartsWith('|')) {
             $rows = New-Object System.Collections.Generic.List[string]
             while ($i -lt $n -and $Markdown[$i].StartsWith('|')) { $rows.Add($Markdown[$i]); $i++ }
-            if ($rows.Count -ge 2) { [void]$out.Append((ConvertTo-AvdcsTableHtml $rows.ToArray())) }
+            if ($rows.Count -ge 2 -and $rows[1] -match '^\|(\s*:?-+:?\s*\|)+\s*$') {
+                [void]$out.Append((ConvertTo-AvdcsTableHtml $rows.ToArray()))
+            } else {
+                # Not a table: keep every line as text rather than drop it.
+                foreach ($r in $rows) { [void]$out.Append('<p>' + (ConvertTo-AvdcsHtmlText $r) + '</p>') }
+            }
             continue
         }
         if ($line.StartsWith('>')) {
@@ -173,10 +199,11 @@ function ConvertTo-AvdcsReportHtml {
         }
         if ($line -match '^(- |\d+\. )') {
             $tag = 'ul'
-            if ($line -match '^\d+\. ') { $tag = 'ol' }
+            $item = '^- (.*)$'
+            if ($line -match '^\d+\. ') { $tag = 'ol'; $item = '^\d+\. (.*)$' }
             [void]$out.Append("<$tag>")
-            while ($i -lt $n -and $Markdown[$i] -match '^(- |\d+\. )(.*)$') {
-                [void]$out.Append('<li>' + (ConvertTo-AvdcsHtmlText $Matches[2]) + '</li>')
+            while ($i -lt $n -and $Markdown[$i] -match $item) {
+                [void]$out.Append('<li>' + (ConvertTo-AvdcsHtmlText $Matches[1]) + '</li>')
                 $i++
             }
             [void]$out.Append("</$tag>")
@@ -189,7 +216,7 @@ function ConvertTo-AvdcsReportHtml {
     $docTitle = (ConvertTo-AvdcsHtmlText ($title -replace '\*', '')) + ' | avd-current-state'
     $lines = @(
         '<!doctype html>'
-        '<!-- avd-current-state report in the avd-ops look (design system ' + $Asset.Version + '). Personal project, not for production, as is; not affiliated with the author''s employer or Microsoft. -->'
+        '<!-- avd-current-state report in the avd-ops look (design system ' + $Asset.Version + '). Personal project, not for production, as is; not affiliated with the author''s employer, Liquidware or Microsoft. -->'
         '<html lang="en">'
         '<head>'
         '<meta charset="utf-8">'
@@ -205,7 +232,7 @@ function ConvertTo-AvdcsReportHtml {
         '<body class="shell report">'
         '<header class="bar"><div class="bar-in"><a class="brand" href="https://avd-ops.dev/"><img class="mark" src="' + $Asset.MarkUri + '" alt="" width="28" height="28"><span class="word">avd-ops</span></a><span class="what">avd-current-state</span></div></header>'
         '<details class="notice"><summary><strong class="long">Personal project. Research and learning only. Not for production. No warranty.</strong><strong class="short">Research project, not for production.</strong><span class="more">Read the notice</span></summary>'
-        '<div class="full"><ul><li>Built on my own time for research and learning. Not affiliated with, endorsed by or supported by my employer or Microsoft.</li>'
+        '<div class="full"><ul><li>Built on my own time for research and learning. Not affiliated with, endorsed by or supported by my employer, Liquidware or Microsoft.</li>'
         '<li>This report is read-only evidence, not a production-readiness certification, a compliance attestation or a security audit.</li>'
         '<li>Provided "as is", without warranty of any kind, under the MIT License. You use it at your own risk.</li>'
         '<li>It holds what the run read from your subscription. Share it only where that subscription''s details may go.</li></ul></div></details>'

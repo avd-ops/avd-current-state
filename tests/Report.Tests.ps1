@@ -74,12 +74,38 @@ Describe 'ConvertTo-AvdcsReportHtml' {
     $h | Should -Match '<td>&lt;script&gt;alert\(1\)&lt;/script&gt; &amp; &quot;x&quot;</td>'
   }
 
-  It 'holds no text the Markdown report does not' {
-    $body = [regex]::Match($script:validation, '<main id="main">(.*)</main>', 'Singleline').Groups[1].Value
+  It 'reads the edge cases the code review found' {
+    $h = ConvertTo-AvdcsReportHtml -Markdown @(
+      '# T'
+      'Allow `*.wvd.microsoft.com` and `*.servicebus.windows.net` outbound.'
+      '| only one line |'
+      '**Important:** one label line is prose.'
+      '- a'
+      '1. b'
+      '| Level | Status |'
+      '|---|---|'
+      '| Info | PASS |'
+    ) -Asset $script:asset -Kind 'Test'
+    $h | Should -Match '<p>Allow <code>\*\.wvd\.microsoft\.com</code> and <code>\*\.servicebus\.windows\.net</code> outbound\.</p>'
+    $h | Should -Match '<p>\| only one line \|</p>'
+    $h | Should -Match '<p><strong>Important:</strong> one label line is prose\.</p>'
+    $h | Should -Not -Match '<dl class="run">'
+    $h | Should -Match '<ul><li>a</li></ul><ol><li>b</li></ol>'
+    $h | Should -Match '<td>Info</td><td><span class="res r-pass">PASS</span></td>'
+  }
+
+  It 'finds the files from a relative root too' {
+    Push-Location $script:root
+    try { (Get-AvdcsReportAsset -Root '.').Css | Should -Match 'avd-ops design system' } finally { Pop-Location }
+  }
+
+  It 'holds no text the <Name> Markdown does not' -ForEach @(@{ Name = 'validation-report'; Kind = 'Deployment validator' }, @{ Name = 'summary'; Kind = 'Collector' }) {
+    $html = ConvertTo-AvdcsReportHtml -Markdown (Get-Content (Join-Path $script:root "tests/report/$Name.md") -Encoding UTF8) -Asset $script:asset -Kind $Kind
+    $body = [regex]::Match($html, '<main id="main">(.*)</main>', 'Singleline').Groups[1].Value
     $text = [System.Net.WebUtility]::HtmlDecode(($body -replace '<[^>]+>', ' '))
-    $mdWords = @([regex]::Matches((Get-Content (Join-Path $script:root 'tests/report/validation-report.md') -Raw -Encoding UTF8), '\w+') | ForEach-Object { $_.Value })
+    $mdWords = @([regex]::Matches((Get-Content (Join-Path $script:root "tests/report/$Name.md") -Raw -Encoding UTF8), '\w+') | ForEach-Object { $_.Value })
     # The eyebrow names the tool and the kind of report; everything else comes from the Markdown.
-    $extra = @('avd', 'current', 'state', 'Deployment', 'validator')
+    $extra = @('avd', 'current', 'state', 'Deployment', 'validator', 'Collector')
     $added = @([regex]::Matches($text, '\w+') | ForEach-Object { $_.Value } | Where-Object { $mdWords -cnotcontains $_ -and $extra -cnotcontains $_ } | Sort-Object -Unique)
     $added | Should -BeNullOrEmpty
   }
