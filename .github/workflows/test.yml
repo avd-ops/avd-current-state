@@ -61,6 +61,7 @@ jobs:
 
       # The Review stage reads an assessment report (C21) and writes review.json (C23). The engine's
       # assessment.json fixture is avd-assess's C21 example byte for byte; review.json is the engine's
+      # own output and must be valid C23.
       - name: Review fixtures match avd-assess contracts C21 and C23
         env:
           ASSESS_COMMIT: 99ee1741e2b7c076735f59ee8ef3a0ddc1bd64b9
