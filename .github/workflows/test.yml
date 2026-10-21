@@ -61,10 +61,9 @@ jobs:
 
       # The Review stage reads an assessment report (C21) and writes review.json (C23). The engine's
       # assessment.json fixture is avd-assess's C21 example byte for byte; review.json is the engine's
-      # own output and must be valid C23. Re-pin to the merge commit once avd-assess #18 merges.
       - name: Review fixtures match avd-assess contracts C21 and C23
         env:
-          ASSESS_COMMIT: d2a826517b4745bf4089ce32170a47206b6230b8
+          ASSESS_COMMIT: 99ee1741e2b7c076735f59ee8ef3a0ddc1bd64b9
         run: |
           pip install --quiet jsonschema
           base="https://raw.githubusercontent.com/nickprignano/avd-assess/$ASSESS_COMMIT/contracts"
