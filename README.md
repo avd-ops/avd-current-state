@@ -368,7 +368,7 @@ avd-validation-20260919T141120.zip
 
 The estate's memory moved to **[avd-second-brain](https://github.com/nickprignano/avd-second-brain)**: one second brain for the
 whole AVD lifecycle, shared with
-[avd-readiness-stratusphere](https://github.com/nickprignano/avd-readiness-stratusphere) (assessment)
+the assessment project
 and [avd-landing-zone](https://github.com/nickprignano/avd-landing-zone) (deployment and operations).
 The script and its vault template are there, at `vault/avd_second_brain.ps1`, with the
 same parameters plus an optional `-KnowledgePath`. This repository stays the **sensor**: the collector and the validator
@@ -441,12 +441,12 @@ Azure-side facts can support, and which ones can't be decided from Azure at all:
 
 ```
 [INFO] Manifest coverage: 5 of 10 design decisions can come from this snapshot (region, network mode, host pool type, application group, power settings).
-[INFO]   Identity lane, VM size, Sessions per host, Host count, Profile share quota need measured usage: avd-readiness-stratusphere ...
+[INFO]   Identity lane, VM size, Sessions per host, Host count, Profile share quota need measured usage: a Stratusphere UX assessment ...
 ```
 
 Configuration says what someone set, not what users do. Sizing (VM size, sessions per host,
 host count), the profile share and the identity lane need measured demand, concurrency, profile
-sizes and app dependencies. [avd-readiness-stratusphere](https://github.com/nickprignano/avd-readiness-stratusphere) collects them with Liquidware
+sizes and app dependencies. An assessment collects them with Liquidware
 Stratusphere UX over a 2 to 4 week window (appliances and a license for the window, so it is
 priced before it starts), and turns them, together with this snapshot and the collector
 package, into a manifest that [avd-landing-zone](https://github.com/nickprignano/avd-landing-zone) deploys. It uses the same estate

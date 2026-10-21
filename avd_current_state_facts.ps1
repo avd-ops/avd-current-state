@@ -701,7 +701,7 @@ try {
 
     Write-FactsLog "Facts snapshot: $outFile"
     Write-FactsLog "  $($subscriptions.Count) subscription(s), $(@($subscriptions | ForEach-Object { $_.hostPools }).Count) host pool(s), $($validations.Count) validator run(s), $($script:RedactedValues) value(s) redacted."
-    # The upsell (avd-readiness-stratusphere boundaries spec section 5): what this snapshot can and can't decide.
+    # What this snapshot can and can't decide, and what the rest needs.
     $registerFile = Join-Path $PSScriptRoot 'contracts/fact-register.json'
     if (Test-Path -LiteralPath $registerFile) {
         $coverage = Get-ManifestCoverage -Snapshot ($json | ConvertFrom-Json) -Register (Get-Content -LiteralPath $registerFile -Raw | ConvertFrom-Json)
@@ -709,7 +709,7 @@ try {
         if ($coverage.Supported.Count) { $line += " ($(($coverage.Supported | ForEach-Object { $_.ToLowerInvariant() }) -join ', '))" }
         Write-FactsLog "$line."
         if ($coverage.Needs.Count) {
-            Write-FactsLog "  $(($coverage.Needs -join ', ')) need measured usage: avd-readiness-stratusphere turns a 2-4 week Stratusphere UX window into a deployment-ready manifest (https://github.com/nickprignano/avd-readiness-stratusphere)."
+            Write-FactsLog "  $(($coverage.Needs -join ', ')) need measured usage: a Stratusphere UX assessment over a 2-4 week window turns them into a deployment-ready manifest."
         }
     }
     # The assessment portal's state line (docs/assessment-portal-spec.md, section 3): the estate pseudonym
