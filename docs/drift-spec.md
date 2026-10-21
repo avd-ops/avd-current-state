@@ -21,7 +21,7 @@ The smallest version (section 3) is one read-only script plus a sample scheduled
 
 What "drift" means in each row: **declared** = compared with a state someone wrote down; **baseline** = compared with best practice, not your own declaration; **deploy time** = checks a template before it's deployed and doesn't watch a live estate.
 
-Checked 2026-10-21 on Microsoft Learn, the projects' own pages and package feeds. GitHub search from this environment is blocked, so maintenance comes from releases on PowerShell Gallery and PyPI, and from vendor posts; "not verified" says where that wasn't possible.
+Checked 2026-10-21 on Microsoft Learn, the projects' own pages and package feeds. The family's GitHub prior-art search (avd-second-brain `kb-prior-art`, six queries, 2026-10-21) found no repository that checks an AVD estate against a declared state; Microsoft365DSC's own tracker discusses moving toward the Tenant Configuration Management APIs. Maintenance comes from releases on PowerShell Gallery and PyPI, and from vendor posts; "not verified" says where that wasn't possible.
 
 ### 1.1 Native Azure and Microsoft
 
