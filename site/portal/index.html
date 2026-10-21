@@ -8,15 +8,30 @@
 <link rel="icon" href="../assets/brand/favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="../assets/avd-ops.css">
 <link rel="stylesheet" href="../assets/avd-ops-portal.css">
+<link rel="stylesheet" href="../assets/avd-ops-shell.css">
+<script src="../assets/theme.js"></script>
 <style>
   /* The assessment portal (docs/assessment-portal-spec.md). Tokens, fonts and the shared portal components come
      from the avd-ops design system, vendored in ../assets/ (avd-ops docs/design-system.md), so the page makes
      no request to another site. This block holds only this page's layout. */
-  header.top .brand{display:flex;align-items:center;gap:var(--space-2);flex-wrap:wrap;min-width:0;margin-right:auto}
-  header.top .brand a.home{display:inline-flex;align-items:center;gap:var(--space-2);font:700 1.05rem var(--display);color:var(--fg);text-decoration:none}
-  header.top .brand a.home:hover{color:var(--accent)}
-  header.top .brand h1{font:700 1.05rem var(--display)}
+  /* The avd-ops shell bar (avd-ops docs/design-system.md, "Shell") lines up with the portal's column; under it the
+     page's own title row: the portal's name, then its own links and settings. */
+  header.bar .bar-in{max-width:980px}
+  .shell main{padding-block:0}
+  /* avd-ops-portal.css styles every button as a primary action; the shell's theme button keeps the bar's look. */
+  .portal header.bar .iconbtn,.portal header.bar .iconbtn:hover:not(:disabled){padding:0;background:transparent;color:var(--shell-fg);border-color:var(--shell-line)}
+  .portal header.bar .iconbtn:hover:not(:disabled){background:var(--shell-hover)}
+  header.top .title{min-width:0;margin-right:auto}
+  header.top .title h1{font:700 1.25rem var(--display)}
   .toplinks{display:flex;align-items:center;gap:var(--space-1) 14px;flex-wrap:wrap;font-size:.95rem}
+  @media (pointer:coarse){.toplinks>a{display:inline-flex;align-items:center;min-height:var(--tap)}}
+  @media (max-width:560px){.toplinks{width:100%}.toplinks>a.about{display:none}.toplinks>button{flex:1 1 0}}
+  .credit{margin:0;padding:0 0 calc(24px + env(safe-area-inset-bottom,0px));font:600 .8rem var(--mono);letter-spacing:.04em;color:var(--fg)}
+  .credit a{color:inherit}
+  .portal footer.disclaimer{padding-bottom:10px}
+  /* The step bar is solid and focus scrolls clear of it, so it never sits over a field. */
+  .portal .stepnav{background:var(--bg);border-top:1px solid var(--line)}
+  html{scroll-padding-bottom:96px}
   .toplinks a{color:var(--muted);text-decoration:none}
   .toplinks a:hover{color:var(--accent)}
   .top-intro{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(0,1fr);gap:var(--space-3) var(--space-5);align-items:start;padding-block:18px 6px}
@@ -58,11 +73,15 @@
   }
 </style>
 </head>
-<body class="portal">
+<body class="portal shell">
+<!-- The avd-ops shell (avd-ops docs/design-system.md, "Shell"): the brand bar and switcher shared with avd-ops.dev and the deployment portal. -->
+<header class="bar"><div class="bar-in"><a class="brand" href="https://avd-ops.dev/"><img class="mark" src="../assets/brand/mark.svg" alt="" width="28" height="28"><span class="word">avd-ops</span></a>
+<nav class="switcher" aria-label="avd-ops tools"><a href="https://avd-ops.dev/">Docs</a><a href="https://avd-ops.github.io/avd-landing-zone/portal/">Deploy</a><a href="./" aria-current="page">Assess</a></nav>
+<div class="tools"><button class="iconbtn theme" type="button" aria-label="Switch theme"><svg class="sun" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><circle cx="10" cy="10" r="3.5"/><path d="M10 1.8v2.2M10 16v2.2M1.8 10H4M16 10h2.2M4.2 4.2l1.6 1.6M14.2 14.2l1.6 1.6M4.2 15.8l1.6-1.6M14.2 5.8l1.6-1.6"/></svg><svg class="moon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" aria-hidden="true"><path d="M16.5 12.4A7 7 0 0 1 7.6 3.5a7 7 0 1 0 8.9 8.9Z"/></svg></button></div></div></header>
 <main>
   <header class="top">
-    <div class="brand"><a class="home" href="https://avd-ops.dev/"><img class="mark" src="../assets/brand/mark.svg" alt="" width="26" height="26">avd-ops</a><span class="sep" aria-hidden="true">/</span><h1>AVD assessment portal</h1></div>
-    <div class="toplinks"><a href="https://github.com/nickprignano/avd-current-state">About avd-current-state</a>
+    <div class="title"><h1>AVD assessment portal</h1></div>
+    <div class="toplinks"><a class="about" href="https://github.com/nickprignano/avd-current-state">About avd-current-state</a>
       <button type="button" class="secondary" id="settings-link" aria-controls="settings-panel" aria-expanded="false">Assessment settings</button></div>
   </header>
 
@@ -246,6 +265,7 @@
   </nav>
 
   <footer class="disclaimer">Personal project, not for production. Provided as is, without warranty of any kind, under the <a href="https://github.com/nickprignano/avd-current-state/blob/main/LICENSE">MIT License</a>. Not affiliated with, endorsed by or supported by the author's employer, Liquidware or Microsoft. Contributions and forks are welcome: <a href="https://github.com/nickprignano/avd-current-state">avd-current-state on GitHub</a>.</footer>
+  <p class="credit">A <a href="https://prignano.ai/">prignano.ai</a> production</p>
 </main>
 <datalist id="zones"><option value="UTC"><option value="America/New_York"><option value="America/Chicago"><option value="America/Denver"><option value="America/Los_Angeles"><option value="America/Toronto"><option value="America/Sao_Paulo"><option value="Europe/London"><option value="Europe/Dublin"><option value="Europe/Amsterdam"><option value="Europe/Berlin"><option value="Europe/Paris"><option value="Asia/Singapore"><option value="Asia/Tokyo"><option value="Asia/Kolkata"><option value="Australia/Sydney"></datalist>
 <script src="assess-core.js"></script>
