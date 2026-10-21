@@ -47,24 +47,41 @@
 .PARAMETER OutputPath
     Folder for avd-current-state-facts-<timestamp>.json. Defaults to the current folder.
 
+.PARAMETER Assess
+    Also run the avd-assess method pinned in assess/ over the snapshot and write
+    avd-assessment-<timestamp>.json (contract C21) beside it: one outcome per check (pass, warn,
+    gap, unknown), the pillar scores with their coverage, and each design decision's readiness.
+    It holds only pseudonyms, fact IDs and outcomes. Nothing is fetched; the method's copy must
+    match its hash in assess/PINS.json.
+
+.PARAMETER IntakePath
+    With -Assess, the estate's intake.json (contract C19, written by the assessment portal's
+    Discover stage). It must be for the same estate as the snapshot. Without it, the decisions
+    that need intake answers report needs-intake.
+
 .EXAMPLE
     .\avd_current_state_facts.ps1 -PackagePath .\avd-current-state-20261015T091500, .\avd-validation-20261016T100000.zip -KeyPath ..\avd-brain\.brain\facts.key -NewKey
 
 .EXAMPLE
     .\avd_current_state_facts.ps1 -PackagePath D:\Assessments -KeyPath ..\avd-brain\.brain\facts.key -OutputPath ..\avd-brain\facts
+
+.EXAMPLE
+    .\avd_current_state_facts.ps1 -PackagePath $out -KeyPath (Join-Path $out 'estate.key') -OutputPath $out -Assess -IntakePath (Join-Path $out 'intake.json')
 #>
 [CmdletBinding()]
 param(
     [Parameter(Mandatory = $true)][string[]]$PackagePath,
     [Parameter(Mandatory = $true)][string]$KeyPath,
     [switch]$NewKey,
-    [string]$OutputPath = (Get-Location).Path
+    [string]$OutputPath = (Get-Location).Path,
+    [switch]$Assess,
+    [string]$IntakePath
 )
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
-$script:FactsVersion = '1.1.0'
+$script:FactsVersion = '1.2.0'
 $script:TempDirs = New-Object System.Collections.Generic.List[string]
 $script:RedactedValues = 0
 
@@ -698,9 +715,52 @@ function Get-ManifestCoverage {
     [pscustomobject]@{ Total = @($Register.decisions).Count; Supported = $supported; Needs = $needs }
 }
 
+function Write-Assessment {
+    # Runs the method pinned in assess/ over the snapshot just written (lib/AvdAssess.psm1) and writes the
+    # C21 report. Refuses a method copy that drifted from its pin, an intake that isn't C19 for this
+    # estate, and a report the leak scan flags.
+    param([string]$SnapshotJson, [string]$SnapshotFile, [string]$IntakeFile, [string]$Destination)
+    Import-Module (Join-Path $PSScriptRoot 'lib/AvdAssess.psm1') -Force
+    $pinsFile = Join-Path $PSScriptRoot 'assess/PINS.json'
+    $methodFile = Join-Path $PSScriptRoot 'assess/method.json'
+    $pins = Get-Content -LiteralPath $pinsFile -Raw | ConvertFrom-Json
+    $methodSha = Get-Sha256Hex ([System.IO.File]::ReadAllBytes($methodFile))
+    if ($methodSha -ne "$($pins.files.'method.json')") { throw 'assess/method.json does not match its hash in assess/PINS.json. Re-copy it from avd-assess at the pinned commit.' }
+    $method = Get-Content -LiteralPath $methodFile -Raw | ConvertFrom-Json
+    $register = Get-Content -LiteralPath (Join-Path $PSScriptRoot 'contracts/fact-register.json') -Raw | ConvertFrom-Json
+
+    $intake = $null; $intakeSha = $null
+    if ($IntakeFile) {
+        $intakeBytes = [System.IO.File]::ReadAllBytes([System.IO.Path]::GetFullPath($IntakeFile))
+        $intakeText = [System.Text.Encoding]::UTF8.GetString($intakeBytes).TrimStart([char]0xFEFF)
+        $intakeSchema = Join-Path $PSScriptRoot 'contracts/intake.schema.json'
+        if (Get-Command Test-Json -ErrorAction SilentlyContinue) {
+            $errs = $null
+            if (-not (Test-Json -Json $intakeText -SchemaFile $intakeSchema -ErrorVariable errs -ErrorAction SilentlyContinue)) { throw "The intake isn't valid avd-intake/v1: $errs" }
+        } else {
+            Write-FactsLog 'Windows PowerShell has no Test-Json: the intake is checked for its schema and estate only.' -Level WARN
+        }
+        $intake = $intakeText | ConvertFrom-Json
+        if ("$(Get-Prop $intake 'schema' '')" -ne 'avd-intake/v1') { throw "The intake isn't avd-intake/v1." }
+        $intakeSha = Get-Sha256Hex $intakeBytes
+    }
+
+    $snapshotSha = Get-Sha256Hex ([System.IO.File]::ReadAllBytes($SnapshotFile))
+    $report = Get-AvdAssessment -Method $method -MethodCommit "$($pins.commit)" -MethodSha256 $methodSha -Register $register `
+        -Snapshot ($SnapshotJson | ConvertFrom-Json) -SnapshotSha256 $snapshotSha -Intake $intake -IntakeSha256 $intakeSha `
+        -ProducerName 'avd_current_state_facts.ps1' -ProducerVersion $script:FactsVersion
+    $leaks = @(Find-Leak -Node $report)
+    if ($leaks.Count) { throw "Refusing to write the assessment: it looks like it holds tenant data ($(($leaks | Select-Object -First 5) -join '; '))." }
+    [System.IO.File]::WriteAllText($Destination, ($report | ConvertTo-Json -Depth 12), (New-Object System.Text.UTF8Encoding $false))
+    Write-FactsLog "Assessment: $Destination (avd-assess method v$($method.version) at $("$($pins.commit)".Substring(0, 7)))"
+    return $report
+}
+
 # region Main
 
 try {
+    if ($IntakePath -and -not $Assess) { throw '-IntakePath goes with -Assess.' }
+    if ($IntakePath -and -not (Test-Path -LiteralPath $IntakePath)) { throw "Intake file not found: $IntakePath" }
     if (-not (Test-Path -LiteralPath $KeyPath)) {
         if (-not $NewKey) { throw "Key file not found: $KeyPath. Pass -NewKey to create one for a new estate." }
         $bytes = New-Object byte[] 32
@@ -818,16 +878,39 @@ try {
             Write-FactsLog "  $(($coverage.Needs -join ', ')) need measured usage: a Stratusphere UX assessment over a 2-4 week window turns them into a deployment-ready manifest."
         }
     }
+    $assessFile = $null
+    if ($Assess) {
+        $assessFile = Join-Path (Split-Path -Parent $outFile) "avd-assessment-$stamp.json"
+        $assessment = Write-Assessment -SnapshotJson $json -SnapshotFile $outFile -IntakeFile $IntakePath -Destination $assessFile
+        foreach ($p in $assessment.pillars) {
+            $score = if ($null -eq $p.score) { 'no score' } else { 'score {0:0.00}' -f $p.score }
+            Write-FactsLog ("  {0}: {1}, {2} of {3} checks assessed (coverage {4:0%})." -f $p.pillar, $score, $p.assessed, $p.checks, $p.coverage)
+        }
+        $byOutcome = @{}
+        foreach ($r in $assessment.results) { $byOutcome[$r.outcome] = 1 + [int]$byOutcome[$r.outcome] }
+        Write-FactsLog ("  Checks: {0} pass, {1} warn, {2} gap, {3} unknown." -f [int]$byOutcome['pass'], [int]$byOutcome['warn'], [int]$byOutcome['gap'], [int]$byOutcome['unknown'])
+        $supported = @($assessment.decisions | Where-Object { $_.status -eq 'supported' })
+        $line = "Assessment readiness: $($supported.Count) of $(@($assessment.decisions).Count) design decisions are supported"
+        if ($supported.Count) { $line += " ($(($supported | ForEach-Object { $_.decision }) -join ', '))" }
+        Write-FactsLog "$line."
+        foreach ($status in @('needs-intake', 'missing-facts', 'needs-measurement')) {
+            $rows = @($assessment.decisions | Where-Object { $_.status -eq $status })
+            if ($rows.Count) { Write-FactsLog "  ${status}: $(($rows | ForEach-Object { $_.decision }) -join ', ')" }
+        }
+    }
     # The assessment portal's state line (docs/assessment-portal-spec.md, section 3): the estate pseudonym
     # the intake and the review are keyed by, and the snapshot's file name. No name or ID.
     $portalState = Join-Path $PSScriptRoot 'lib/AvdPortalState.psm1'
     if (Test-Path -LiteralPath $portalState) {
         Import-Module $portalState -Force
-        Write-Host (Get-AvdcsStateLine -Stage 'facts' -Status 'done' -Context @{ estate = $snapshot.estate; snapshot = (Split-Path -Leaf $outFile) } -Counts @{
+        $context = @{ estate = $snapshot.estate; snapshot = (Split-Path -Leaf $outFile) }
+        if ($assessFile) { $context.assessment = Split-Path -Leaf $assessFile }
+        Write-Host (Get-AvdcsStateLine -Stage 'facts' -Status 'done' -Context $context -Counts @{
                 subscriptions = [int]$subscriptions.Count; hostPools = [int]@($subscriptions | ForEach-Object { $_.hostPools }).Count
                 validations = [int]$validations.Count; redacted = [int]$script:RedactedValues })
     }
     Write-Output $outFile
+    if ($assessFile) { Write-Output $assessFile }
 } finally {
     foreach ($dir in $script:TempDirs) { if (Test-Path -LiteralPath $dir) { Remove-Item -LiteralPath $dir -Recurse -Force -ErrorAction SilentlyContinue } }
 }

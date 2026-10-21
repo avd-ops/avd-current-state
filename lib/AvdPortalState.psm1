@@ -18,7 +18,7 @@ Set-StrictMode -Version Latest
 $script:Stages   = @('collect', 'facts', 'analyze')
 $script:Statuses = @('done', 'partial', 'failed')
 # Context keys the line may carry. Anything else is refused, so a private value can't slip in by a new key.
-$script:ContextKeys = @('subscriptions', 'package', 'estate', 'mode', 'verdict', 'snapshot')
+$script:ContextKeys = @('subscriptions', 'package', 'estate', 'mode', 'verdict', 'snapshot', 'assessment')
 
 function Get-AvdcsStateLine {
     <#

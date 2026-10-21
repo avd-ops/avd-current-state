@@ -14,6 +14,8 @@ The collector and validator packages hold tenant data: subscription and object I
 | `-KeyPath` | string | yes |  | File holding the estate's pseudonymization key (base64, 32 bytes). |
 | `-NewKey` | switch | no |  | Create the key file when it doesn't exist. Without it a missing key is an error, so a typo can't silently start a new set of pseudonyms. |
 | `-OutputPath` | string | no | `(Get-Location).Path` | Folder for avd-current-state-facts-<timestamp>.json. Defaults to the current folder. |
+| `-Assess` | switch | no |  | Also run the avd-assess method pinned in assess/ over the snapshot and write avd-assessment-<timestamp>.json (contract C21) beside it: one outcome per check (pass, warn, gap, unknown), the pillar scores with their coverage, and each design decision's readiness. It holds only pseudonyms, fact IDs and outcomes. Nothing is fetched; the method's copy must match its hash in assess/PINS.json. |
+| `-IntakePath` | string | no |  | With -Assess, the estate's intake.json (contract C19, written by the assessment portal's Discover stage). It must be for the same estate as the snapshot. Without it, the decisions that need intake answers report needs-intake. |
 
 ## Examples
 
@@ -22,4 +24,7 @@ The collector and validator packages hold tenant data: subscription and object I
 ```
 ```powershell
 .\avd_current_state_facts.ps1 -PackagePath D:\Assessments -KeyPath ..\avd-brain\.brain\facts.key -OutputPath ..\avd-brain\facts
+```
+```powershell
+.\avd_current_state_facts.ps1 -PackagePath $out -KeyPath (Join-Path $out 'estate.key') -OutputPath $out -Assess -IntakePath (Join-Path $out 'intake.json')
 ```

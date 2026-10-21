@@ -465,8 +465,20 @@ and an optional `intake.json` (C19) and builds the assessment report (C21): one 
 their coverage, and each design decision's readiness. A missing fact makes a subject `unknown`,
 never a failure. Nothing is fetched at run time, and none of it needs the brain or avd-swarm. A
 method update is a PR that copies the files at a new avd-assess commit and updates both PINS files;
-`tests/Assess.Tests.ps1` fails if a copy drifts. The facts script's `-Assess` switch, which writes
-`assessment.json` beside the snapshot, comes next.
+`tests/Assess.Tests.ps1` fails if a copy drifts.
+
+Run it with the facts script's `-Assess` switch, and give the Discover stage's `intake.json` when
+you have one:
+
+```powershell
+./avd_current_state_facts.ps1 -PackagePath $out -KeyPath (Join-Path $out 'estate.key') -OutputPath $out -Assess -IntakePath (Join-Path $out 'intake.json')
+```
+
+It writes `avd-assessment-<timestamp>.json` beside the snapshot with the same timestamp, and
+prints one line per pillar, the count of checks by outcome, and which design decisions the
+inputs support. It refuses a method copy that doesn't match its pin, an intake that isn't valid
+C19 or is for another estate, and a report the leak scan flags. The manifest coverage line above
+stays as it was; the report's `decisions` are the method's readiness rows.
 
 ---
 

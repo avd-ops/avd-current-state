@@ -6,6 +6,7 @@ All notable changes, in the format of [Keep a Changelog](https://keepachangelog.
 
 ### Added
 
+- `avd_current_state_facts.ps1 -Assess [-IntakePath]` runs the pinned avd-assess method over the snapshot and writes `avd-assessment-<timestamp>.json` (C21) beside it, prints the pillar scores, outcome counts and decision readiness, and names the report in the state line (`assessment`).
 - The assessment method runner (avd-assess phase 4, first part): `assess/` with avd-assess's `method.json` and `index.json` pinned in `assess/PINS.json`, and `lib/AvdAssess.psm1`, the pure evaluator (`pass`, `warn`, `gap`, `unknown`), pillar scoring and decision readiness that build the C21 assessment report. Offline tests cover all four outcomes and validate the report against C21.
 - The assessment portal's Review stage (phase 2): load an `assessment.json`, decide each finding (fix, accept or defer, with a reason code), carry forward decisions from an earlier review whose outcome didn't change, and write `review.json` (avd-assess contract C23) into Cloud Shell; private notes per finding go into the notes file.
 - The assessment portal (`site/portal/`, phase 1 of `docs/assessment-portal-spec.md`): Collect, Discover (writes `intake.json`, C19, and private discovery notes) and Analyze, published to GitHub Pages; the collector, the facts script and the validator end with an `AVDCS-STATE` line the page reads (`lib/AvdPortalState.psm1`).
