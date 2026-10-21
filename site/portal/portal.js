@@ -164,8 +164,152 @@
     state.intakeBuilt = true; save(); renderSteps();
   });
 
+  // ---- Review ----
+  // The report summary (C21 holds no names), the hash, the decisions and the private finding notes stay in this
+  // browser; the files themselves are read and dropped.
+  const rv = () => (state.review = state.review || { assessment: null, sha256: '', rows: [], notes: {}, built: false, file: '', prior: '' });
+  const OUTCOME_WORD = { pass: 'Pass', warn: 'Warn', gap: 'Gap', unknown: 'Unknown' };
+  const DISPOSITIONS = [['fix', 'Fix'], ['accept', 'Accept'], ['defer', 'Defer']];
+  let priorReview = null;
+
+  function readFile(input) {
+    return new Promise((resolve, reject) => {
+      const f = input.files && input.files[0];
+      if (!f) return reject(new Error('No file chosen.'));
+      if (f.size > 5 * 1024 * 1024) return reject(new Error('That file is larger than an assessment report should be (5 MB).'));
+      const r = new FileReader();
+      r.onload = () => resolve({ name: f.name, size: f.size, buffer: r.result });
+      r.onerror = () => reject(new Error('The browser could not read the file.'));
+      r.readAsArrayBuffer(f);
+    });
+  }
+  const kb = (n) => (n < 1024 ? `${n} bytes` : `${(n / 1024).toFixed(1)} KB`);
+  for (const id of ['assessment-drop', 'prior-drop']) {
+    const el = $(id);
+    el.addEventListener('dragover', (e) => { e.preventDefault(); el.classList.add('over'); });
+    el.addEventListener('dragleave', () => el.classList.remove('over'));
+    el.addEventListener('drop', (e) => {
+      e.preventDefault(); el.classList.remove('over');
+      const input = el.querySelector('input[type=file]');
+      if (e.dataTransfer && e.dataTransfer.files.length) { input.files = e.dataTransfer.files; input.dispatchEvent(new Event('change')); }
+    });
+  }
+  $('assessment-file').addEventListener('change', async () => {
+    $('assessment-error').textContent = ''; $('assessment-name').textContent = '';
+    try {
+      const f = await readFile($('assessment-file'));
+      const text = new TextDecoder().decode(f.buffer);
+      const { assessment, error } = core.parseAssessment(text);
+      if (!assessment) throw new Error(error);
+      const r = rv();
+      r.assessment = assessment; r.sha256 = await core.sha256Hex(f.buffer); r.file = `${f.name}, ${kb(f.size)}`; r.built = false;
+      r.rows = core.startReview(assessment, priorReview);
+      if (!$('reviewedOn').value) $('reviewedOn').value = today();
+      save(); renderReview(); renderSteps();
+    } catch (e) { $('assessment-error').textContent = e.message; }
+    $('assessment-file').value = '';
+  });
+  $('prior-file').addEventListener('change', async () => {
+    $('prior-error').textContent = ''; $('prior-name').textContent = '';
+    try {
+      const f = await readFile($('prior-file'));
+      let doc; try { doc = JSON.parse(new TextDecoder().decode(f.buffer)); } catch (e) { throw new Error('This isn\'t JSON.'); }
+      if (!doc || doc.schema !== 'avd-assessment-review/v1') throw new Error('This isn\'t an avd-assessment-review/v1 file.');
+      const r = rv();
+      if (r.assessment && doc.estate !== r.assessment.estate) throw new Error('This review is for another estate.');
+      priorReview = doc; r.prior = `${f.name}, ${kb(f.size)}`;
+      if (r.assessment) { r.rows = core.startReview(r.assessment, priorReview); r.built = false; }
+      save(); renderReview(); renderSteps();
+    } catch (e) { $('prior-error').textContent = e.message; }
+    $('prior-file').value = '';
+  });
+  $('hide-pass').addEventListener('change', () => renderReview());
+
+  function el(tag, props, children) {
+    const n = document.createElement(tag);
+    Object.assign(n, props || {});
+    for (const c of children || []) n.append(c);
+    return n;
+  }
+  function renderReview() {
+    const r = rv();
+    $('assessment-name').textContent = r.file || '';
+    $('prior-name').textContent = r.prior || '';
+    $('review-body').classList.toggle('hidden', !r.assessment);
+    if (!r.assessment) return;
+    const c = r.assessment.counts;
+    const decided = r.rows.filter((x) => x.disposition).length;
+    $('review-summary').replaceChildren(
+      el('span', { className: 'muted', textContent: `${r.assessment.estate}, ${r.rows.length} checks:` }),
+      ...['gap', 'warn', 'unknown', 'pass'].map((o) => el('span', { className: `outcome o-${o}`, textContent: `${c[o]} ${OUTCOME_WORD[o]}` })),
+      el('span', { className: 'muted', textContent: `${decided} decided` }));
+    const hide = $('hide-pass').checked;
+    const body = $('findings');
+    body.replaceChildren();
+    r.rows.forEach((row, i) => {
+      const tr = el('tr');
+      if (hide && row.outcome === 'pass' && !row.disposition) tr.className = 'hidden-pass';
+      const name = `d-${i}`;
+      const title = core.checkTitle(row.check);
+      const check = el('td', { className: 'check' }, [el('strong', { textContent: title }), el('code', { textContent: row.check })]);
+      if (row.carriedForward) check.append(el('span', { className: 'carried', textContent: 'Carried forward: take a second look' }));
+      const outcome = el('td', {}, [el('span', { className: `outcome o-${row.outcome}`, textContent: OUTCOME_WORD[row.outcome] })]);
+      outcome.dataset.label = 'Outcome';
+      const seg = el('div', { className: 'segmented' });
+      seg.setAttribute('role', 'radiogroup'); seg.setAttribute('aria-label', `Decision for ${title}`);
+      for (const [v, label] of DISPOSITIONS) {
+        const input = el('input', { type: 'radio', name, value: v, checked: row.disposition === v });
+        input.addEventListener('change', () => {
+          row.disposition = v; row.carriedForward = false;
+          if (!core.REASONS[v].includes(row.reason)) row.reason = core.REASONS[v].length === 1 ? core.REASONS[v][0] : '';
+          if (v === 'fix') delete row.reviewBy;
+          r.built = false; save(); renderReview(); renderSteps();
+          const again = document.querySelector(`input[name="${name}"][value="${v}"]`); if (again) again.focus();
+        });
+        seg.append(el('label', {}, [input, el('span', { textContent: label })]));
+      }
+      const decision = el('td', {}, [seg]); decision.dataset.label = 'Decision';
+      const sel = el('select', { disabled: !row.disposition });
+      sel.setAttribute('aria-label', `Reason for ${title}`);
+      sel.append(el('option', { value: '', textContent: row.disposition ? 'Choose a reason' : 'Decide first' }));
+      for (const code of row.disposition ? core.REASONS[row.disposition] : []) sel.append(el('option', { value: code, textContent: core.REASON_LABELS[code], selected: row.reason === code }));
+      sel.addEventListener('change', () => { row.reason = sel.value; row.carriedForward = false; r.built = false; save(); });
+      const reason = el('td', {}, [sel]); reason.dataset.label = 'Reason';
+      const by = el('input', { type: 'text', value: row.reviewBy || '', placeholder: 'YYYY-MM-DD', disabled: row.disposition === 'fix' || !row.disposition, autocomplete: 'off' });
+      by.setAttribute('aria-label', `Review ${title} again by`);
+      by.addEventListener('input', () => { if (by.value.trim()) row.reviewBy = by.value.trim(); else delete row.reviewBy; r.built = false; save(); });
+      const reviewBy = el('td', {}, [by]); reviewBy.dataset.label = 'Review by';
+      const note = el('textarea', { className: 'prose', value: r.notes[row.check] || '' });
+      note.setAttribute('aria-label', `Private note on ${title}`);
+      note.addEventListener('input', () => { r.notes[row.check] = note.value; save(); });
+      const noteCell = el('td', {}, [note]); noteCell.dataset.label = 'Private note';
+      tr.append(check, outcome, decision, reason, reviewBy, noteCell);
+      body.append(tr);
+    });
+    $('review-out').classList.toggle('hidden', !r.built);
+  }
+  $('notes-download-2').addEventListener('click', () => {
+    blobLink('notes-download-2', core.notesMarkdown(readAnswers(), readNotes(), today(), rv().notes), 'text/markdown');
+  });
+  $('review-build').addEventListener('click', () => {
+    const r = rv();
+    const { review, errors } = core.buildReview(r.assessment, r.sha256, r.rows, $('reviewedOn').value.trim());
+    const box = $('review-errors'); box.replaceChildren();
+    if (!review) {
+      r.built = false; $('review-out').classList.add('hidden');
+      box.append(el('div', { className: 'errors' }, [el('strong', { textContent: 'review.json needs a little more:' }), el('ul', {}, errors.map((e) => el('li', { textContent: e })))]));
+      box.firstChild.setAttribute('role', 'alert');
+      save(); renderSteps();
+      return;
+    }
+    $('review-cmd').textContent = core.reviewCommand(review);
+    blobLink('review-download', JSON.stringify(review, null, 2) + '\n', 'application/json');
+    r.built = true; r.reviewedOn = review.reviewedOn; save();
+    $('review-out').classList.remove('hidden'); renderSteps();
+  });
+
   // ---- Stepper ----
-  const isDone = { collect: () => !!(state.collect && state.collect.status !== 'failed'), discover: () => !!state.intakeBuilt, analyze: () => !!(state.analyze && state.analyze.status !== 'failed'), review: () => false, plan: () => false };
+  const isDone = { collect: () => !!(state.collect && state.collect.status !== 'failed'), discover: () => !!state.intakeBuilt, analyze: () => !!(state.analyze && state.analyze.status !== 'failed'), review: () => !!(state.review && state.review.built), plan: () => false };
   function renderSteps() {
     for (const li of document.querySelectorAll('#steps li')) {
       const s = li.dataset.stage;
@@ -190,5 +334,7 @@
   $('back').addEventListener('click', () => go(STAGES[Math.max(0, STAGES.indexOf(state.stage) - 1)], true));
   $('next').addEventListener('click', () => go(STAGES[Math.min(STAGES.length - 1, STAGES.indexOf(state.stage) + 1)], true));
 
-  renderCommands(); fillDiscover(); renderCollect(); renderAnalyze(); go(state.stage, false);
+  renderCommands(); fillDiscover(); renderCollect(); renderAnalyze();
+  if (state.review && state.review.reviewedOn) $('reviewedOn').value = state.review.reviewedOn;
+  renderReview(); go(state.stage, false);
 })();

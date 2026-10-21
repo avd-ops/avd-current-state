@@ -462,7 +462,8 @@ avd-second-brain's fact register (contract C15), pinned with the schema in `cont
 | 1. Collect | Run the collector and the facts script, paste the output | Nothing new; the estate gets its `est-` pseudonym, and its key stays beside the packages in Cloud Shell |
 | 2. Discover | Answer the discovery interview | `intake.json` (contract C19 in [avd-assess](https://github.com/nickprignano/avd-assess/tree/main/contracts)), written into Cloud Shell by a block that holds no names, and `discovery-notes.md`, your private narrative, downloaded to your device |
 | 3. Analyze | Run the validator, paste the output | Nothing new |
-| 4. Review, 5. Plan | Coming next: a disposition per finding (`review.json`, C23) and a plan from the fixes (`plan.json`, C24) | |
+| 4. Review | Load `assessment.json` (and an earlier `review.json` to carry decisions forward), decide each finding: fix, accept or defer, with a reason | `review.json` (contract C23), pinned to the report by its SHA-256 and holding only check IDs and reason codes; private notes per finding go into `discovery-notes.md` |
+| 5. Plan | Coming next: a plan from the fixes (`plan.json`, C24) | |
 
 Each script ends with one line the page reads, `<<<AVDCS-STATE {...} AVDCS-STATE>>>`, built by `lib/AvdPortalState.psm1`. It holds counts, the package folder's name and the estate pseudonym, never a name or an ID. The page uses the [avd-ops design system](https://github.com/nickprignano/avd-ops/blob/main/docs/design-system.md), vendored in `site/assets/`. Run it locally with `python3 -m http.server -d site` and open `http://localhost:8000/portal/`.
 

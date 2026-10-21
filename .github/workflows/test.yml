@@ -59,6 +59,29 @@ jobs:
           cmp /tmp/intake.example.json tests/portal/fixtures/intake.json
           python3 -c "import json,jsonschema; jsonschema.Draft202012Validator(json.load(open('/tmp/intake.schema.json'))).validate(json.load(open('tests/portal/fixtures/intake.json'))); print('intake.json is valid avd-intake/v1')"
 
+      # The Review stage reads an assessment report (C21) and writes review.json (C23). The engine's
+      # assessment.json fixture is avd-assess's C21 example byte for byte; review.json is the engine's
+      # own output and must be valid C23. Re-pin to the merge commit once avd-assess #18 merges.
+      - name: Review fixtures match avd-assess contracts C21 and C23
+        env:
+          ASSESS_COMMIT: d2a826517b4745bf4089ce32170a47206b6230b8
+        run: |
+          pip install --quiet jsonschema
+          base="https://raw.githubusercontent.com/nickprignano/avd-assess/$ASSESS_COMMIT/contracts"
+          curl -fsSL "$base/schemas/assessment.schema.json" -o /tmp/assessment.schema.json
+          curl -fsSL "$base/schemas/assessment-review.schema.json" -o /tmp/review.schema.json
+          curl -fsSL "$base/examples/assess/assessment.example.json" -o /tmp/assessment.example.json
+          cmp /tmp/assessment.example.json tests/portal/fixtures/assessment.json
+          python3 - <<'PY'
+          import json, jsonschema
+          def check(schema, path, name):
+              jsonschema.Draft202012Validator(json.load(open(schema))).validate(json.load(open(path)))
+              print(f'{path} is valid {name}')
+          check('/tmp/assessment.schema.json', 'tests/portal/fixtures/assessment.json', 'avd-assessment/v1')
+          check('/tmp/assessment.schema.json', 'tests/portal/fixtures/assessment-wide.json', 'avd-assessment/v1')
+          check('/tmp/review.schema.json', 'tests/portal/fixtures/review.json', 'avd-assessment-review/v1')
+          PY
+
   lz-parameters:
     name: Landing zone parameter list matches its pin
     runs-on: ubuntu-latest
