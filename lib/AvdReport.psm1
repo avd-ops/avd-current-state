@@ -230,7 +230,7 @@ function ConvertTo-AvdcsReportHtml {
         '</style>'
         '</head>'
         '<body class="shell report">'
-        '<header class="bar"><div class="bar-in"><a class="brand" href="https://avd-ops.dev/"><img class="mark" src="' + $Asset.MarkUri + '" alt="" width="28" height="28"><span class="word">avd-ops</span></a><span class="what">avd-current-state</span></div></header>'
+        '<header class="bar"><div class="bar-in"><a class="brand" href="https://avd-ops.dev/"><img class="mark" src="' + $Asset.MarkUri + '" alt="" width="44" height="44"><span class="name"><span class="word">avd-ops</span><span class="tag">Deploy quietly</span></span></a><span class="what">avd-current-state</span></div></header>'
         '<details class="notice"><summary><strong class="long">Personal project. Research and learning only. Not for production. No warranty.</strong><strong class="short">Research project, not for production.</strong><span class="more">Read the notice</span></summary>'
         '<div class="full"><ul><li>Built on my own time for research and learning. Not affiliated with, endorsed by or supported by my employer, Liquidware or Microsoft.</li>'
         '<li>This report is read-only evidence, not a production-readiness certification, a compliance attestation or a security audit.</li>'

@@ -16,7 +16,9 @@ BeforeAll {
 Describe 'Get-AvdcsReportAsset' {
   It 'inlines every font and the mark, from the pinned design system copy' {
     $script:asset.Css | Should -Not -Match 'url\("fonts/'
-    ([regex]::Matches($script:asset.Css, 'data:font/woff2;base64,')).Count | Should -Be 6
+    $faces = @([regex]::Matches($script:css, 'url\("fonts/[a-z0-9-]+\.woff2"\)') | ForEach-Object { $_.Value })
+    $faces.Count | Should -BeGreaterThan 0
+    ([regex]::Matches($script:asset.Css, 'data:font/woff2;base64,')).Count | Should -Be $faces.Count
     $script:asset.MarkUri | Should -Match '^data:image/svg\+xml;base64,'
     $lock = Get-Content -Raw (Join-Path $script:root 'site/assets/design-system.lock.json') | ConvertFrom-Json
     $script:asset.Version | Should -Be $lock.tag.Substring(4)
