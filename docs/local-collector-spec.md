@@ -80,9 +80,37 @@ Exactly avd-linecheck 17.2 "the user's own device" and 17.7 (inventory, health, 
 - **No compliance engine.** Where the estate runs Azure Machine Configuration in audit mode, its results are ARM resources the admin run reads (drift spec phase 2, avd-current-state #37). The local collector is for hosts without it and for logs.
 - **No remediation.** A finding becomes a plan in its owning pillar (avd-assess `gaps/remediation-plan.md`); the landing zone or avd-swarm makes the change.
 
-## 4. One script, built for locked-down machines
+## 4. One entry point that runs anywhere
 
-- **One signed `.ps1`** in the release, `avd_local_collector.ps1` (name to confirm, question 1), assembled from `lib/AvdLocal.psm1` (pure functions: source list, manifest, path normalization, allowlists, caps, fact extraction) and `local/sources.json`. A test compares the assembled script with its sources.
+The owner, 2026-10-21: avd-current-state "becomes the orchestrator that can run anywhere and invoke the right sub routine". So the repo gets one front door, `avd_current_state.ps1` (name to confirm, question 1), and every script behind it becomes a routine it calls:
+
+| Routine | Today | Where it runs |
+|---|---|---|
+| `collect` | `avd_current_state_collector.ps1` | Cloud Shell, Windows, macOS, Linux (PowerShell 7, Az modules) |
+| `validate` | `avd_deployment_validator.ps1` | The same |
+| `facts` | `avd_current_state_facts.ps1` | The same, offline |
+| `assess` | `facts -Assess` and the method runner | The same, offline |
+| `local` | The local collector, `-Mode Preflight\|Host\|Session\|Device` (sections 3 and 5) | Windows: Windows PowerShell 5.1 or PowerShell 7 |
+
+**PowerShell, not Python.** Windows PowerShell 5.1 is on every Windows host and device and is what App Control and Constrained Language Mode govern; Python is not on Windows by default and installing it on a session host or a user's device is exactly what the on-box modes must not need. Cloud Shell, macOS and Linux run the same file through `pwsh`, and bash calls it through `pwsh -NoProfile -File`, the family's run-anywhere convention (avd-ops decision 0006), so no Python twin is needed.
+
+**How it picks a routine.** `avd_current_state.ps1` with no arguments looks only at local signals, prints what it found and what it would run, and runs nothing until the person confirms or passes the routine:
+
+| Signal (read locally, no network call) | Suggests |
+|---|---|
+| Cloud Shell's environment, or a non-Windows system, or the Az modules with a signed-in context | `collect` or `validate` (asks which) |
+| The AVD agent is installed and the process is elevated | `local -Mode Host` |
+| The AVD agent is installed and the user is in a remote session | `local -Mode Session` |
+| Windows with no AVD agent | `local -Mode Device` |
+| Anything else, or two signals at once | Lists the routines and asks |
+
+`-Mode Preflight` is never guessed: a preflight VM looks like any other Windows VM, so the operator names it. Detection never elevates, never signs in and never probes the network (device mode allows none), and an explicit routine always wins over a guess (`avd_current_state.ps1 local -Mode Host -AllUsers`, `avd_current_state.ps1 validate -Mode Preflight`). Without a console (Run Command, an Intune script) there is nobody to confirm, so the routine must be passed or the script exits with the list.
+
+**One file per release asset, by audience.** The front door dispatches to the scripts in a clone for the admin routines, as the existing scripts keep working unchanged when called directly. The **signed** release asset for helpdesks is the front door with only the `local` routine assembled in (one CLM-safe file, the rest of this section); the admin routines are not in it, because they need the Az modules and a clone anyway and 0008 leaves them unsigned. Both are built from the same sources, and a test checks the dispatch table is the same in both.
+
+## 4a. The local routine, built for locked-down machines
+
+- **One signed `.ps1`** in the release: the front door with the `local` routine (section 4), assembled from `lib/AvdLocal.psm1` (pure functions: source list, manifest, path normalization, allowlists, caps, fact extraction) and `local/sources.json`. A test compares the assembled script with its sources.
 - **Windows PowerShell 5.1 first,** because it is on every Windows host and device; it also runs in PowerShell 7. Written for **Constrained Language Mode**, because session hosts and managed devices run App Control as often as user devices do. The rule is CLM's own: no types outside its allowed list (no `Add-Type`, no classes, no `New-Object` or method calls on types it does not allow), elevation read from `whoami /groups`, the rest of avd-linecheck 17.5. A signed script may run in Full Language Mode; it is written not to need it. CI runs the functions in a child runspace with `ConstrainedLanguage` on a `windows-latest` job in Windows PowerShell, since the Linux job has no event log, counters or CIM.
 - **Trusted sources only.** Modules are imported by full path, never by name: DnsClient, NetTCPIP, Storage and Defender from `$env:SystemRoot\System32\WindowsPowerShell\v1.0\Modules` (in PowerShell 7, `$PSHOME` is the pwsh folder and lacks them), and CimCmdlets, Microsoft.PowerShell.Diagnostics and Microsoft.PowerShell.Archive from `$PSHOME\Modules` in either edition, so a module planted in a user's `Documents\WindowsPowerShell\Modules` is not loaded; programs run by full path from one allowlist per mode in `sources.json` (`$env:SystemRoot\System32\netsh.exe`, `w32tm.exe`, `whoami.exe`, `powercfg.exe`, and the URL tool's checked path); every documented command line starts PowerShell with `-NoProfile`.
 - **Never follows a link.** Host and session modes copy from folders users can write to. Every copy uses `-LiteralPath`, skips any file or folder whose attributes carry `ReparsePoint` (recorded as "skipped: reparse point"), checks that the resolved path stays under the source's root, and applies the same rules to `-Add` paths and the "add files" folder, so a junction a user plants in their own profile cannot pull another user's files or a system file into an elevated collection. S1 has a junction fixture.
@@ -223,7 +251,7 @@ The code review (Claude code-review skill) caught ten more, also fixed: a Cloud 
 
 ## 13. Open questions for Nick
 
-1. **Name.** `avd_local_collector.ps1` with `-Mode Preflight|Host|Session|Device`, or another name (after a name check).
+1. **Name.** The front door `avd_current_state.ps1` with routines `collect`, `validate`, `facts`, `assess`, `local -Mode Preflight|Host|Session|Device` (section 4), or another name (after a name check). The existing script names keep working either way.
 2. **Where the log bundle lives.** Answered 2026-10-21: here, as the session and device modes ("avd-current-state is the collector/validator"). Follow-ups: avd-linecheck 17.8, question 11 and #3 point here (the linecheck thread), avd-ops decision 0008 section 5.2 names this repo, and the endpoint map goes to avd-assess.
 3. **Host-side collector.** This settles the host half of the open "host-side and directory read-only collectors" decision (avd-assess map plan, section 6) as: a local script, started by a person or by the landing zone or an approved avd-swarm plan, never by avd-current-state. Agree, or prefer another path (for example only Machine Configuration and Log Analytics, no script on hosts).
 4. **Order.** Device and session modes first, since avd-linecheck already designed them (recommended), or host and preflight first, since they unlock `unknown` assess checks.
