@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     AVD Current State Collector — inventories Azure Commercial environments from an
     Azure Virtual Desktop perspective and produces a portable evidence package.
@@ -312,12 +312,14 @@ function Write-RebuildMap {
     #>
     param([string]$SubscriptionId, [string]$SubDir, [hashtable]$Rows, [object[]]$RoleAssignments)
     try {
-        $maps = @(Get-LzRebuildMap -Rows $Rows -Rest $script:RebuildRest -RoleAssignments $RoleAssignments -ParameterList $script:LzParameters)
+        # Get-LzRebuildMap returns its list with the unary comma; @() around it would wrap the list in a
+        # second array, an empty map list included (first real run, 2026-10-21).
+        $maps = Get-LzRebuildMap -Rows $Rows -Rest $script:RebuildRest -RoleAssignments $RoleAssignments -ParameterList $script:LzParameters
     } catch {
         Write-Log "  Rebuild map failed: $($_.Exception.Message)" -Level WARN
         return
     }
-    if ($maps.Count -eq 0) { return }
+    if (@($maps).Count -eq 0) { return }
     $null = Write-RebuildFile -Path (Join-Path $SubDir (Join-Path 'rebuild' 'rebuild-map.json')) -Data $maps -Label 'rebuild-map'
     foreach ($m in $maps) {
         $script:RebuildCoverage.Add([pscustomobject]@{ Subscription = $SubscriptionId; HostPool = ($m.hostPool -split '/')[-1]; Coverage = $m.coverage })
@@ -391,9 +393,10 @@ Write-Log "Authenticated as $($context.Account.Id) in tenant $($context.Tenant.I
 # ─────────────────────────────────────────────
 
 Write-Log 'Discovering subscriptions ...'
-$allSubs = Get-AzSubscription -ErrorAction Stop |
+# @() because one typed subscription object has no .Count under Set-StrictMode (first real run, 2026-10-21).
+$allSubs = @(Get-AzSubscription -ErrorAction Stop |
     Where-Object { $_.State -eq 'Enabled' } |
-    Sort-Object Name
+    Sort-Object Name)
 
 if ($allSubs.Count -eq 0) {
     Write-Log 'No enabled subscriptions visible to this identity.' -Level ERROR
@@ -403,7 +406,7 @@ if ($allSubs.Count -eq 0) {
 Write-Log "Found $($allSubs.Count) enabled subscription(s)."
 
 if ($SubscriptionNames -and $SubscriptionNames.Count -gt 0) {
-    $filtered = $allSubs | Where-Object { $SubscriptionNames -contains $_.Name }
+    $filtered = @($allSubs | Where-Object { $SubscriptionNames -contains $_.Name })
     $missing  = $SubscriptionNames | Where-Object { $_ -notin $allSubs.Name }
     if ($missing) {
         foreach ($m in $missing) {
@@ -603,8 +606,8 @@ foreach ($sub in $targetSubs) {
 
 Write-Log 'Generating summary ...'
 
-$collectedSubs = $script:SubscriptionResults | Where-Object { $_.Status -eq 'Collected' }
-$skippedSubs   = $script:SubscriptionResults | Where-Object { $_.Status -ne 'Collected' }
+$collectedSubs = @($script:SubscriptionResults | Where-Object { $_.Status -eq 'Collected' })
+$skippedSubs   = @($script:SubscriptionResults | Where-Object { $_.Status -ne 'Collected' })
 
 $summaryLines = [System.Collections.Generic.List[string]]::new()
 function Add-Line { param([string]$L='') $summaryLines.Add($L) }
