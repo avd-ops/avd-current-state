@@ -270,7 +270,7 @@
   // so the page may keep this summary.
   function parseAssessment(text) {
     let doc;
-    try { doc = JSON.parse(String(text || '')); } catch (e) { return { assessment: null, error: 'This isn\'t JSON. Load the assessment.json the validator wrote.' }; }
+    try { doc = JSON.parse(String(text || '')); } catch (e) { return { assessment: null, error: 'This isn\'t JSON. Load the avd-assessment JSON (C21) that -Assess wrote.' }; }
     if (!doc || doc.schema !== 'avd-assessment/v1') return { assessment: null, error: 'This isn\'t an avd-assessment/v1 report (its schema field says otherwise).' };
     if (!ESTATE_RE.test(doc.estate || '') || !UTC_RE.test(doc.generatedUtc || '') || !Array.isArray(doc.results)) return { assessment: null, error: 'The report is missing its estate, its generatedUtc or its results.' };
     const results = [];
