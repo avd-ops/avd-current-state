@@ -149,6 +149,29 @@ Describe 'Invoke-AvdAssessCheck' {
     (Invoke-AvdAssessCheck -Check $check -Snapshot $script:snapshot -Register $script:register).outcome | Should -Be 'unknown' -Because 'no intake was answered'
   }
 
+  It 'treats a list as a list: one item or none is not a scalar, and none is still a value' {
+    $doc = ConvertTo-Doc @{ estate = 'est-0a1b2c3d'; subscriptions = @(@{ id = 'sub-1a2b3c4d'; hostPools = @(
+            @{ id = 'hp-00000001'; appGroups = @('Desktop') }, @{ id = 'hp-00000002'; appGroups = @() }) }) }
+    $check = ConvertTo-Doc @{ id = 'asm-test-list'; facts = @('c11.hostPool.appGroups'); rule = @{ each = '/subscriptions/*/hostPools/*'; expect = @{ appGroups = @{ eq = 'Desktop' } } } }
+    $row = Invoke-AvdAssessCheck -Check $check -Snapshot $doc -Register $script:register
+    @($row.subjects.outcome) | Should -Be @('unknown', 'unknown')
+    @($row.facts) | Should -Be @('c11.hostPool.appGroups')
+  }
+
+  It 'excludes a subject a where test rules out, whatever the order of the tests' {
+    foreach ($order in @(@('filesIdentity', 'kind'), @('kind', 'filesIdentity'))) {
+      $where = [ordered]@{}
+      foreach ($k in $order) { $where[$k] = if ($k -eq 'kind') { @{ eq = 'FileStorage' } } else { @{ eq = 'AADKERB' } } }
+      $check = ConvertTo-Doc @{ id = 'asm-test-order'; facts = @('c11.storage.kind'); rule = @{ each = '/subscriptions/*/storageAccounts/*'; where = $where; expect = @{ sku = @{ eq = 'Premium_ZRS' } } } }
+      @((Invoke-AvdAssessCheck -Check $check -Snapshot $script:snapshot -Register $script:register).subjects.id) | Should -Be @('st-00000001', 'st-00000002') -Because ($order -join ', ')
+    }
+  }
+
+  It 'refuses a rule test the method format does not have' {
+    $check = ConvertTo-Doc @{ id = 'asm-test-badmin'; facts = @('c11.hostPool.type'); rule = @{ each = '/subscriptions/*/hostPools/*'; expect = @{ 'sessionHosts/total' = @{ min = '2' } } } }
+    { Invoke-AvdAssessCheck -Check $check -Snapshot $script:snapshot -Register $script:register } | Should -Throw '*asm-test-badmin*min needs a number*'
+  }
+
   It 'refuses an onFail the method format does not have' {
     $check = ConvertTo-Doc @{ id = 'asm-test-bad'; facts = @('c11.hostPool.type'); rule = @{ each = '/subscriptions/*/hostPools/*'; expect = @{ type = @{ eq = 'Pooled' } }; onFail = 'fail' } }
     { Invoke-AvdAssessCheck -Check $check -Snapshot $script:snapshot -Register $script:register } | Should -Throw '*gap or warn*'
@@ -238,6 +261,13 @@ Describe 'Get-AvdAssessDecision' {
     @($rows | Where-Object { $_.decision -eq 'hostPool.type' })[0].status | Should -Be 'supported'
   }
 
+  It 'is missing-facts for per-pool decisions when no host pool exists, and supported for region' {
+    $green = ConvertTo-Doc @{ estate = 'est-0a1b2c3d'; subscriptions = @(@{ id = 'sub-1a2b3c4d'; regions = @('eastus2'); hostPools = @() }) }
+    $rows = @(Get-AvdAssessDecision -Method $script:method -Snapshot $green -Intake $script:intake -Register $script:register)
+    @($rows | Where-Object { $_.decision -eq 'hostPool.type' })[0].status | Should -Be 'missing-facts'
+    @($rows | Where-Object { $_.decision -eq 'region' })[0].status | Should -Be 'supported'
+  }
+
   It 'is missing-facts when the snapshot has none of what a decision reads' {
     $bare = ConvertTo-Doc @{ estate = 'est-0a1b2c3d'; subscriptions = @(@{ id = 'sub-1a2b3c4d' }) }
     $rows = @(Get-AvdAssessDecision -Method $script:method -Snapshot $bare -Register $script:register)
@@ -249,6 +279,22 @@ Describe 'Get-AvdAssessment refuses' {
   It 'a subject without a pseudonym' {
     $leaky = ConvertTo-Doc @{ estate = 'est-0a1b2c3d'; generatedUtc = '2026-10-21T09:00:00Z'; subscriptions = @(@{ id = 'sub-1a2b3c4d'; hostPools = @(@{ id = 'hp-contoso-finance'; type = 'Personal' }) }) }
     { New-TestReport -Snapshot $leaky } | Should -Throw '*no pseudonym*'
+  }
+
+  It 'a pseudonym in capitals, which C21 does not allow' {
+    $loud = ConvertTo-Doc @{ estate = 'est-0a1b2c3d'; generatedUtc = '2026-10-21T09:00:00Z'; subscriptions = @(@{ id = 'SUB-1A2B3C4D'; hostPools = @() }) }
+    { New-TestReport -Snapshot $loud } | Should -Throw '*no pseudonym*'
+  }
+
+  It 'a snapshot without its generatedUtc' {
+    $undated = ConvertTo-Doc @{ estate = 'est-0a1b2c3d'; subscriptions = @(@{ id = 'sub-1a2b3c4d' }) }
+    { New-TestReport -Snapshot $undated } | Should -Throw '*generatedUtc*'
+  }
+
+  It 'a readiness the method format does not have' {
+    $other = ConvertTo-Doc $script:method
+    $other.readiness[0].readiness = 'decidible'
+    { New-TestReport -Method $other } | Should -Throw "*decidible*"
   }
 
   It 'a method pinned to another register version' {

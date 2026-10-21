@@ -31,17 +31,35 @@ function Get-AssessProp {
     return $prop.Value
 }
 
+function Get-AssessStep {
+    # One property step, as Found and Value: wrapping the value keeps a list of one a list and an
+    # empty list a value (collected, none), where a function's plain return would unroll them.
+    param([object]$Node, [string]$Name)
+    $v = $null; $found = $false
+    if ($Node -is [System.Collections.IDictionary]) { if ($Node.Contains($Name)) { $v = $Node[$Name]; $found = $true } }
+    elseif ($null -ne $Node -and $Node -isnot [string] -and $Node -isnot [ValueType]) {
+        $prop = $Node.PSObject.Properties[$Name]
+        if ($null -ne $prop) { $v = $prop.Value; $found = $true }
+    }
+    [pscustomobject]@{ Found = ($found -and $null -ne $v); Value = $v }
+}
+
 function Get-AssessDateText {
     # A date as the contracts write it. PowerShell 7's ConvertFrom-Json turns ISO date strings into
     # DateTime values, so a value read back from JSON may be either.
     param($Value, [string]$Format)
-    if ($Value -is [datetime]) { return $Value.ToUniversalTime().ToString($Format, [System.Globalization.CultureInfo]::InvariantCulture) }
+    if ($Value -is [datetime]) {
+        # A date with no zone (an intake's answeredOn) stays the date it says.
+        if ($Value.Kind -ne [DateTimeKind]::Unspecified) { $Value = $Value.ToUniversalTime() }
+        return $Value.ToString($Format, [System.Globalization.CultureInfo]::InvariantCulture)
+    }
     return "$Value"
 }
 
 function Get-AssessPointerValue {
     # Every value a JSON pointer names, with * for every array item, one per output item (wrap the call
-    # in @()). Missing steps give nothing.
+    # in @()). Missing steps give nothing. The method's pointer format allows only letters and digits in
+    # a step, so there are no ~0 or ~1 escapes to decode.
     param([object]$Node, [string]$Pointer)
     $current = @(, $Node)
     foreach ($seg in ($Pointer.Trim('/') -split '/')) {
@@ -52,12 +70,8 @@ function Get-AssessPointerValue {
             if ($seg -eq '*') {
                 foreach ($item in @($n)) { if ($null -ne $item) { $next.Add($item) } }
             } else {
-                # Read inline: a function's return would unroll a list of one, and drop an empty one,
-                # which is collected data (none of them).
-                $v = $null
-                if ($n -is [System.Collections.IDictionary]) { if ($n.Contains($seg)) { $v = $n[$seg] } }
-                elseif ($n -isnot [string] -and $n -isnot [ValueType]) { $prop = $n.PSObject.Properties[$seg]; if ($null -ne $prop) { $v = $prop.Value } }
-                if ($null -ne $v) { $next.Add($v) }
+                $step = Get-AssessStep $n $seg
+                if ($step.Found) { $next.Add($step.Value) }
             }
         }
         $current = $next.ToArray()
@@ -68,12 +82,12 @@ function Get-AssessPointerValue {
 function Get-AssessPropertyValue {
     # A subject's property by a relative path (a/b), and whether it was there at all.
     param([object]$Subject, [string]$Path)
-    $node = $Subject
+    $step = [pscustomobject]@{ Found = $true; Value = $Subject }
     foreach ($seg in ($Path -split '/')) {
-        $node = Get-AssessProp $node $seg
-        if ($null -eq $node) { return [pscustomobject]@{ Found = $false; Value = $null } }
+        $step = Get-AssessStep $step.Value $seg
+        if (-not $step.Found) { break }
     }
-    [pscustomobject]@{ Found = $true; Value = $node }
+    $step
 }
 
 function Test-AssessNumber {
@@ -99,7 +113,6 @@ function Get-AssessTestResult {
     if ($Actual -is [System.Collections.IEnumerable] -and $Actual -isnot [string]) { return $null }
     if ($null -ne $Actual -and -not ($Actual -is [string] -or $Actual -is [bool] -or (Test-AssessNumber $Actual))) { return $null }
     $op = @(if ($Test -is [System.Collections.IDictionary]) { $Test.Keys } else { $Test.PSObject.Properties.Name })
-    if ($op.Count -ne 1) { throw "A rule test has $($op.Count) operators; it needs exactly one." }
     $arg = Get-AssessProp $Test $op[0]
     switch ($op[0]) {
         'eq' { return [bool](Test-AssessEqual $Actual $arg) }
@@ -111,12 +124,45 @@ function Get-AssessTestResult {
     }
 }
 
+function Test-AssessRuleTest {
+    # Whether a rule test is one the method format has: one operator, a number for min and max, a list
+    # for in. Returns the reason it isn't, or nothing.
+    param([object]$Test)
+    $op = @(if ($Test -is [System.Collections.IDictionary]) { $Test.Keys } elseif ($null -ne $Test) { $Test.PSObject.Properties.Name })
+    if ($op.Count -ne 1) { return "a test has $($op.Count) operators; it needs exactly one" }
+    $arg = Get-AssessProp $Test $op[0]
+    switch ($op[0]) {
+        { $_ -in @('eq', 'ne') } { return }
+        { $_ -in @('min', 'max') } { if (-not (Test-AssessNumber $arg)) { return "$($op[0]) needs a number" }; return }
+        'in' { if (@($arg).Count -lt 1) { return 'in needs a list' }; return }
+        default { return "'$($op[0])' isn't a rule test" }
+    }
+}
+
 function Get-AssessTestSet {
     # A rule's where or expect object as (property, test) pairs, in the method's order.
     param([object]$Tests)
     if ($null -eq $Tests) { return @() }
     if ($Tests -is [System.Collections.IDictionary]) { return @($Tests.Keys | ForEach-Object { [pscustomobject]@{ Property = $_; Test = $Tests[$_] } }) }
     return @($Tests.PSObject.Properties | ForEach-Object { [pscustomobject]@{ Property = $_.Name; Test = $_.Value } })
+}
+
+function Get-AssessFactPath {
+    # The register's fact IDs to their paths (C15), for the facts that have one.
+    param([object]$Register)
+    $paths = @{}
+    foreach ($f in @(Get-AssessProp $Register 'facts')) { $p = Get-AssessProp $f 'path'; if ($p) { $paths["$(Get-AssessProp $f 'id')"] = "$p" } }
+    return $paths
+}
+
+function Test-AssessFactPresent {
+    # Whether the inputs hold a fact: its register path names at least one value in the C11 snapshot
+    # (c11.*) or the intake (intake.*). Other tiers (c12, partner facts) are never in these inputs.
+    param([string]$Fact, [hashtable]$Path, [object]$Snapshot, [object]$Intake)
+    if (-not $Path.ContainsKey($Fact)) { return $false }
+    $from = if ($Fact -like 'intake.*') { $Intake } elseif ($Fact -like 'c11.*') { $Snapshot } else { $null }
+    if ($null -eq $from) { return $false }
+    return [bool]@(Get-AssessPointerValue -Node $from -Pointer $Path[$Fact]).Count
 }
 
 function Get-AssessWorst {
@@ -158,22 +204,29 @@ function Invoke-AvdAssessCheck {
     if (-not $onFail) { $onFail = 'gap' }
     if ($onFail -notin @('gap', 'warn')) { throw "Check $(Get-AssessProp $Check 'id') has onFail '$onFail'; it can only be gap or warn." }
 
+    $where = @(Get-AssessTestSet (Get-AssessProp $rule 'where'))
+    $expect = @(Get-AssessTestSet (Get-AssessProp $rule 'expect'))
+    foreach ($t in @($where + $expect)) {
+        $why = Test-AssessRuleTest $t.Test
+        if ($why) { throw "Check $(Get-AssessProp $Check 'id'), property $($t.Property): $why." }
+    }
+
     $intakeOnly = Test-AssessIntakeOnly $Check
     $root = if ($intakeOnly) { $Intake } else { $Snapshot }
     $estate = "$(Get-AssessProp $Snapshot 'estate')"
-    $where = @(Get-AssessTestSet (Get-AssessProp $rule 'where'))
-    $expect = @(Get-AssessTestSet (Get-AssessProp $rule 'expect'))
+    $paths = Get-AssessFactPath $Register
 
     $subjects = New-Object System.Collections.Generic.List[object]
     if ($null -ne $root) {
         foreach ($s in @(Get-AssessPointerValue -Node $root -Pointer "$(Get-AssessProp $rule 'each')")) {
+            # Every where test runs, so a test that excludes the subject wins over one that can't be
+            # applied, whatever the order of the tests.
             $outcome = $null
             foreach ($w in $where) {
                 $v = Get-AssessPropertyValue -Subject $s -Path $w.Property
-                if (-not $v.Found) { $outcome = 'unknown'; break }
-                $t = Get-AssessTestResult -Actual $v.Value -Test $w.Test
-                if ($null -eq $t) { $outcome = 'unknown'; break }
-                if (-not $t) { $outcome = 'excluded'; break }
+                $t = if ($v.Found) { Get-AssessTestResult -Actual $v.Value -Test $w.Test } else { $null }
+                if ($false -eq $t) { $outcome = 'excluded'; break }
+                if ($null -eq $t) { $outcome = 'unknown' }
             }
             if ($outcome -eq 'excluded') { continue }
             if (-not $outcome -and -not $expect.Count) { $outcome = 'unknown' }
@@ -194,12 +247,7 @@ function Invoke-AvdAssessCheck {
     # The check's facts that the inputs actually had, found by the register's paths.
     $had = New-Object System.Collections.Generic.List[string]
     foreach ($f in @(Get-AssessProp $Check 'facts')) {
-        $entry = if ($Register) { @(Get-AssessProp $Register 'facts') | Where-Object { (Get-AssessProp $_ 'id') -eq $f } | Select-Object -First 1 } else { $null }
-        $path = Get-AssessProp $entry 'path'
-        if (-not $path) { continue }
-        $from = if ("$f" -like 'intake.*') { $Intake } elseif ("$f" -like 'c11.*') { $Snapshot } else { $null }
-        if ($null -eq $from) { continue }
-        if (@(Get-AssessPointerValue -Node $from -Pointer $path).Count) { $had.Add("$f") }
+        if (Test-AssessFactPresent -Fact "$f" -Path $paths -Snapshot $Snapshot -Intake $Intake) { $had.Add("$f") }
     }
 
     [ordered]@{
@@ -256,7 +304,9 @@ function Get-AvdAssessDecision {
         needs-measurement stays needs-measurement until measured use (C12) replaces the priors.
         decidable-with-intake without an intake is needs-intake. Otherwise a decision is supported when
         each input it draws on (the C11 snapshot, the intake) has at least one of its listed facts, and
-        missing-facts when one doesn't. A collected empty list counts as a fact. Only builds data.
+        missing-facts when one doesn't. A collected empty list counts where it is the fact itself (no
+        host pools is a host pool count); a per-pool fact needs a pool, so an estate with none is
+        missing-facts for the decisions that read one. Only builds data.
     #>
     [CmdletBinding()]
     param(
@@ -265,22 +315,19 @@ function Get-AvdAssessDecision {
         [object]$Intake,
         [Parameter(Mandatory = $true)][object]$Register
     )
-    $paths = @{}
-    foreach ($f in @(Get-AssessProp $Register 'facts')) { $p = Get-AssessProp $f 'path'; if ($p) { $paths["$(Get-AssessProp $f 'id')"] = "$p" } }
+    $paths = Get-AssessFactPath $Register
     foreach ($row in @(Get-AssessProp $Method 'readiness')) {
         $readiness = "$(Get-AssessProp $row 'readiness')"
+        if ($readiness -notin @('decidable', 'decidable-with-intake', 'needs-measurement')) { throw "Decision $(Get-AssessProp $row 'decision') has readiness '$readiness', which the method format doesn't have." }
         $status = 'supported'
         if ($readiness -eq 'needs-measurement') { $status = 'needs-measurement' }
+        # Without an intake, C21 allows only needs-intake here, even when C11 facts are missing too.
         elseif ($readiness -eq 'decidable-with-intake' -and $null -eq $Intake) { $status = 'needs-intake' }
         else {
-            foreach ($source in @(@{ Prefix = 'c11.*'; Node = $Snapshot }, @{ Prefix = 'intake.*'; Node = $Intake })) {
-                $listed = @(@(Get-AssessProp $row 'facts') | Where-Object { "$_" -like $source.Prefix })
+            foreach ($prefix in @('c11.*', 'intake.*')) {
+                $listed = @(@(Get-AssessProp $row 'facts') | Where-Object { "$_" -like $prefix })
                 if (-not $listed.Count) { continue }
-                $any = $false
-                foreach ($f in $listed) {
-                    if ($null -ne $source.Node -and $paths.ContainsKey("$f") -and @(Get-AssessPointerValue -Node $source.Node -Pointer $paths["$f"]).Count) { $any = $true; break }
-                }
-                if (-not $any) { $status = 'missing-facts' }
+                if (-not @($listed | Where-Object { Test-AssessFactPresent -Fact "$_" -Path $paths -Snapshot $Snapshot -Intake $Intake }).Count) { $status = 'missing-facts' }
             }
         }
         [ordered]@{ decision = "$(Get-AssessProp $row 'decision')"; readiness = $readiness; status = $status }
@@ -316,18 +363,22 @@ function Get-AvdAssessment {
         throw "The method cites fact register v$(Get-AssessProp $Method 'factRegister'); the register given is v$(Get-AssessProp $Register 'version'). Re-pin assess/ and contracts/ together."
     }
     $estate = "$(Get-AssessProp $Snapshot 'estate')"
-    if ($estate -notmatch '^est-[0-9a-f]{8}$') { throw 'The snapshot has no estate pseudonym.' }
+    if ($estate -cnotmatch '^est-[0-9a-f]{8}$') { throw 'The snapshot has no estate pseudonym.' }
+    $factsUtc = Get-AssessDateText (Get-AssessProp $Snapshot 'generatedUtc') "yyyy-MM-dd'T'HH:mm:ss'Z'"
+    if ($factsUtc -cnotmatch '^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$') { throw 'The snapshot has no generatedUtc in UTC (yyyy-MM-ddTHH:mm:ssZ).' }
+    $answeredOn = if ($null -ne $Intake) { Get-AssessDateText (Get-AssessProp $Intake 'answeredOn') 'yyyy-MM-dd' } else { $null }
+    if ($null -ne $Intake -and $answeredOn -cnotmatch '^[0-9]{4}-[0-9]{2}-[0-9]{2}$') { throw 'The intake has no answeredOn date (yyyy-MM-dd).' }
     if ($null -ne $Intake -and -not $IntakeSha256) { throw 'An intake needs its SHA-256.' }
     if ($null -ne $Intake -and "$(Get-AssessProp $Intake 'estate')" -ne $estate) { throw "The intake is for another estate than the snapshot ($estate)." }
 
     $results = @(foreach ($c in @(Get-AssessProp $Method 'checks')) { Invoke-AvdAssessCheck -Check $c -Snapshot $Snapshot -Intake $Intake -Register $Register })
     foreach ($r in $results) {
         foreach ($s in $r.subjects) {
-            if ("$($s.id)" -notmatch $script:SubjectId) { throw "Refusing the report: a subject of $($r.check) has no pseudonym. Report the check ID, never the value." }
+            if ("$($s.id)" -cnotmatch $script:SubjectId) { throw "Refusing the report: a subject of $($r.check) has no pseudonym. Report the check ID, never the value." }
         }
     }
-    $inputs = [ordered]@{ facts = [ordered]@{ generatedUtc = Get-AssessDateText (Get-AssessProp $Snapshot 'generatedUtc') "yyyy-MM-dd'T'HH:mm:ss'Z'"; sha256 = $SnapshotSha256.ToLowerInvariant() } }
-    $inputs.intake = if ($null -ne $Intake) { [ordered]@{ answeredOn = Get-AssessDateText (Get-AssessProp $Intake 'answeredOn') 'yyyy-MM-dd'; sha256 = $IntakeSha256.ToLowerInvariant() } } else { $null }
+    $inputs = [ordered]@{ facts = [ordered]@{ generatedUtc = $factsUtc; sha256 = $SnapshotSha256.ToLowerInvariant() } }
+    $inputs.intake = if ($null -ne $Intake) { [ordered]@{ answeredOn = $answeredOn; sha256 = $IntakeSha256.ToLowerInvariant() } } else { $null }
 
     [ordered]@{
         schema       = 'avd-assessment/v1'
