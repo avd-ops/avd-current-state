@@ -28,7 +28,18 @@ Describe 'Get-AvdReaderSubject' {
     }
 }
 
+Describe 'Get-AvdReaderCredentialName' {
+    It 'names a credential by the repo''s numeric ID, so two repos never share a name' {
+        Get-AvdReaderCredentialName -RepoId 111 -Environment avd-reader | Should -Be 'gh-111-avd-reader'
+        Get-AvdReaderCredentialName -RepoId 112 -Environment avd-reader | Should -Not -Be (Get-AvdReaderCredentialName -RepoId 111 -Environment avd-reader)
+    }
+    It 'refuses an environment name it would have to change' {
+        { Get-AvdReaderCredentialName -RepoId 111 -Environment 'avd.reader' } | Should -Throw
+    }
+}
+
 Describe 'Get-AvdReaderRepoVerdict' {
+    It 'says GitHub didn''t answer when there was no response' { (Get-AvdReaderRepoVerdict -StatusCode 0 -Message 'proxy refused').Reason | Should -Match 'proxy refused' }
     It 'refuses a public repo' { (Get-AvdReaderRepoVerdict -StatusCode 200 -Body @{ private = $false; id = 1; owner = @{ id = 2 } }).Ok | Should -BeFalse }
     It 'takes a private repo''s IDs from GitHub' {
         $v = Get-AvdReaderRepoVerdict -StatusCode 200 -Body ([pscustomobject]@{ private = $true; id = 111; owner = [pscustomobject]@{ id = 222 } })
@@ -80,9 +91,9 @@ Describe 'Get-AvdReaderFinding' {
         (@(Get-AvdReaderFinding -App $app -Policy $script:goodPolicy) | Where-Object Check -eq 'No secrets or certificates').Status | Should -Be 'Fail'
     }
     It 'fails when no policy blocks secrets, or the policy misses a credential type (finding 4)' {
-        (@(Get-AvdReaderFinding -App (New-App)) | Where-Object Check -eq 'Secrets blocked by policy').Status | Should -Be 'Fail'
+        (@(Get-AvdReaderFinding -App (New-App)) | Where-Object Check -eq 'Passwords blocked by policy').Status | Should -Be 'Fail'
         $partial = [pscustomobject]@{ restrictions = [pscustomobject]@{ passwordCredentials = @([pscustomobject]@{ restrictionType = 'passwordAddition'; state = 'enabled' }) } }
-        (@(Get-AvdReaderFinding -App (New-App) -Policy $partial) | Where-Object Check -eq 'Secrets blocked by policy').Status | Should -Be 'Fail'
+        (@(Get-AvdReaderFinding -App (New-App) -Policy $partial) | Where-Object Check -eq 'Passwords blocked by policy').Status | Should -Be 'Fail'
     }
     It 'fails a name-only subject (finding 1)' {
         $fic = [pscustomobject]@{ name = 'old'; issuer = 'https://token.actions.githubusercontent.com'; audiences = @('api://AzureADTokenExchange'); subject = 'repo:contoso/avd-runs:environment:avd-reader' }
@@ -119,6 +130,11 @@ Describe 'Get-AvdReaderFinding' {
         $f = @(Get-AvdReaderFinding -RoleOnly -RoleAssignment (New-Assignment $Scope $Role))
         $f.Count | Should -Be 1
         $f[0].Status | Should -Be 'Fail'
+    }
+    It 'warns about a role that wasn''t asked for on a scope that was' {
+        $cost = (Get-AvdReaderRole -Name 'Cost Management Reader').Id
+        $f = @(Get-AvdReaderFinding -RoleOnly -RoleAssignment (New-Assignment '/subscriptions/s' $cost) -ExpectedAssignment @([pscustomobject]@{ Scope = '/subscriptions/s'; RoleId = $script:readerId }))
+        $f[0].Status | Should -Be 'Warn'
     }
     It 'with -RoleOnly judges only role assignments (the reader can''t read its app, finding 6)' {
         $f = @(Get-AvdReaderFinding -RoleOnly -RoleAssignment (New-Assignment '/subscriptions/s' $script:readerId))
@@ -214,9 +230,35 @@ Describe 'avd_ops_reader.ps1 against a fake tenant' {
 
     It 'warns and prints the command when the sign-in can''t manage policies, and the test then fails' {
         $r = Invoke-Reader "-Mode Initialize -Repo contoso/avd-runs -Subscription sub-contoso-avd" @{ FAKEREADER_POLICY = 'deny' }
-        $r.Text | Should -Match 'Application Administrator runs'
+        $r.Text | Should -Match "Application Administrator runs: ./avd_ops_reader.ps1 -Mode Initialize -ClientId '[0-9a-f-]+' -Environment 'avd-reader' -Repo 'contoso/avd-runs' -Subscription 'sub-contoso-avd'"
         $r.Code | Should -Be 1
-        $r.Text | Should -Match '\[FAIL \] Secrets blocked by policy'
+        $r.Text | Should -Match '\[FAIL \] Passwords blocked by policy'
+    }
+
+    It 'leaves no policy behind when assigning it is refused' {
+        $r = Invoke-Reader "-Mode Initialize -Repo contoso/avd-runs -Subscription sub-contoso-avd" @{ FAKEREADER_POLICY = 'refdeny' }
+        $r.Text | Should -Match 'Nothing was left behind'
+        @((Get-FakeState).policies | Where-Object { $_ }).Count | Should -Be 0
+        @((Get-FakeState).roles).Count | Should -Be 1 -Because 'the role assignments still run'
+    }
+
+    It 'reports a credential name taken by another subject instead of failing midway' {
+        $null = Invoke-Reader "-Mode Initialize -Repo contoso/avd-runs -Subscription sub-contoso-avd"
+        $raw = Get-Content -Raw $script:state | ConvertFrom-Json -AsHashtable
+        $appObj = $raw.apps[0].id
+        $raw.fics[$appObj][0].subject = 'repo:contoso@222/avd-runs@999:environment:avd-reader'
+        $raw | ConvertTo-Json -Depth 20 | Set-Content $script:state
+        $r = Invoke-Reader "-Mode Initialize -Repo contoso/avd-runs -Subscription sub-contoso-avd" @{ AVD_READER_CLIENT_ID = $raw.apps[0].appId }
+        $r.Text | Should -Match 'The name is taken by subject'
+        $r.Text | Should -Match 'Reader'
+    }
+
+    It 'as the reader scoped to resource groups, still finds its roles (it can''t list at subscription scope)' {
+        $null = Invoke-Reader "-Mode Initialize -Repo contoso/avd-runs -Subscription sub-contoso-avd -ResourceGroup rg-avd"
+        $id = (Get-FakeState).apps[0].appId
+        $r = Invoke-Reader "-Mode Test" @{ AVD_READER_CLIENT_ID = $id; FAKEREADER_AS = 'reader' }
+        $r.Code | Should -Be 0 -Because $r.Text
+        $r.Text | Should -Match 'Reader on ResourceGroup'
     }
 
     It 'as the reader in a workflow, checks only its role assignments' {

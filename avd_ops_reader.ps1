@@ -11,8 +11,8 @@
       - App-only, single tenant, no secret and no certificate. GitHub Actions signs in as it through a
         federated credential bound to one private repo and one environment, by GitHub's immutable subject
         (numeric owner and repo IDs), so a deleted or renamed repo's name can't be reused to get a token.
-      - An app management policy blocks passwords and keys on the app, so not even an owner or an app
-        administrator can add a secret later.
+      - An app management policy blocks passwords and symmetric keys on the app, so not even an owner or an
+        app administrator can add one later. No policy can block a certificate; -Mode Test fails on any.
       - Roles: Reader on the subscriptions or resource groups you name; opt-in Log Analytics Reader on
         one workspace, Cost Management Reader, and Storage Blob Data Contributor on one container for the
         run's output. No directory (Graph) permission; that is a separate decision.
@@ -148,14 +148,18 @@ function Get-RepoInfo {
     $headers = @{ 'User-Agent' = 'avd-ops-reader'; Accept = 'application/vnd.github+json' }
     $token = if ($env:GH_TOKEN) { $env:GH_TOKEN } elseif ($env:GITHUB_TOKEN) { $env:GITHUB_TOKEN } else { $null }
     if ($token) { $headers.Authorization = "Bearer $token" }
-    $status = 0; $body = $null
+    $status = 0; $body = $null; $message = ''
     try { $body = Invoke-RestMethod -Uri "https://api.github.com/repos/$owner/$name" -Headers $headers; $status = 200 }
-    catch { $status = [int]$_.Exception.Response.StatusCode }
+    catch {
+        # A DNS, proxy or TLS failure has no response: keep its message instead of a status.
+        $resp = $_.Exception.PSObject.Properties['Response']
+        if ($resp -and $resp.Value) { $status = [int]$resp.Value.StatusCode } else { $message = $_.Exception.Message }
+    }
     $ownerId = $OwnerId
     if ($status -eq 404 -and -not $ownerId -and $RepoId) {
         try { $ownerId = "$((Invoke-RestMethod -Uri "https://api.github.com/users/$owner" -Headers $headers).id)" } catch { $ownerId = $null }
     }
-    $verdict = Get-AvdReaderRepoVerdict -StatusCode $status -Body $body -RepoId $RepoId -OwnerId $ownerId
+    $verdict = Get-AvdReaderRepoVerdict -StatusCode $status -Body $body -RepoId $RepoId -OwnerId $ownerId -Message $message
     [pscustomobject]@{ Owner = $owner; Name = $name; Verdict = $verdict }
 }
 
@@ -184,15 +188,54 @@ function Resolve-Scope {
 }
 
 function Get-ReaderRoleAssignment {
-    <# The reader's role assignments in every subscription this sign-in can see (at, above and below each). #>
+    <#
+      The reader's role assignments in every subscription this sign-in can see (at, above and below each).
+      A subscription where the sign-in may not list role assignments is reported, not fatal.
+    #>
     param([string] $PrincipalId)
     $seen = @{}
     foreach ($s in @(Get-AzSubscription | Where-Object { $_.State -eq 'Enabled' })) {
         $filter = [uri]::EscapeDataString("principalId eq '$PrincipalId'")
-        foreach ($a in @(Invoke-Rest "/subscriptions/$($s.Id)/providers/Microsoft.Authorization/roleAssignments?`$filter=$filter&api-version=$armRoleApi" | Where-Object { $_ })) {
-            if (-not $seen.ContainsKey($a.id)) { $seen[$a.id] = $true; $a }
+        $list = @(Invoke-Rest "/subscriptions/$($s.Id)/providers/Microsoft.Authorization/roleAssignments?`$filter=$filter&api-version=$armRoleApi" -Allow 403 | Where-Object { $_ })
+        if ($list.Count -eq 1 -and $list[0].PSObject.Properties['StatusCode']) {
+            Write-Step Warn "Role assignments in $($s.Name)" 'This sign-in may not list role assignments there, so the reader''s roles in it are not checked.'
+            continue
         }
+        foreach ($a in $list) { if (-not $seen.ContainsKey($a.id)) { $seen[$a.id] = $true; $a } }
     }
+}
+
+function Get-OwnRoleAssignment {
+    <#
+      As the reader: its own role assignments through Resource Graph, which shows them wherever it can read,
+      a resource group, a workspace or a container included, where listing at subscription scope would be 403.
+    #>
+    param([string] $PrincipalId)
+    $query = "authorizationresources | where type =~ 'microsoft.authorization/roleassignments' | where properties.principalId =~ '$PrincipalId' | project id, properties"
+    $skip = $null
+    do {
+        $body = @{ query = $query; options = @{ resultFormat = 'objectArray' } }
+        if ($skip) { $body.options['$skipToken'] = $skip }
+        $r = Invoke-Rest '/providers/Microsoft.ResourceGraph/resources?api-version=2022-10-01' -Method POST -Body $body
+        foreach ($row in @($r.data | Where-Object { $_ })) { [pscustomobject]@{ id = $row.id; properties = $row.properties } }
+        $t = $r.PSObject.Properties['$skipToken']
+        $skip = if ($t -and $t.Value) { "$($t.Value)" } else { $null }
+    } while ($skip)
+}
+
+function Get-RerunCommand {
+    <# The same Initialize, quoted, with the client ID: for the person who has the rights this sign-in lacked. #>
+    param([string] $AppId)
+    $q = { param($v) "'" + ("$v" -replace "'", "''") + "'" }
+    $parts = @('./avd_ops_reader.ps1 -Mode Initialize', "-ClientId $(& $q $AppId)", "-Environment $(& $q $Environment)")
+    foreach ($n in 'Repo', 'Subscription', 'ResourceGroup', 'LogAnalyticsWorkspace') {
+        $v = @(Get-Variable -Name $n -ValueOnly)
+        if ($v.Count) { $parts += "-$n $(($v | ForEach-Object { & $q $_ }) -join ',')" }
+    }
+    if ($RepoId) { $parts += "-RepoId $(& $q $RepoId) -OwnerId $(& $q $OwnerId)" }
+    if ($Cost) { $parts += '-Cost' }
+    if ($OutputContainer) { $parts += "-OutputContainer $(& $q $OutputContainer)" }
+    $parts -join ' '
 }
 
 function Write-Finding {
@@ -213,7 +256,7 @@ if ($Mode -eq 'Test' -and $asReader) {
     $tok = (Get-AzAccessToken).Token
     if ($tok -is [securestring]) { $tok = [System.Net.NetworkCredential]::new('', $tok).Password }
     $oid = (Get-AvdReaderTokenClaim -Token $tok).oid
-    $mine = @(Get-ReaderRoleAssignment -PrincipalId $oid)
+    $mine = @(Get-OwnRoleAssignment -PrincipalId $oid)
     Write-Finding (Get-AvdReaderFinding -RoleOnly -RoleAssignment $mine)
     if ($script:failed) { Write-Host "  $($script:failed) check(s) failed: the reader holds more than it should. Stopping." -ForegroundColor Red; exit 1 }
     exit 0
@@ -237,8 +280,9 @@ if ($Mode -eq 'Initialize') {
     foreach ($r in $Repo) {
         $info = Get-RepoInfo $r
         if (-not $info.Verdict.Ok) { Write-Step Fail "Repo $r" $info.Verdict.Reason; exit 1 }
-        $subjects[(Get-AvdReaderCredentialName -Owner $info.Owner -Repo $info.Name -Environment $Environment)] =
-            Get-AvdReaderSubject -Owner $info.Owner -OwnerId $info.Verdict.OwnerId -Repo $info.Name -RepoId $info.Verdict.RepoId -Environment $Environment
+        $ficName = Get-AvdReaderCredentialName -RepoId $info.Verdict.RepoId -Environment $Environment
+        if ($subjects.ContainsKey($ficName)) { throw "-Repo names the same repository twice ($r)." }
+        $subjects[$ficName] = Get-AvdReaderSubject -Owner $info.Owner -OwnerId $info.Verdict.OwnerId -Repo $info.Name -RepoId $info.Verdict.RepoId -Environment $Environment
         Write-Step Pass "Repo $r" $info.Verdict.Reason
     }
 
@@ -274,6 +318,11 @@ if ($Mode -eq 'Initialize') {
     foreach ($name in $subjects.Keys) {
         $subject = $subjects[$name]
         if (@($fics | Where-Object { $_.subject -eq $subject }).Count) { Write-Step Pass "Credential $name" $subject; continue }
+        $clash = @($fics | Where-Object { $_.name -eq $name })
+        if ($clash.Count) {
+            Write-Step Fail "Credential $name" "The name is taken by subject $($clash[0].subject)." -Remediation 'Remove that credential in Entra (App registrations, Certificates and secrets, Federated credentials) if it is stale, then run again.'
+            continue
+        }
         if ($PSCmdlet.ShouldProcess($name, 'Add the federated credential')) {
             $null = Invoke-Rest "$graph/v1.0/applications/$($app.id)/federatedIdentityCredentials" -Method POST -Body @{
                 name = $name; issuer = 'https://token.actions.githubusercontent.com'; subject = $subject; audiences = @('api://AzureADTokenExchange')
@@ -283,27 +332,42 @@ if ($Mode -eq 'Initialize') {
         }
     }
 
-    # App management policy: blocks secrets for everyone, owners and app admins included.
+    # App management policy: blocks passwords and symmetric keys for everyone, owners and app admins included.
+    # Graph allows one custom policy per app: when the app already has one, the test judges it.
     $assigned = @(Invoke-Rest "$graph/v1.0/applications/$($app.id)/appManagementPolicies" -Allow 403)
-    $policyDenied = $assigned.Count -eq 1 -and $assigned[0].PSObject.Properties['StatusCode']
+    $policyDenied = $assigned.Count -eq 1 -and $null -ne $assigned[0].PSObject.Properties['StatusCode']
     $policyBody = Get-AvdReaderPolicyBody -AppName $AppName
-    if (-not $policyDenied -and -not @($assigned | Where-Object { $_.displayName -eq $policyBody.displayName }).Count -and
-        $PSCmdlet.ShouldProcess($AppName, 'Assign an app management policy that blocks secrets')) {
-        $created = Invoke-Rest "$graph/v1.0/policies/appManagementPolicies" -Method POST -Body $policyBody -Allow 403
-        if ($created.PSObject.Properties['StatusCode']) { $policyDenied = $true }
+    if (-not $policyDenied -and $assigned.Count) { Write-Step Pass 'App management policy' "Already assigned: $(($assigned | ForEach-Object displayName) -join ', ')" }
+    elseif (-not $policyDenied -and $PSCmdlet.ShouldProcess($AppName, 'Assign an app management policy that blocks passwords')) {
+        # Reuse an unassigned policy of ours from an earlier, interrupted run before creating one.
+        $ours = @(Invoke-Rest "$graph/v1.0/policies/appManagementPolicies?`$filter=$([uri]::EscapeDataString("displayName eq '$($policyBody.displayName)'"))" -Allow 403 | Where-Object { $_ })
+        $policy = $null; $created = $false
+        if ($ours.Count -eq 1 -and $ours[0].PSObject.Properties['StatusCode']) { $policyDenied = $true }
+        elseif ($ours.Count) { $policy = $ours[0] }
         else {
-            $null = Invoke-Rest "$graph/v1.0/applications/$($app.id)/appManagementPolicies/`$ref" -Method POST -Body @{ '@odata.id' = "$graph/v1.0/policies/appManagementPolicies/$($created.id)" }
-            Write-Step Fixed 'Secrets blocked by policy' "Policy '$($policyBody.displayName)' assigned."
+            $policy = Invoke-Rest "$graph/v1.0/policies/appManagementPolicies" -Method POST -Body $policyBody -Allow 403
+            if ($policy.PSObject.Properties['StatusCode']) { $policyDenied = $true; $policy = $null } else { $created = $true }
+        }
+        if ($policy) {
+            $ref = Invoke-Rest "$graph/v1.0/applications/$($app.id)/appManagementPolicies/`$ref" -Method POST -Body @{ '@odata.id' = "$graph/v1.0/policies/appManagementPolicies/$($policy.id)" } -Allow 400, 403
+            if ($ref -and $ref.PSObject.Properties['StatusCode']) {
+                if ($created) { $null = Invoke-Rest "$graph/v1.0/policies/appManagementPolicies/$($policy.id)" -Method DELETE }
+                Write-Step Fail 'App management policy' "Assigning it was refused: HTTP $($ref.StatusCode) $($ref.Content)" -Remediation 'Nothing was left behind. An Application Administrator runs the command below.'
+                $policyDenied = $true
+            }
+            else { Write-Step Fixed 'App management policy' "'$($policy.displayName)' assigned." }
         }
     }
     if ($policyDenied) {
-        Write-Step Warn 'Secrets blocked by policy' 'This sign-in can''t manage app management policies.' `
-            -Remediation "An Application Administrator runs: ./avd_ops_reader.ps1 -Mode Initialize -ClientId $($app.appId) -Repo $($Repo -join ',') -Subscription $($Subscription -join ',')"
+        Write-Step Warn 'App management policy' 'This sign-in can''t manage app management policies.' `
+            -Remediation "An Application Administrator runs: $(Get-RerunCommand -AppId $app.appId)"
     }
 
-    # Role assignments.
-    $existing = @(Get-ReaderRoleAssignment -PrincipalId $sp.id)
-    foreach ($step in @(Get-AvdReaderAssignmentPlan -Wanted $wanted -Existing $existing)) {
+    # Role assignments (none to plan in a dry run before the service principal exists).
+    $plan = @()
+    if ($sp) { $plan = @(Get-AvdReaderAssignmentPlan -Wanted $wanted -Existing @(Get-ReaderRoleAssignment -PrincipalId $sp.id)) }
+    else { Write-Step Skip 'Role assignments' 'Would be assigned once the service principal exists.' }
+    foreach ($step in $plan) {
         $role = (Get-AvdReaderRole | Where-Object Id -eq $step.RoleId).Name
         if ($step.Action -eq 'Keep') { Write-Step Pass "$role" $step.Scope; continue }
         if (-not $PSCmdlet.ShouldProcess($step.Scope, "Assign $role")) { continue }
@@ -349,12 +413,12 @@ if ($Mode -eq 'Remove') {
 
 $expectedSubject = @()
 if ($Mode -eq 'Initialize') { $expectedSubject = @($subjects.Values) }
-$expectedScope = @()
-if ($Mode -eq 'Initialize') { $expectedScope = @($wanted | ForEach-Object Scope) }
+$expectedAssignment = @()
+if ($Mode -eq 'Initialize') { $expectedAssignment = @($wanted) }
 Write-Host ''
 Write-Host '  Checks' -ForegroundColor White
 Write-Finding (Get-AvdReaderFinding -App $app -ServicePrincipal $sp -FederatedCredential $fics -Owner $owners -Policy $policies `
-        -AppRoleAssignment $grants -RoleAssignment $roles -ExpectedSubject $expectedSubject -ExpectedScope $expectedScope)
+        -AppRoleAssignment $grants -RoleAssignment $roles -ExpectedSubject $expectedSubject -ExpectedAssignment $expectedAssignment)
 
 if ($Mode -eq 'Initialize') {
     Write-Host ''

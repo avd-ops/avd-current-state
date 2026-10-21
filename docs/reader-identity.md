@@ -28,7 +28,7 @@ The reader is shared across the family because a union of reads is still read-on
 ## What the reader holds
 
 - **Single tenant, app-only.** No redirect URI, not a public client: no person can sign in through it. One per tenant; with several tenants, set it up in each.
-- **No secret and no certificate, enforced by the tenant.** An app management policy on the app blocks passwords, custom passwords and symmetric keys, so not even an app owner or an Application Administrator can add one later. App management policies are part of Entra Workload ID's free features.
+- **No secret and no certificate.** An app management policy on the app blocks passwords, custom passwords and symmetric keys, so not even an app owner or an Application Administrator can add one later. App management policies are part of Entra Workload ID's free features. No policy restriction blocks a certificate outright, so `-Mode Test` fails on any certificate, and the app keeps one owner to limit who could add one. If the app already has an app management policy (Graph allows one per app), setup leaves it and the test judges whether it blocks passwords.
 - **Federated credentials only,** one per private repo, each bound to one GitHub Environment by GitHub's [immutable subject](https://learn.microsoft.com/entra/workload-id/workload-identities-github-immutable-subjects): `repo:<owner>@<owner id>/<repo>@<repo id>:environment:<env>`. A name-only subject can be claimed by whoever re-registers a deleted or renamed repo's name; the numeric IDs are never reused. Entra allows 20 per app.
 - **Azure roles on named scopes only:**
 
@@ -111,7 +111,7 @@ The design was red-teamed before it was built; each finding is answered in the c
 | 1 | A name-based OIDC subject can be recycled | Immutable subjects only; the test fails any other |
 | 2 | Anyone who can write to the repo can mint the token | Environment limited to `main`, protected workflows, schedule or manual triggers only, public repos refused |
 | 3 | The package had nowhere private to go | One container with Storage Blob Data Contributor; no artifacts; IDs masked |
-| 4 | App owners and admins can add a secret anyway | An app management policy blocks secrets; one owner; the test checks both |
+| 4 | App owners and admins can add a secret anyway | An app management policy blocks passwords and symmetric keys; certificates can't be blocked by policy, so the test fails on any; one owner |
 | 5 | Reuse by name adopts a squatted app | Found by client ID only |
 | 6 | The reader can't read its own app | A person's test checks the app; the reader checks its roles |
 | 7 | Directory reads need a Privileged Role Administrator | A separate decision; never granted by the script |

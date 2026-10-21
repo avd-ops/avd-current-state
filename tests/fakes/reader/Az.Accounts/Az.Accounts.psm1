@@ -4,7 +4,7 @@
 # object is 404, and ARM role assignments omit empty properties (condition) the way ARM does.
 #
 # Environment: FAKEREADER_STATE (state file), FAKEREADER_REPO (private | public | hidden), FAKEREADER_POLICY
-# (allow | deny), FAKEREADER_AS (user | reader).
+# (allow | deny | refdeny: creating works, assigning is refused), FAKEREADER_AS (user | reader).
 
 $script:Tenant = '00000000-0000-0000-0000-0000000000f0'
 $script:Subs = @('00000000-0000-0000-0000-0000000000a1', '00000000-0000-0000-0000-0000000000a2')
@@ -44,10 +44,13 @@ function Invoke-RestMethod {
     # GitHub's REST answer for a repo or a user.
     param([string] $Uri, $Headers)
     if ($Uri -match '/users/') { return [pscustomobject]@{ id = 222 } }
+    # Each repo its own numeric ID: contoso/avd-runs is 111, any other the sum of its name's characters.
+    $name = ($Uri -split '/')[-1]
+    $id = if ($name -eq 'avd-runs') { 111 } else { ($name.ToCharArray() | ForEach-Object { [int]$_ } | Measure-Object -Sum).Sum }
     switch ($env:FAKEREADER_REPO) {
-        'public' { return [pscustomobject]@{ id = 111; private = $false; owner = [pscustomobject]@{ id = 222 } } }
+        'public' { return [pscustomobject]@{ id = $id; private = $false; owner = [pscustomobject]@{ id = 222 } } }
         'hidden' { throw [Microsoft.PowerShell.Commands.HttpResponseException]::new('Not Found', [System.Net.Http.HttpResponseMessage]::new(404)) }
-        default { return [pscustomobject]@{ id = 111; private = $true; owner = [pscustomobject]@{ id = 222 } } }
+        default { return [pscustomobject]@{ id = $id; private = $true; owner = [pscustomobject]@{ id = 222 } } }
     }
 }
 
@@ -93,7 +96,7 @@ function Invoke-AzRestMethod {
         }
         '^/v1\.0/applications/([^/]+)/owners' { $r = Out-Rest 200 @{ value = @($s.owners[$Matches[1]] | Where-Object { $_ }) }; break }
         '^/v1\.0/applications/([^/]+)/appManagementPolicies/\$ref$' {
-            if ($deny) { $r = Out-Rest 403 @{ error = @{ code = 'Authorization_RequestDenied' } }; break }
+            if ($deny -or $env:FAKEREADER_POLICY -eq 'refdeny') { $r = Out-Rest 403 @{ error = @{ code = 'Authorization_RequestDenied' } }; break }
             $pid_ = ($body.'@odata.id' -split '/')[-1]; $s.policyApps[$pid_] = @($s.policyApps[$pid_] | Where-Object { $_ }) + $Matches[1]
             $r = Out-Rest 204 $null; break
         }
@@ -108,13 +111,25 @@ function Invoke-AzRestMethod {
         '^/v1\.0/applications/([^/]+)$' {
             $id = $Matches[1]; $s.apps = @($s.apps | Where-Object { $_.id -ne $id }); $s.fics.Remove($id); $r = Out-Rest 204 $null; break
         }
+        '^/v1\.0/policies/appManagementPolicies\?\$filter=' {
+            if ($deny) { $r = Out-Rest 403 @{ error = @{ code = 'Authorization_RequestDenied' } }; break }
+            $name = [uri]::UnescapeDataString($target) -replace ".*displayName eq '([^']+)'.*", '$1'
+            $r = Out-Rest 200 @{ value = @($s.policies | Where-Object { $_.displayName -eq $name }) }; break
+        }
         '^/v1\.0/policies/appManagementPolicies$' {
             if ($deny) { $r = Out-Rest 403 @{ error = @{ code = 'Authorization_RequestDenied' } }; break }
             $pol = $body; $pol.id = New-Id; $s.policies = @($s.policies) + $pol; $r = Out-Rest 201 $pol; break
         }
         '^/v1\.0/policies/appManagementPolicies/([^/]+)/appliesTo' { $r = Out-Rest 200 @{ value = @($s.policyApps[$Matches[1]] | Where-Object { $_ } | ForEach-Object { @{ id = $_ } }) }; break }
         '^/v1\.0/policies/appManagementPolicies/([^/]+)$' { $id = $Matches[1]; $s.policies = @($s.policies | Where-Object { $_.id -ne $id }); $r = Out-Rest 204 $null; break }
+        '^/providers/Microsoft\.ResourceGraph/resources\?api-version=' {
+            # The reader sees its own assignments wherever it can read; a sign-in as a person isn't routed here.
+            $principal = $body.query -replace ".*principalId =~ '([^']+)'.*", '$1'
+            $rows = @($s.roles | Where-Object { $_.properties.principalId -eq $principal } | ForEach-Object { @{ id = $_.id; properties = $_.properties } })
+            $r = Out-Rest 200 @{ totalRecords = $rows.Count; count = $rows.Count; data = $rows }; break
+        }
         '^/subscriptions/([^/]+)/providers/Microsoft\.Authorization/roleAssignments\?\$filter=' {
+            if ($env:FAKEREADER_AS -eq 'reader') { $r = Out-Rest 403 @{ error = @{ code = 'AuthorizationFailed' } }; break }
             $sub = $Matches[1]
             $principal = [uri]::UnescapeDataString($target) -replace ".*principalId eq '([^']+)'.*", '$1'
             $r = Out-Rest 200 @{ value = @($s.roles | Where-Object { $_.properties.principalId -eq $principal -and $_.properties.scope -like "/subscriptions/$sub*" }) }; break

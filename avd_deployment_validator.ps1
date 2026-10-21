@@ -2354,6 +2354,13 @@ function Test-AvdHostPool {
                 -Scope $poolName
             return
         }
+        if ($regErr) {
+            Add-Check -Category 'HostPool' -Check 'Registration token' -Status 'WARN' `
+                -Detail "The registration token could not be checked: $($regErr[0])" `
+                -Recommendation 'Run the validator again; a live token lets anyone who holds it join a host to this pool.' `
+                -Scope $poolName
+            return
+        }
         $expiry = Get-Prop $registration 'ExpirationTime'
 
         if ($null -eq $expiry) {

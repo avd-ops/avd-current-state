@@ -23,7 +23,8 @@ $script:Roles = @(
     [pscustomobject]@{ Name = 'Storage Blob Data Contributor'; Id = 'ba92f5b4-2d11-453d-a403-e96b0029c9fe'; ScopeKind = 'Container' }
 )
 
-# Credential types an app management policy must block, so nobody (owner or admin) can add a secret.
+# Credential types an app management policy must block, so nobody (owner or admin) can add a password or a
+# symmetric key. No restriction blocks a certificate outright, so certificates are caught by the checks instead.
 $script:BlockedCredentials = @('passwordAddition', 'customPasswordAddition', 'symmetricKeyAddition')
 
 function Get-Prop {
@@ -77,11 +78,17 @@ function Get-AvdReaderSubject {
 }
 
 function Get-AvdReaderCredentialName {
-    <# The federated credential's name: unique per repo and environment, within Entra's 3 to 120 characters. #>
+    <#
+      The federated credential's name: GitHub's numeric repo ID and the environment, so two repos never share
+      one, and a repo recreated under the same name gets a new one. Entra allows letters, digits, '-' and '_',
+      3 to 120 characters; an environment name that needs more is refused rather than cut.
+    #>
     [CmdletBinding()]
-    param([Parameter(Mandatory)][string] $Owner, [Parameter(Mandatory)][string] $Repo, [Parameter(Mandatory)][string] $Environment)
-    $name = ('gh-{0}-{1}-{2}' -f $Owner, $Repo, $Environment) -replace '[^A-Za-z0-9_-]', '-'
-    if ($name.Length -gt 120) { $name = $name.Substring(0, 120) }
+    param([Parameter(Mandatory)][string] $RepoId, [Parameter(Mandatory)][string] $Environment)
+    if ($RepoId -notmatch '^\d+$') { throw "Repo ID must be GitHub's numeric ID (got '$RepoId')." }
+    if ($Environment -notmatch '^[A-Za-z0-9_-]+$') { throw "For the credential's name, the environment uses letters, digits, '-' and '_' only: '$Environment'" }
+    $name = 'gh-{0}-{1}' -f $RepoId, $Environment
+    if ($name.Length -gt 120) { throw "The credential name '$name' is longer than Entra's 120 characters: use a shorter environment name." }
     $name
 }
 
@@ -96,8 +103,12 @@ function Get-AvdReaderRepoVerdict {
         [Parameter(Mandatory)][int] $StatusCode,
         $Body,
         [string] $RepoId,
-        [string] $OwnerId
+        [string] $OwnerId,
+        [string] $Message
     )
+    if ($StatusCode -eq 0) {
+        return [pscustomobject]@{ Ok = $false; RepoId = $null; OwnerId = $null; Reason = "GitHub didn't answer: $Message" }
+    }
     if ($StatusCode -eq 200) {
         $private = Get-Prop $Body 'private'
         if ($private -ne $true) {
@@ -136,7 +147,7 @@ function Get-AvdReaderAssignmentPlan {
 }
 
 function Get-AvdReaderPolicyBody {
-    <# The app management policy that blocks every secret credential on the reader. #>
+    <# The app management policy that blocks passwords and symmetric keys on the reader. #>
     [CmdletBinding()]
     param([string] $AppName = 'avd-ops-reader')
     @{
@@ -196,7 +207,7 @@ function Get-AvdReaderFinding {
 
       App, ServicePrincipal: the Graph objects. FederatedCredential, Owner, Policy, AppRoleAssignment,
       RoleAssignment: lists as Graph and ARM return them (empty properties omitted, as ARM does).
-      ExpectedSubject, ExpectedScope: what setup asked for; anything else is reported.
+      ExpectedSubject, ExpectedAssignment (Scope and RoleId): what setup asked for; anything else is reported.
     #>
     [CmdletBinding()]
     param(
@@ -208,7 +219,7 @@ function Get-AvdReaderFinding {
         [object[]] $AppRoleAssignment = @(),
         [object[]] $RoleAssignment = @(),
         [string[]] $ExpectedSubject = @(),
-        [string[]] $ExpectedScope = @(),
+        [object[]] $ExpectedAssignment = @(),
         [switch] $RoleOnly
     )
     $out = New-Object System.Collections.Generic.List[object]
@@ -245,8 +256,8 @@ function Get-AvdReaderFinding {
         else { $out.Add((New-Finding Pass 'One owner' "$($owners.Count) owner(s).")) }
 
         $blocking = @($Policy | Where-Object { $_ } | Where-Object { Test-PolicyBlocksSecret $_ })
-        if ($blocking.Count) { $out.Add((New-Finding Pass 'Secrets blocked by policy' 'An app management policy blocks passwords and symmetric keys.')) }
-        else { $out.Add((New-Finding Fail 'Secrets blocked by policy' 'No app management policy blocks passwords and symmetric keys on the app, so an owner or app admin could add a secret.' 'Rerun -Mode Initialize as an Application Administrator, or run the command it prints.')) }
+        if ($blocking.Count) { $out.Add((New-Finding Pass 'Passwords blocked by policy' 'An app management policy blocks passwords and symmetric keys. No policy can block a certificate: this test is what catches one.')) }
+        else { $out.Add((New-Finding Fail 'Passwords blocked by policy' 'No app management policy blocks passwords and symmetric keys on the app, so an owner or app admin could add one.' 'Rerun -Mode Initialize as an Application Administrator, or run the command it prints.')) }
 
         $fics = @($FederatedCredential | Where-Object { $_ })
         if (-not $fics.Count) { $out.Add((New-Finding Warn 'Federated credentials' 'None: nothing can sign in as the reader yet.' 'Run -Mode Initialize -Repo <owner/repo>.')) }
@@ -288,8 +299,8 @@ function Get-AvdReaderFinding {
             'Container' { $kind -eq 'Container' }
         }
         if (-not $okScope) { $out.Add((New-Finding Fail $label "Scope $scope is wider than this role is allowed." 'Reader and Cost Management Reader go on named subscriptions or resource groups; Log Analytics Reader on one workspace; Storage Blob Data Contributor on one container.')); continue }
-        $want = @($ExpectedScope | ForEach-Object { $_.TrimEnd('/').ToLowerInvariant() })
-        if ($want.Count -and $scope.TrimEnd('/').ToLowerInvariant() -notin $want) { $out.Add((New-Finding Warn $label "$scope wasn't asked for in this run." 'Remove it if it is no longer needed.')); continue }
+        $want = @($ExpectedAssignment | Where-Object { $_ } | ForEach-Object { '{0}|{1}' -f $_.Scope.TrimEnd('/').ToLowerInvariant(), $_.RoleId.ToLowerInvariant() })
+        if ($want.Count -and ('{0}|{1}' -f $scope.TrimEnd('/').ToLowerInvariant(), $roleId) -notin $want) { $out.Add((New-Finding Warn $label "$scope wasn't asked for in this run." 'Remove it if it is no longer needed.')); continue }
         $out.Add((New-Finding Pass $label $scope))
     }
     $out.ToArray()
