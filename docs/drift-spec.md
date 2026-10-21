@@ -1,6 +1,6 @@
 # Spec: drift and conformance checks (report first, fix on approval)
 
-Status: draft v2, 2026-10-21, after a red team (17 findings) and a code review (11 findings), all folded in (section 9). Prior art and design only. Nothing is built, nothing runs in Azure, no spend.
+Status: v3, 2026-10-21. v2 went through a red team (17 findings) and a code review (11 findings), all folded in (section 9). v3 records the owner's answers to the open questions (section 10) and adds the digest and approval for suppression rules (section 3.6). Design only. Nothing is built, nothing runs in Azure, no spend.
 
 The ask: something run again and again (a script, a pipeline, a scheduled job) that compares a live Azure Virtual Desktop estate with a declared desired state, says what drifted in plain language, and changes nothing until a person approves the fix. No Terraform. Azure and Microsoft tooling, and open source only.
 
@@ -30,7 +30,7 @@ Checked 2026-10-21 on Microsoft Learn, the projects' own pages and package feeds
 | **Azure Resource Graph** (`resources`, `desktopvirtualizationresources`, `resourcechanges`) | Every ARM property of host pools, app groups, workspaces, scaling plans, VMs, NICs, disks, storage, network, policy and role assignments | Live state. `resourcechanges` keeps 14 days of property-level changes with `changedBy`, `clientType` and `operation`, but only for types in the `resources`, `resourcecontainers` and `healthresources` tables: role assignments, locks and policy assignments aren't in it, and session hosts (`desktopvirtualizationresources`) are *unverified* | Reader, managed identity or OIDC; REST or CLI | Platform, free | **Use as the engine** |
 | **Activity Log** (management events) | Every control-plane write in the subscription, including the types `resourcechanges` skips | Who, when, operation and correlation ID; no property values | Reader; 90 days, free | Platform | **Use as the second attribution source** |
 | **Bicep what-if** (`az deployment sub what-if`) | Whatever the template deploys | Declared, but reports noise over modules: `reference()`, secure parameters and nested templates aren't evaluated, and modules short-circuit (Azure Verified Modules known issue) | Needs `Microsoft.Resources/deployments/*` and, by default, write on the resources. `--validation-level ProviderNoRbac` checks only read on each resource, so Reader plus `deployments/*` might be enough: a later option to test, not a Reader job | Platform | **Use in the fix step only**, on a PR |
-| **Deployment stacks** | Whatever the stack manages | Declared. Stack what-if filters noise against a baseline recorded at the last deploy (stacks created or updated on or after 2026-08-13). Noise reduction doesn't remove everything (reordered lists still show). Deny settings *prevent* changes, they don't report them | Creating a what-if result is a write (`deploymentStacksWhatIfResults/write`) | Platform | **Later.** The landing zone doesn't deploy as a stack, and moving it is a change to its default deployment (question 3) |
+| **Deployment stacks** | Whatever the stack manages | Declared. Stack what-if filters noise against a baseline recorded at the last deploy (stacks created or updated on or after 2026-08-13). Noise reduction doesn't remove everything (reordered lists still show). Deny settings *prevent* changes, they don't report them | Creating a what-if result is a write (`deploymentStacksWhatIfResults/write`) | Platform | **Later.** The landing zone doesn't deploy as a stack, and moving it is a change to its default deployment (parked, section 10) |
 | **Azure Policy** (Audit, AuditIfNotExists, Deny, DeployIfNotExists, Modify) | Built-in AVD definitions cover host pool public network access and private endpoints only; everything else is custom | Baseline rules, evaluated continuously; compliance readable in Resource Graph (`policyresources`) | Reading compliance needs Reader; remediation needs the assignment's own identity with write | Platform, free for Azure resources | **Read compliance; don't author policy for drift.** DeployIfNotExists and Modify fix silently, which is the opposite of report first |
 | **Machine Configuration** (formerly guest configuration) | Inside session hosts: registry, services, files, so FSLogix settings and the host security baseline | Declared, three modes: `Audit`, `ApplyAndMonitor`, `ApplyAndAutoCorrect`. Results land in Resource Graph (`guestconfigurationresources`) | Extension and a system-assigned identity on each VM, the package in storage the VMs can reach, Guest Configuration endpoints reachable from private estates; reading results needs Reader | Platform, free on Azure VMs (charged for Arc machines); custom packages GA, authored with the GuestConfiguration module (4.12.0, 2026-06) | **Phase 2 for in-guest drift, Audit mode only** |
 | Azure Automation State Configuration | Same as above, older | Declared | Automation account | **Retires 2027-09-30** | No |
@@ -92,9 +92,9 @@ Phase 1 answers two questions, and says plainly which one each finding answers:
 | Does a declared setting still hold? | The parameters of the landing zone's last successful subscription deployment, from its deployment record | The collector's read, mapped to parameters by `Get-LzRebuildMap` | **Drift**: "Max sessions per host is 12 in Azure; the last deployment set 8. Changed 2026-10-19 in the Azure portal by a user." |
 | Did anything change outside a deployment? | Nothing: any write to a landing zone resource that isn't part of a deployment or of the landing zone's own automation | `resourcechanges` (14 days) and the Activity Log (90 days) | **Unexplained change**: "An NSG rule on the host subnet was added 2026-10-18 from the Azure CLI. No parameter declares NSG rules, so this can't say whether it's wrong." |
 
-The second row is what catches settings the Bicep hard-codes with no parameter (NSG rules, diagnostic settings, RDP properties beyond the parameter, role assignments): phase 1 sees *that* they changed, not whether the new value is right. Comparing whole deployed objects with live ones is the job `Export-AvdConfiguration.ps1` already does in the landing zone, with its own normalizer. Phase 1 doesn't write a second one (question 4).
+The second row is what catches settings the Bicep hard-codes with no parameter (NSG rules, diagnostic settings, RDP properties beyond the parameter, role assignments): phase 1 sees *that* they changed, not whether the new value is right. Comparing whole deployed objects with live ones is the job `Export-AvdConfiguration.ps1` already does in the landing zone, with its own normalizer. Phase 1 doesn't write a second one (section 10, answer 4).
 
-- **Why the deployment record, not the parameter file.** The record holds the compiled, non-secure parameters, so no Bicep, no template checkout and no other repo is needed at run time, and this repo stays self-contained. "The file changed but nobody deployed it" is a question for the landing zone's CI, whose `bicep snapshot` job already diffs parameter files (question 1). The record doesn't carry the commit today; a later landing zone change can tag deployments with it.
+- **Why the deployment record, not the parameter file.** The record holds the compiled, non-secure parameters, so no Bicep, no template checkout and no other repo is needed at run time, and this repo stays self-contained. "The file changed but nobody deployed it" is a question for the landing zone's CI, whose `bicep snapshot` job already diffs parameter files. The record doesn't carry the commit today; a later landing zone change can tag deployments with it.
 - **Secure parameters** are never read: secrets are always recreated, never carried (rebuild spec section 5.3).
 - **Which host pool.** The record declares the landing zone's own host pool, found by its naming convention (`-NamePrefix`, `-Environment`). Other host pools in scope, such as a demo pool, are listed as "not declared", never compared with it.
 - **How each map status is compared.** `found` and `derived` values are compared with the record. `secret` and `deployTime` are never compared and are listed under "Not checked". `ambiguous`, `unexpressible` and `unknown` become a `cant-tell` finding, never a pass; a person can acknowledge one with an exception that pins the status instead of a value.
@@ -112,7 +112,8 @@ The second row is what catches settings the Bicep hard-codes with no parameter (
 | `lib/AvdDrift.psm1` | New module, pure functions | Compare, attribute, classify, render; fixtures that omit empty properties the way ARM does |
 | `drift/expected-actors.json` | Reviewed rules, public, placeholders only | Which actors and changes are the landing zone's own (section 3.2 step 4) |
 | `drift/runtime-paths.json` | Reviewed list, public | Properties that change at run time and are never drift |
-| `checks/catalog.json` | New C22 entries | `drift-param-<name>`, `drift-unexplained-change`, `drift-exception-expired`, `drift-cant-tell`, `drift-window-gap` |
+| `checks/catalog.json` | New C22 entries | `drift-param-<name>`, `drift-unexplained-change`, `drift-exception-expired`, `drift-cant-tell`, `drift-window-gap`, `drift-suppression-unapproved` |
+| `drift-approvals.json` | Private, operator's repo | One approval per suppression entry, by its digest (section 3.6) |
 | `samples/drift.yml` | Sample workflow for the operator's **private** repo | Never runs in a public repo |
 | Tests | Pester, offline | Fixtures for each finding kind; `System`, `Unknown` and `Unspecified` actors; the power lock cycle; an empty scope; a truncated page; a 429 |
 
@@ -163,6 +164,24 @@ The drift identity can't write anything, so no fix can come from it. Each action
 
 PowerShell 7.2 or later on Cloud Shell (either prompt), Windows, macOS and Linux, with a `platforms.json` entry marked `tested` only with evidence. Operator blocks follow the run-anywhere convention: `pwsh -NoLogo -File ./avd_current_state_drift.ps1 ...` works from both Cloud Shell prompts. No Bicep CLI is needed.
 
+### 3.6 Suppression rules: digest and approval
+
+An entry in `expected-actors.json`, `runtime-paths.json` or the what-if noise file hides changes, so a wrong or stale entry hides real drift. Two functions keep them honest; both are pure functions in `lib/AvdDrift.psm1` with offline tests.
+
+**Approval (`Get-DriftSuppressionApproval`).** Each entry gets a digest: SHA-256 of its canonical JSON (keys sorted, no whitespace), computed after the private repo's real values are resolved, so a changed client ID is a new entry. The private `drift-approvals.json` holds, per digest: who approved it (a role, never a name or email), when, a reason and an expiry of at most 90 days. At run time:
+
+- An entry whose digest is approved and not expired suppresses as usual.
+- An entry with no approval, a changed digest or an expired approval **suppresses nothing**. The changes it would have hidden are reported normally, plus one `drift-suppression-unapproved` finding naming the entry. Failing open here means more noise, never less evidence.
+- `drift-approvals.json` changes only by a pull request the owner merges, enforced by CODEOWNERS and a ruleset in the private repo, and the workflow reads it from the default branch only. The script prints the digest and a ready-to-paste approval line (`-ShowSuppressionDigest`); it never writes the file. A model can draft the line, never approve it.
+
+**Digest (`Get-DriftSuppressionDigest`).** Once a week, and on `workflow_dispatch` with `-Digest`, the run adds a section to the environment's issue listing every suppression entry with:
+
+- how many changes it hid in the last 7 days and the last 14, with up to three examples (time, resource type, operation, correlation ID; no names);
+- entries that hid nothing in 14 days (candidates to drop);
+- approvals expiring in the next 14 days, and entries waiting for approval.
+
+The owner reads the digest, renews or drops entries through the approvals pull request, and the next run follows. An entry that hides more than a threshold in a week (default 50, set in the private repo) is listed first with its count.
+
 ## 4. What it can't see
 
 Said in every report, under "Not checked":
@@ -189,7 +208,7 @@ Said in every report, under "Not checked":
 
 | Open source, in this public repo | Private, in the operator's repo only |
 |---|---|
-| `avd_current_state_drift.ps1`, `lib/AvdDrift.psm1`, `expected-actors.json` and `runtime-paths.json` as rules with placeholders, the C22 entries, `samples/drift.yml`, synthetic fixtures | `drift-exceptions.json`, every report and issue, the identity's IDs (`vars.*`), the real client IDs `expected-actors.json` resolves to |
+| `avd_current_state_drift.ps1`, `lib/AvdDrift.psm1`, `expected-actors.json` and `runtime-paths.json` as rules with placeholders, the C22 entries, `samples/drift.yml`, synthetic fixtures | `drift-exceptions.json`, `drift-approvals.json`, every report and issue, the identity's IDs (`vars.*`), the real client IDs `expected-actors.json` resolves to |
 | Machine Configuration package source for FSLogix and the host baseline (phase 2), parameterized | Anything that names a tenant, subscription, domain, user, host or IP |
 
 Fixtures use `<tenant-id>`, `contoso.com` and `10.x`. Report values never reach C11; if the brain later reads drift, it gets counts and pseudonyms through a C11 change made in three repos together, which this spec doesn't propose.
@@ -201,9 +220,11 @@ Fixtures use `<tenant-id>`, `contoso.com` and `10.x`. Report values never reach 
 | 1 | Parameter drift, unexplained changes with attribution, exceptions, posture reads, the issue | The reader identity (owner's decision), subscription Reader, the C22 entries in avd-assess first |
 | 2 | In-guest drift from Machine Configuration in `Audit` mode: FSLogix and the host baseline | An opt-in landing zone parameter for the extension, identities and package storage; reachability from private estates; a sandbox run with an estimate and the owner's go |
 | 3 | Intune and Entra drift, read from Tenant Governance monitors | Entra ID P1 or above, an admin grant to the service's principal, the directory-read decision |
-| Later | Deployed-object compare with the landing zone's normalizer, commit tags on deployments, deployment stacks, a C14 manifest as the declared side, drift facts in C11 | Each its own decision |
+| Later | Deployed-object compare with the landing zone's normalizer, commit tags on deployments, deployment stacks (parked, section 10), a C14 manifest as the declared side, drift facts in C11 | Each its own decision |
 
-Build order for phase 1, each a PR, offline first: (1) C22 entries in avd-assess, pinned here; (2) `lib/AvdDrift.psm1` with fixtures and the two reviewed files; (3) the entry point; (4) `samples/drift.yml` with its tests and checklist; (5) one read-only run against the sandbox estate, which costs nothing in Azure but still waits for the owner's go.
+Build order for phase 1, each a PR, offline first: (1) C22 entries in avd-assess, pinned here; (2) `lib/AvdDrift.psm1` with fixtures, the two reviewed files and the approval and digest functions (section 3.6); (3) the entry point; (4) `samples/drift.yml` with its tests and checklist, for the owner's private estate repo; (5) one read-only run against the sandbox estate, which costs nothing in Azure but still waits for the owner's go.
+
+Phases 2 and 3 are approved to plan (section 10). Each still needs its own written estimate and the owner's exact go before a sandbox run, and phase 3 needs Entra ID P1 or above confirmed in the sandbox tenant first.
 
 ## 8. Cost
 
@@ -233,13 +254,20 @@ Phase 1 adds no Azure spend: Resource Graph, its change log and the Activity Log
 
 Claude's code review on the PR then found 11 more (the map's statuses and host pools, `cant-tell` holding the issue open forever, the health check blocking local runs and the baseline path, keyless user hashes, version skew, where the watermark lives, counts). All are fixed in sections 1.4, 2 and 3.2.
 
-## 10. Open questions for the owner
+## 10. The owner's answers (2026-10-21)
 
-1. **Home:** detector here in avd-current-state, fixes in avd-landing-zone (recommended), or everything in the landing zone?
-2. **Reader identity:** the drift check needs the reader proposal decided first, with **subscription** Reader. Yes, or resource-group scope with a committed baseline instead of the deployment record?
-3. **Where it runs:** which private repo holds the schedule, the exceptions and the issue for the sandbox estate?
-4. **Settings with no parameter** (NSG rules, diagnostics, role assignments): is "changed, not judged" enough for phase 1, or should a later phase reuse the landing zone's `Export-AvdConfiguration` normalizer as a shared function, and in which repo?
-5. **Who reviews `expected-actors.json` and the what-if noise file,** since an entry there can hide real drift?
-6. **Names in reports:** "a user" plus the correlation ID (recommended), or names in the private issue?
-7. **Phase 2 and 3 go or park:** Machine Configuration on session hosts (a landing zone opt-in and a sandbox run), and Tenant Governance (needs Entra ID P1 in the sandbox tenant)?
-8. **Deployment stacks:** worth a separate evaluation for the landing zone, given it changes the default deployment?
+| # | Question | Answer | What it means |
+|---|---|---|---|
+| 1 | Home | Agreed | Detector here in avd-current-state; fixes through avd-landing-zone's `deploy.yml` |
+| 2 | Reader identity | Yes, subscription Reader | The reader proposal goes ahead for this use with Reader on the subscription; the deployment record is the declared side |
+| 3 | Where it runs | The owner's private estate repo | `samples/drift.yml`, `drift-exceptions.json`, `drift-approvals.json` and the issue live there |
+| 4 | Settings with no parameter | Yes, "changed, not judged" is enough for phase 1 | The normalizer reuse stays in "Later" |
+| 5 | Who reviews suppression rules | The owner, through a digest and an approval function | Section 3.6 |
+| 6 | Names in reports | Fine as recommended | "A user" plus the correlation ID |
+| 7 | Phases 2 and 3 | Go | Planned after phase 1; each sandbox run still needs an estimate and the exact go; phase 3 needs Entra ID P1 confirmed |
+| 8 | Deployment stacks | Not sure | **Parked.** Recommendation: don't evaluate until phase 1 has run for a month, because stacks change the landing zone's default deployment; revisit with what phase 1 showed about deployment drift |
+
+### Still open
+
+- Whether the sandbox tenant has Entra ID P1 or above (phase 3).
+- The phase 1 build starts on the owner's word; the first PR is the C22 entries in avd-assess.
