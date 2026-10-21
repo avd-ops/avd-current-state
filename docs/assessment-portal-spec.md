@@ -2,7 +2,7 @@
 
 Status: accepted, 2026-10-20. Phase 1 built 2026-10-21 (Collect, Discover, Analyze); phase 2 built 2026-10-21 (Review). See section 7. No Azure, no spend.
 
-The owner asked (2026-10-20) for one page that walks an operator through a whole assessment, the way the [avd-landing-zone deployment portal](https://github.com/nickprignano/avd-landing-zone/tree/master/site/portal) walks them through a deployment. It lives here, because avd-current-state is the signal engine: it collects what is there now and judges it against the standards in [avd-assess](https://github.com/nickprignano/avd-assess). The landing zone stays the deployment engine; the brain and avd-swarm stay optional layers on top.
+The owner asked (2026-10-20) for one page that walks an operator through a whole assessment, the way the [avd-landing-zone deployment portal](https://github.com/avd-ops/avd-landing-zone/tree/master/site/portal) walks them through a deployment. It lives here, because avd-current-state is the signal engine: it collects what is there now and judges it against the standards in [avd-assess](https://github.com/avd-ops/avd-assess). The landing zone stays the deployment engine; the brain and avd-swarm stay optional layers on top.
 
 An assessment has five stages (owner, 2026-10-20): inventory collection, interview and discovery for the narrative detail, analysis against standards, review of findings, and recommendation and remediation planning. Two already have a home (the collector, and the validator running the pinned method). Three had none: the discovery narrative, a recorded review, and a plan from findings. The portal is their home.
 
@@ -87,7 +87,7 @@ The discovery notes have no contract: they are a person's notes, not data for a 
 
 ## 5. Look and feel
 
-The page uses the [avd-ops design system](https://github.com/nickprignano/avd-ops/blob/main/docs/design-system.md), vendored into `site/assets/` as the landing zone's portal does, and keeps its rules (colors only through tokens, self-hosted fonts, no inline styles, dark mode, the notice first). Design pass (design-system review, 2026-10-20):
+The page uses the [avd-ops design system](https://github.com/avd-ops/avd-ops/blob/main/docs/design-system.md), vendored into `site/assets/` as the landing zone's portal does, and keeps its rules (colors only through tokens, self-hosted fonts, no inline styles, dark mode, the notice first). Design pass (design-system review, 2026-10-20):
 
 | Need | Existing | New |
 |---|---|---|
@@ -129,7 +129,7 @@ The owner accepted all five recommendations on 2026-10-20.
 1. **Promote the deployment portal's components to avd-ops** so both portals share them, rather than this page copying the landing zone's. Decided: it keeps code flowing one way between the pair.
 2. **C23 and C24 as their own contracts** in avd-assess (C22 is reserved for the check catalog). Decided, rather than folding the review into C21: a review is a person's decision about a report, and pinning the report's hash keeps them apart.
 3. **Heredoc blocks to move `intake.json` and `review.json` into Cloud Shell**, rather than asking the operator to upload files. Decided: it is one paste, works on an iPad, and the content is structured values only.
-4. **The page path:** `site/portal/` on this repo's Pages (`nickprignano.github.io/avd-current-state/portal/`), linked from avd-ops.dev. Decided.
+4. **The page path:** `site/portal/` on this repo's Pages (`avd-ops.github.io/avd-current-state/portal/`), linked from avd-ops.dev. Decided.
 5. **Report a problem:** the landing zone's redaction (`report.js`) can't be copied here under the one-way rule. Decided: move its core into avd-ops as a shared script both portals vendor, in phase 4; until then the page has no report button.
 
 ## References

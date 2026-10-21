@@ -57,7 +57,7 @@ test('no estate without a finished facts run', () => {
 test('every block stands alone in Cloud Shell and only reads', () => {
   const settings = { subscriptions: "Contoso Prod\nO'Brien Dev", validationSubscription: '', resourceGroup: 'rg-avd' };
   for (const cmd of [core.collectCommand(settings), core.analyzeCommand(settings), core.intakeCommand(core.buildIntake(answers).intake)]) {
-    assert.match(cmd, /git clone --quiet https:\/\/github\.com\/nickprignano\/avd-current-state\.git/);
+    assert.match(cmd, /git clone --quiet https:\/\/github\.com\/avd-ops\/avd-current-state\.git/);
     assert.match(cmd, /^Set-Location \$repo$/m);
     assert.doesNotMatch(cmd, /\b(New|Set|Update|Remove|Start|Stop|Restart)-Az/, 'no command that writes to Azure');
   }
