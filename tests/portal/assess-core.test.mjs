@@ -166,3 +166,38 @@ test('finding notes join the private notes file, never the review', () => {
   assert.match(md, /## Findings\n\n### Image wdot \(asm-image-wdot\)\n\nImage team rebuilds monthly\./);
   assert.doesNotMatch(md, /asm-session-host-backup/);
 });
+
+// ---- Run in (avd-ops docs/design-system.md, "Run in") ----
+test('run in: the engine carries platforms.json, and it lists every script a block runs', () => {
+  const file = JSON.parse(read('platforms.json'));
+  assert.equal(file.version, 1);
+  assert.deepEqual(core.PLATFORMS, file.scripts, 'site/portal/assess-core.js PLATFORMS matches platforms.json');
+  for (const [s, e] of Object.entries(file.scripts)) {
+    for (const k of ['cloudshell-pwsh', 'cloudshell-bash', 'windows', 'macos']) assert.match(e[k], /^(tested|untested|no)$/, `${s} ${k}`);
+    if (Object.values(e).includes('tested')) assert.ok(e.evidence, `${s}: tested needs evidence`);
+  }
+  for (const c of [core.collectCommand({ subscriptions: 'Sub A' }), core.analyzeCommand({})]) for (const s of core.scriptsIn(c)) assert.ok(file.scripts[s], `${s} is missing from platforms.json`);
+});
+
+test('run in: PowerShell runs every block as it is; Bash writes it word for word to a file and runs pwsh', () => {
+  const blocks = [core.collectCommand({ subscriptions: "O'Brien" }), core.analyzeCommand({}), core.intakeCommand({ schema: 'avd-intake/v1' })];
+  for (const c of blocks) {
+    assert.equal(core.forRunIn(c, null), c);
+    assert.equal(core.forRunIn(c, { where: 'macos', shell: 'pwsh' }), c);
+    assert.equal(core.forRunIn(c, { where: 'windows', shell: 'bash' }), c, 'Windows runs PowerShell 7');
+    const b = core.forRunIn(c, { where: 'cloudshell', shell: 'bash' }).split('\n');
+    assert.deepEqual(b.slice(0, 2), ['f="$(mktemp -d)/step.ps1"', "cat > \"$f\" <<'AVD_PS'"]);
+    assert.deepEqual(b.slice(-2), ['AVD_PS', 'pwsh -NoLogo -File "$f"']);
+    assert.equal(b.slice(2, -2).join('\n'), c, 'the quoted heredoc carries the block unchanged');
+  }
+  assert.throws(() => core.forRunIn('x\nAVD_PS\ny', { shell: 'bash' }), /cannot carry/);
+});
+
+test('run in: untested is marked, and Cloud Shell needs nothing installed', () => {
+  const c = core.collectCommand({});
+  assert.equal(core.support(c, { where: 'macos' }).status, 'untested');
+  assert.ok(core.support(c, { where: 'windows' }).requires.length > 0);
+  assert.deepEqual(core.support(c, null).requires, []);
+  assert.equal(core.support(core.intakeCommand({ schema: 'avd-intake/v1' }), null).status, 'tested', 'a block with no script is proven where it was written');
+  assert.equal(core.support(core.intakeCommand({ schema: 'avd-intake/v1' }), { shell: 'bash' }).status, 'untested');
+});

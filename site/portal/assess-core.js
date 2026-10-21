@@ -348,11 +348,59 @@
     ]).join('\n');
   }
 
+  // ---- Run in (avd-ops docs/design-system.md, "Run in") ----------------------------------------------
+  // Where the operator runs the blocks: Cloud Shell, Windows or macOS, in PowerShell or Bash. The blocks above
+  // are PowerShell and already sign in when they need to, so PowerShell runs them as they are anywhere; Bash runs
+  // the whole block in one pwsh. Where each script works: platforms.json (copied here; a test keeps them equal).
+  const PLATFORMS = {
+    "avd_current_state_collector.ps1": {"cloudshell-pwsh": "untested", "cloudshell-bash": "untested", "windows": "untested", "macos": "untested", "winps51": "untested", "requires": "PowerShell 7.2 or later, the Az modules"},
+    "avd_current_state_facts.ps1": {"cloudshell-pwsh": "untested", "cloudshell-bash": "untested", "windows": "untested", "macos": "untested", "winps51": "untested", "requires": "PowerShell 7.2 or later, the Az modules"},
+    "avd_deployment_validator.ps1": {"cloudshell-pwsh": "untested", "cloudshell-bash": "untested", "windows": "untested", "macos": "untested", "winps51": "untested", "requires": "PowerShell 7.2 or later, the Az modules"}
+  };
+  const PLACES = { cloudshell: 'Cloud Shell', windows: 'Windows', macos: 'macOS' };
+  // Windows runs PowerShell 7 only; Bash there means WSL, which is its own Linux machine.
+  function validRunIn(r) {
+    const o = r || {};
+    const where = Object.prototype.hasOwnProperty.call(PLACES, o.where) ? o.where : 'cloudshell';
+    return { where, shell: o.shell === 'bash' && where !== 'windows' ? 'bash' : 'pwsh' };
+  }
+  function isDefaultRunIn(r) { const v = validRunIn(r); return v.where === 'cloudshell' && v.shell === 'pwsh'; }
+  function scriptsIn(command) {
+    return [...new Set((String(command || '').match(/\.\/(avd_[\w]+\.ps1)/g) || []).map((m) => m.slice(2)))];
+  }
+  // The weakest of a block's scripts where it runs. A block with no script (writing intake.json) is proven where
+  // it was written and untested elsewhere.
+  function support(command, runIn) {
+    const r = validRunIn(runIn), key = r.where === 'cloudshell' ? `cloudshell-${r.shell}` : r.where;
+    const rank = { tested: 0, untested: 1, no: 2 };
+    const scripts = scriptsIn(command);
+    let status = !scripts.length && !isDefaultRunIn(r) ? 'untested' : 'tested';
+    const requires = [], blockedBy = [];
+    for (const s of scripts) {
+      const p = PLATFORMS[s];
+      let v = p ? p[key] : 'untested';
+      if (!Object.prototype.hasOwnProperty.call(rank, v)) v = 'untested';
+      if (v === 'no') blockedBy.push(s);
+      if (rank[v] > rank[status]) status = v;
+      if (p && p.requires) for (const q of String(p.requires).split(/,\s*/)) if (q && !requires.includes(q)) requires.push(q);
+    }
+    return { status, requires: r.where === 'cloudshell' ? [] : requires, blockedBy, place: PLACES[r.where], shell: r.shell };
+  }
+  // Bash writes the PowerShell, word for word, to a file through a quoted heredoc (bash expands nothing in it),
+  // then runs it with pwsh.
+  function forRunIn(command, runIn) {
+    const r = validRunIn(runIn);
+    if (!command || r.shell === 'pwsh') return command || '';
+    if (/^AVD_PS$/m.test(command)) throw new Error('The block holds a line the Bash version cannot carry.');
+    return ['f="$(mktemp -d)/step.ps1"', `cat > "$f" <<'AVD_PS'`, command, 'AVD_PS', 'pwsh -NoLogo -File "$f"'].join('\n');
+  }
+
   return {
     STAGES, HUBS, IDENTITY, DAYS, TOPICS,
     parseStateLines, latestStates, summarizeCollect, summarizeAnalyze,
     psQuote, nameList, collectCommand, analyzeCommand,
     regionList, buildIntake, intakeCommand, notesMarkdown,
-    REASONS, REASON_LABELS, sha256Hex, parseAssessment, checkTitle, startReview, buildReview, reviewCommand
+    REASONS, REASON_LABELS, sha256Hex, parseAssessment, checkTitle, startReview, buildReview, reviewCommand,
+    PLATFORMS, PLACES, validRunIn, isDefaultRunIn, scriptsIn, support, forRunIn
   };
 });

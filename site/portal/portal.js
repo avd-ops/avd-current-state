@@ -35,9 +35,53 @@
     location.reload();
   });
 
+  // ---- Run in (avd-ops docs/design-system.md, "Run in") ----
+  // Kept under one key for every avd-ops portal, in this browser only; blocked storage means the default.
+  let runIn = core.validRunIn(null);
+  try { runIn = core.validRunIn(JSON.parse(localStorage.getItem('avd-ops-runin') || 'null')); } catch (e) { /* storage blocked: the default */ }
+  function syncRunIn() {
+    const bash = document.querySelector('input[name="runin-shell"][value="bash"]');
+    bash.disabled = runIn.where === 'windows';
+    bash.parentNode.title = bash.disabled ? 'On Windows the commands run in PowerShell 7' : '';
+    for (const i of document.querySelectorAll('input[name="runin-where"], input[name="runin-shell"]')) i.checked = i.value === runIn.where || i.value === runIn.shell;
+    $('runin-note').textContent = [runIn.where === 'windows' ? 'Windows runs the commands in PowerShell 7.' : '',
+      runIn.where === 'cloudshell' ? '' : 'Each block signs in to Azure with a device code if this machine is not signed in yet.'].filter(Boolean).join(' ');
+    for (const l of document.querySelectorAll('.run-label')) l.textContent = `Run in ${core.PLACES[runIn.where]}`;
+    for (const pre of document.querySelectorAll('pre[data-raw]')) paint(pre);
+  }
+  for (const i of document.querySelectorAll('input[name="runin-where"], input[name="runin-shell"]')) {
+    i.addEventListener('change', () => {
+      runIn = core.validRunIn(Object.assign({}, runIn, { [i.name === 'runin-where' ? 'where' : 'shell']: i.value }));
+      try { localStorage.setItem('avd-ops-runin', JSON.stringify(runIn)); } catch (e) { /* storage blocked: lasts this visit */ }
+      syncRunIn();
+    });
+  }
+  // A block for the place and shell chosen: the text, the prompt, Not tested yet, and what the machine needs.
+  function paint(pre) {
+    const raw = pre.dataset.raw, sup = core.support(raw, runIn), term = pre.closest('.term');
+    let text;
+    try {
+      text = sup.status === 'no' ? `# This step runs ${sup.blockedBy.join(', ')}, which does not run on ${sup.place} in ${sup.shell === 'bash' ? 'Bash' : 'PowerShell'}. Run it in Cloud Shell.` : core.forRunIn(raw, runIn);
+    } catch (e) { text = `# ${e.message} Use PowerShell for this block.`; }
+    pre.textContent = text;
+    term.dataset.shell = sup.shell;
+    const head = term.querySelector('.term-head');
+    let pill = head.querySelector('.untested');
+    if (sup.status === 'untested' && !pill) { pill = document.createElement('span'); pill.className = 'untested'; pill.textContent = 'Not tested yet'; head.insertBefore(pill, head.querySelector('button')); }
+    if (sup.status !== 'untested' && pill) pill.remove();
+    let req = term.nextElementSibling && term.nextElementSibling.classList.contains('requires') ? term.nextElementSibling : null;
+    if (sup.requires.length) {
+      if (!req) { req = document.createElement('p'); req.className = 'requires'; term.after(req); }
+      req.textContent = sup.requires.join(', ');
+    } else if (req) req.remove();
+  }
+  function showCommand(id, raw) { const pre = $(id); pre.dataset.raw = raw; paint(pre); }
+
   // ---- Commands ----
   function setCommand(id, build) {
-    try { $(id).textContent = build(); } catch (e) { $(id).textContent = `# ${e.message} Fix it in Assessment settings.`; }
+    let raw;
+    try { raw = build(); } catch (e) { raw = `# ${e.message} Fix it in Assessment settings.`; }
+    showCommand(id, raw);
   }
   function renderCommands() {
     setCommand('collect-cmd', () => core.collectCommand(state.settings));
@@ -158,7 +202,7 @@
       state.intakeBuilt = false; save(); renderSteps();
       return;
     }
-    $('intake-cmd').textContent = core.intakeCommand(intake);
+    showCommand('intake-cmd', core.intakeCommand(intake));
     blobLink('intake-download', JSON.stringify(intake, null, 2) + '\n', 'application/json');
     $('intake-out').classList.remove('hidden');
     state.intakeBuilt = true; save(); renderSteps();
@@ -302,7 +346,7 @@
       save(); renderSteps();
       return;
     }
-    $('review-cmd').textContent = core.reviewCommand(review);
+    showCommand('review-cmd', core.reviewCommand(review));
     blobLink('review-download', JSON.stringify(review, null, 2) + '\n', 'application/json');
     r.built = true; r.reviewedOn = review.reviewedOn; save();
     $('review-out').classList.remove('hidden'); renderSteps();
@@ -334,7 +378,7 @@
   $('back').addEventListener('click', () => go(STAGES[Math.max(0, STAGES.indexOf(state.stage) - 1)], true));
   $('next').addEventListener('click', () => go(STAGES[Math.min(STAGES.length - 1, STAGES.indexOf(state.stage) + 1)], true));
 
-  renderCommands(); fillDiscover(); renderCollect(); renderAnalyze();
+  renderCommands(); syncRunIn(); fillDiscover(); renderCollect(); renderAnalyze();
   if (state.review && state.review.reviewedOn) $('reviewedOn').value = state.review.reviewedOn;
   renderReview(); go(state.stage, false);
 })();

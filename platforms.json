@@ -1,0 +1,30 @@
+{
+ "$comment": "Where each script the assessment portal runs works (avd-ops docs/design-system.md, Run in): tested (a real run proved it, with evidence), untested (should work, no real run yet; the portal marks it) or no (the portal hides it). Bash runs a .ps1 through pwsh unless twin names a bash script. windows means PowerShell 7; winps51 is Windows PowerShell 5.1. site/portal/assess-core.js carries a copy; a test keeps them equal.",
+ "version": 1,
+ "scripts": {
+  "avd_current_state_collector.ps1": {
+   "cloudshell-pwsh": "untested",
+   "cloudshell-bash": "untested",
+   "windows": "untested",
+   "macos": "untested",
+   "winps51": "untested",
+   "requires": "PowerShell 7.2 or later, the Az modules"
+  },
+  "avd_current_state_facts.ps1": {
+   "cloudshell-pwsh": "untested",
+   "cloudshell-bash": "untested",
+   "windows": "untested",
+   "macos": "untested",
+   "winps51": "untested",
+   "requires": "PowerShell 7.2 or later, the Az modules"
+  },
+  "avd_deployment_validator.ps1": {
+   "cloudshell-pwsh": "untested",
+   "cloudshell-bash": "untested",
+   "windows": "untested",
+   "macos": "untested",
+   "winps51": "untested",
+   "requires": "PowerShell 7.2 or later, the Az modules"
+  }
+ }
+}
