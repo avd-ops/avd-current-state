@@ -777,6 +777,26 @@ $summaryPath = Join-Path $script:RootDir 'summary.md'
 [System.IO.File]::WriteAllLines($summaryPath, $summaryLines.ToArray(), [System.Text.Encoding]::UTF8)
 Write-Log "Summary written to summary.md."
 
+# The same summary as one HTML file in the avd-ops look (lib/AvdReport.psm1): offline, no script, prints to PDF.
+# Logged as INFO, not WARN: summary.md is already written, and its warning list must match the count.
+$summaryHtmlPath = ''
+$reportModule = Join-Path $PSScriptRoot 'lib/AvdReport.psm1'
+if (Test-Path -LiteralPath $reportModule) {
+    try {
+        Import-Module $reportModule -Force
+        $reportAsset = Get-AvdcsReportAsset -Root $PSScriptRoot
+        if ($reportAsset) {
+            $summaryHtmlPath = Join-Path $script:RootDir 'summary.html'
+            $html = ConvertTo-AvdcsReportHtml -Markdown $summaryLines.ToArray() -Asset $reportAsset -Kind 'Collector'
+            [System.IO.File]::WriteAllText($summaryHtmlPath, $html, (New-Object System.Text.UTF8Encoding($false)))
+            Write-Log "Summary written to summary.html."
+        }
+    } catch {
+        Write-Log "HTML summary skipped (summary.md has everything): $($_.Exception.Message)"
+        $summaryHtmlPath = ''
+    }
+}
+
 # endregion
 
 # ─────────────────────────────────────────────
@@ -835,6 +855,7 @@ Write-Log '═══════════════════════
 Write-Log "Evidence folder : $script:RootDir"
 Write-Log "ZIP archive     : $zipPath"
 Write-Log "Summary         : $summaryPath"
+if ($summaryHtmlPath) { Write-Log "HTML summary    : $summaryHtmlPath" }
 Write-Log "Subscriptions   : $($collectedSubs.Count) collected, $($skippedSubs.Count) skipped"
 Write-Log "Warnings        : $($script:Warnings.Count)"
 Write-Log '═══════════════════════════════════════════════════'

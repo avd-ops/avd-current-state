@@ -101,7 +101,7 @@ resources plus supporting platform infrastructure. It produces:
 
 - Per-subscription **CSV and JSON** evidence files for every collected dataset
 - Per-subscription **`rebuild/`** folder: the full Azure objects a landing zone rebuild needs, one JSON file per resource type (`rebuild/resources/`) and per REST read (`rebuild/rest/`), as listed in [`rebuild/scope.json`](rebuild/scope.json). The CSV and JSON datasets are built from the same rows. Secrets (registration tokens, keys, signed URLs, protected parameters) are never written; a rebuild recreates them, and a final scan refuses to write a file that still looks like one. `rebuild/rebuild-map.json` maps each host pool onto the avd-landing-zone parameters (pinned in [`rebuild/lz-parameters.json`](rebuild/lz-parameters.json)), each with a status (found, derived, secret, deployTime, ambiguous, unexpressible, unknown), its value and its evidence; it holds names and IDs, so it stays in the private package. See [docs/rebuild-fidelity-spec.md](docs/rebuild-fidelity-spec.md)
-- A **summary.md** with executive summary, AVD workload overview, architecture observations, and stakeholder takeaways
+- A **summary.md** with executive summary, AVD workload overview, architecture observations, and stakeholder takeaways, and **summary.html**, the same summary as one page in the avd-ops look (see [HTML reports](#html-reports))
 - A **manifest.json** documenting package contents, subscription outcomes, and collection metadata
 - Az module version records (**az-module-versions.csv** / **az-module-versions.json**)
 - A final **ZIP archive** of the entire evidence package
@@ -157,6 +157,7 @@ avd-current-state-20260617T143022/
 ├── az-module-versions.csv
 ├── az-module-versions.json
 ├── summary.md
+├── summary.html
 ├── manifest.json
 ├── Subscription_A/
 │   ├── resource-groups.csv / .json
@@ -354,6 +355,7 @@ always win. Keys beginning with `_` are treated as comments.
 ```
 avd-validation-20260919T141120/
 ├── validation-report.md      # Executive report: summary, failures, warnings, all checks
+├── validation-report.html    # The same report as one page in the avd-ops look
 ├── validation-results.csv    # One row per check
 ├── validation-results.json   # Same data, structured
 ├── manifest.json             # Run inputs, verdict and counts, for reproducibility
@@ -361,6 +363,10 @@ avd-validation-20260919T141120/
 └── run-log.txt               # Full run log
 avd-validation-20260919T141120.zip
 ```
+
+### HTML reports
+
+The collector and the validator also write their report as one HTML file (`summary.html`, `validation-report.html`) in the avd-ops look: the brand bar, the research notice, results as labeled pills, the verdict as a banner, light and dark following the system, and a light layout when printed or saved as PDF. The page holds exactly what the Markdown report holds. It is built by `lib/AvdReport.psm1` from the pinned design system copy in `site/assets/` (`design-system.lock.json`): the stylesheets, fonts and logo are inlined, it has no script, and its Content-Security-Policy allows nothing from the network, so it opens offline from Cloud Shell (download it), Windows or macOS. A copy of a script run on its own, without `lib/` and `site/` beside it, writes only the Markdown. Like the Markdown report, it names the subscription and the identity that ran it: share it only where those may go.
 
 ---
 
