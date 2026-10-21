@@ -1,9 +1,12 @@
 {
   "description": "Byte-identical copies of avd-assess's foundation contract files (contracts/README.md there). Each must match the file at commit (tests/Facts.Tests.ps1 checks the hashes). Update the files, commit and the hashes in one PR.",
-  "source": "https://github.com/nickprignano/avd-assess",
-  "commit": "eafa66e349cdce1dd744ef1cb7df9ecc57efd4d3",
+  "source": "https://github.com/avd-ops/avd-assess",
+  "commit": "a4e5827f170b536a64795fa27aa80ed6476e37b1",
   "files": {
     "fact-register.json": "08049b1f60e694f9da9fc12adbc745f573ff3aef15d3b9588bd50100626252fc",
-    "current-state-facts.schema.json": "9df15c5881f039ccbd365fba915e870a17972076d8e987cdc6c5ea78c99b36af"
+    "current-state-facts.schema.json": "9df15c5881f039ccbd365fba915e870a17972076d8e987cdc6c5ea78c99b36af",
+    "intake.schema.json": "8453b60efc3b980e91da91f68beab2cdb5b85348bb53435ab19b6c3522b541fc",
+    "assess-method.schema.json": "b66f9de29029c344e35c5a2d3a9ee42e105b0262f4184cb5c75d9c1e9c0efc48",
+    "assessment.schema.json": "0d8e763a84f726a5dc37f8fbe8f01d7d16b21149b0d784ee2efb5c85cc239c7e"
   }
 }

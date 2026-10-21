@@ -455,6 +455,19 @@ key, so its host pool pseudonyms match this snapshot's.
 The decisions and facts come from `contracts/fact-register.json`, a byte-identical copy of
 avd-assess's fact register (contract C15), pinned with the schema in `contracts/PINS.json`.
 
+### The assessment method
+
+`assess/` holds byte-identical copies of [avd-assess](https://github.com/avd-ops/avd-assess)'s
+`method.json` and `index.json` (contract C20), pinned by commit and SHA-256 in `assess/PINS.json`
+at the same commit as `contracts/`. `lib/AvdAssess.psm1` runs the method's checks over a snapshot
+and an optional `intake.json` (C19) and builds the assessment report (C21): one row per check
+(`pass`, `warn`, `gap` or `unknown`, with the pseudonyms it looked at), the pillar scores with
+their coverage, and each design decision's readiness. A missing fact makes a subject `unknown`,
+never a failure. Nothing is fetched at run time, and none of it needs the brain or avd-swarm. A
+method update is a PR that copies the files at a new avd-assess commit and updates both PINS files;
+`tests/Assess.Tests.ps1` fails if a copy drifts. The facts script's `-Assess` switch, which writes
+`assessment.json` beside the snapshot, comes next.
+
 ---
 
 ## Assessment portal
