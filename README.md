@@ -504,6 +504,10 @@ name is in the log and the state line (`assessment`).
 
 Each script ends with one line the page reads, `<<<AVDCS-STATE {...} AVDCS-STATE>>>`, built by `lib/AvdPortalState.psm1`. It holds counts, the package folder's name and the estate pseudonym, never a name or an ID. The page uses the [avd-ops design system](https://github.com/avd-ops/avd-ops/blob/main/docs/design-system.md), vendored in `site/assets/`. Run it locally with `python3 -m http.server -d site` and open `http://localhost:8000/portal/`.
 
+## Unattended runs: the optional reader
+
+Nothing here needs an app registration: Cloud Shell is already signed in, and Az remembers your sign-in elsewhere. For runs with nobody signed in, such as a weekly collection from GitHub Actions in your private repo, [`avd_ops_reader.ps1`](avd_ops_reader.ps1) sets up `avd-ops-reader`, an optional app-only identity that only reads: single tenant, no secret (an app management policy blocks them), a federated credential per private repo bound by GitHub's immutable subject, and Reader on the scopes you name. `-Mode Test` checks it and `-Mode Remove` takes it all away. One reader serves every private repo that runs reads; writes never use it. The guide, the red team and a sample workflow: [docs/reader-identity.md](docs/reader-identity.md), [samples/avd-ops-reader.yml](samples/avd-ops-reader.yml).
+
 ## Limitations
 
 ### Both scripts
@@ -565,6 +569,7 @@ Each links its reference page, generated from the script's own help by the secon
 | Script | What it does |
 |---|---|
 | [`avd_current_state_facts.ps1`](docs/reference/avd_current_state_facts.md) | AVD Current State Facts -- turns collector and validator evidence packages into one redacted facts snapshot (avd-current-state-facts/v1) for avd-second-brain and avd-swarm. |
+| [`avd_ops_reader.ps1`](docs/reference/avd_ops_reader.md) | avd-ops-reader -- the optional read-only identity for unattended avd-current-state runs: set it up, check it, remove it (docs/reader-identity.md). |
 <!-- generated:entry-points end -->
 
 ## Contributing

@@ -2343,7 +2343,17 @@ function Test-AvdHostPool {
     # Registration token
     # -----------------------------------------
     Invoke-Check -Category 'HostPool' -Check 'Registration token' -Scope $poolName -Body {
-        $registration = Get-AzWvdRegistrationInfo -HostPoolName $poolName -ResourceGroupName $poolRg -ErrorAction SilentlyContinue
+        $regErr = $null
+        $registration = Get-AzWvdRegistrationInfo -HostPoolName $poolName -ResourceGroupName $poolRg -ErrorAction SilentlyContinue -ErrorVariable regErr
+        # Reading the token is an action (retrieveRegistrationToken), not a read: Reader, and the optional
+        # avd-ops-reader, get 403. Say so instead of reporting "no token" when one may be live.
+        if ($regErr -and "$($regErr[0])" -match 'AuthorizationFailed|403|Forbidden|does not have authorization') {
+            Add-Check -Category 'HostPool' -Check 'Registration token' -Status 'SKIP' `
+                -Detail 'Not readable with this identity: reading the registration token is an action that read-only roles do not include.' `
+                -Recommendation 'Check token expiry with an identity that may retrieve it, or in the portal.' `
+                -Scope $poolName
+            return
+        }
         $expiry = Get-Prop $registration 'ExpirationTime'
 
         if ($null -eq $expiry) {
