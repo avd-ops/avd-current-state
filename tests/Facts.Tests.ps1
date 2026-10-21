@@ -148,7 +148,7 @@ Describe 'avd_current_state_facts.ps1' {
     $log = & $script:facts -PackagePath $script:pk -KeyPath $script:key -OutputPath (Join-Path $TestDrive 'out5') 6>&1 | ForEach-Object { "$_" }
     $line = $log | Where-Object { $_ -like '*Manifest coverage:*' }
     $line | Should -Match 'Manifest coverage: 5 of 10 design decisions can come from this snapshot \(region, network mode, host pool type, application group, power settings\)'
-    ($log -join ' ') | Should -Match 'Identity lane, VM size, Sessions per host, Host count, Profile share quota need measured usage: avd-readiness-stratusphere'
+    ($log -join ' ') | Should -Match 'Identity lane, VM size, Sessions per host, Host count, Profile share quota need measured usage: a Stratusphere UX assessment'
   }
 
   It 'counts host pool decisions only when the estate has host pools' {
