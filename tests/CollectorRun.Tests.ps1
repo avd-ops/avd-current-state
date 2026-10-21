@@ -19,10 +19,15 @@ Describe 'collector: a full offline run' {
     New-Item -ItemType Directory -Path $out | Out-Null
     $saved = @{ PSModulePath = $env:PSModulePath; FAKEAZ_SUBSCRIPTIONS = $env:FAKEAZ_SUBSCRIPTIONS }
     try {
-      # Only the fakes, so a real Az install on the runner can't be loaded instead.
-      $env:PSModulePath = Join-Path $script:root 'tests/fakes'
+      # Only the fakes, so a real Az install on the runner can't be loaded instead. pwsh puts the user
+      # and shared module folders back in front at startup (where macOS runners keep Az), so the child
+      # sets the path again before it runs the collector.
+      $fakes = Join-Path $script:root 'tests/fakes'
+      $env:PSModulePath = $fakes
       $env:FAKEAZ_SUBSCRIPTIONS = "$Subs"
-      $log = & $script:pwsh -NoProfile -NonInteractive -File (Join-Path $script:root 'avd_current_state_collector.ps1') -OutputPath $out 2>&1
+      $collector = Join-Path $script:root 'avd_current_state_collector.ps1'
+      $command = "`$env:PSModulePath = '$fakes'; & '$collector' -OutputPath '$out'; exit `$LASTEXITCODE"
+      $log = & $script:pwsh -NoProfile -NonInteractive -Command $command 2>&1
       $code = $LASTEXITCODE
     } finally {
       $env:PSModulePath = $saved.PSModulePath
