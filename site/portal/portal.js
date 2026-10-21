@@ -44,7 +44,8 @@
     bash.disabled = runIn.where === 'windows';
     bash.parentNode.title = bash.disabled ? 'On Windows the commands run in PowerShell 7' : '';
     for (const i of document.querySelectorAll('input[name="runin-where"], input[name="runin-shell"]')) i.checked = i.value === runIn.where || i.value === runIn.shell;
-    $('runin-note').textContent = [runIn.where === 'windows' ? 'Windows runs the commands in PowerShell 7.' : '',
+    $('runin-note').textContent = [runIn.where === 'cloudshell' ? (runIn.shell === 'bash' ? 'These blocks need Cloud Shell\'s Bash prompt (you@Azure:~$). If it shows PS /home/you>, type bash first.' : 'These blocks need Cloud Shell\'s PowerShell prompt (PS /home/you>). If it shows you@Azure:~$, type pwsh first.') : '',
+      runIn.where === 'windows' ? 'Windows runs the commands in PowerShell 7.' : '',
       runIn.where === 'cloudshell' ? '' : 'Each block signs in to Azure with a device code if this machine is not signed in yet.'].filter(Boolean).join(' ');
     for (const l of document.querySelectorAll('.run-label')) l.textContent = `Run in ${core.PLACES[runIn.where]}`;
     for (const pre of document.querySelectorAll('pre[data-raw]')) paint(pre);
