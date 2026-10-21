@@ -231,6 +231,10 @@ avd-current-state-20260617T143022/
 Both modes live in one script so they share the same check framework, report format and
 evidence package. Use `-Mode Both` to run them back to back.
 
+The checks are becoming one definition that avd-landing-zone carries as a pinned copy and adds its
+fixes to, with the avd-assess method running through the same evaluator
+([spec](docs/checks-spec.md)).
+
 Every parameter except `-Mode` is optional. Checks whose inputs are missing report `SKIP`
 with a note on what to supply, so a bare `.\avd_deployment_validator.ps1` still runs and
 tells you what it could not evaluate.
