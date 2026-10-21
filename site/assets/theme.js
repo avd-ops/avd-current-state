@@ -1,4 +1,4 @@
-/* avd-ops theme and drawer v2.2.0 (https://avd-ops.dev/, avd-ops/avd-ops site/assets/theme.js). MIT.
+/* avd-ops theme and drawer v2.4.1 (https://avd-ops.dev/, avd-ops/avd-ops site/assets/theme.js). MIT.
    Personal project, not for production, as is; not affiliated with the author's employer or Microsoft.
    Load it in <head> without defer: it applies a saved theme before the page paints, then wires the shell's theme
    button (.theme) and menu button (.menu, the drawer for the side list below 64rem). No libraries, no requests.
@@ -29,6 +29,17 @@
       try { window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', label); } catch (e) { /* old browser */ }
     }
 
+    // The notice in the bar opens over the page, so a click outside it, Escape or moving focus out of it closes it again.
+    var notice = document.querySelector('.shell header.bar .notice');
+    if (notice) {
+      // pointerdown, not click: iOS Safari sends no click for a tap on text or empty space.
+      document.addEventListener('pointerdown', function (e) { if (notice.open && !notice.contains(e.target)) notice.open = false; });
+      document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape' && notice.open) { notice.open = false; notice.querySelector('summary').focus(); }
+      });
+      notice.addEventListener('focusout', function (e) { if (notice.open && e.relatedTarget && !notice.contains(e.relatedTarget)) notice.open = false; });
+    }
+
     var menu = document.querySelector('.shell .menu');
     var side = document.querySelector('.shell .side');
     var backdrop = document.querySelector('.shell .backdrop');
@@ -36,7 +47,7 @@
     // The drawer class goes on the .shell element: the body on a page, a wrapper div in an artifact.
     var shell = menu.closest('.shell');
     // While the drawer is open the page behind it is inert, so Tab stays in the side list.
-    var behind = document.querySelectorAll('.shell header.bar, .shell .notice, .shell main, .shell footer.foot');
+    var behind = document.querySelectorAll('.shell header.bar, .shell main, .shell footer.foot');
     function setOpen(open, quiet) {
       shell.classList.toggle('drawer-open', open);
       for (var i = 0; i < behind.length; i++) { if (open) behind[i].setAttribute('inert', ''); else behind[i].removeAttribute('inert'); }
