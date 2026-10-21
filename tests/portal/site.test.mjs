@@ -76,7 +76,7 @@ test('the portal opens in the avd-ops shell bar, with the credit line', () => {
   assert.match(notice, /MIT License/);
   assert.match(notice, /Not affiliated with, endorsed by or supported by the author's employer/);
   assert.match(notice, /Not a certification, a compliance attestation or a security audit\./);
-  assert.match(bar, /<a href="https:\/\/avd-ops\.github\.io\/avd-landing-zone\/portal\/">Deploy<\/a><a href="\.\/" aria-current="page">Assess<\/a>/);
+  assert.match(bar, /<a href="https:\/\/deploy\.avd-ops\.dev\/portal\/">Deploy<\/a><a href="\.\/" aria-current="page">Assess<\/a>/);
   assert.match(bar, /class="iconbtn theme"/);
   assert.doesNotMatch(html, /class="iconbtn menu"|class="side"/, 'no side list in a portal');
   assert.match(html, /<p class="credit">A <a href="https:\/\/prignano\.ai\/">prignano\.ai<\/a> production<\/p>/);
