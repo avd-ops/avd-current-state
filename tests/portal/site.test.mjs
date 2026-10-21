@@ -68,7 +68,14 @@ test('the portal opens in the avd-ops shell bar, with the credit line', () => {
   const html = read('site/portal/index.html');
   assert.match(html, /<link rel="stylesheet" href="\.\.\/assets\/avd-ops-shell\.css">\s*<script src="\.\.\/assets\/theme\.js"><\/script>/);
   const bar = (html.match(/<header class="bar">([\s\S]*?)<\/header>/) || [])[1] || '';
-  assert.match(bar, /<a class="brand" href="https:\/\/avd-ops\.dev\/"><img class="mark" src="\.\.\/assets\/brand\/mark\.svg" alt=""[^>]*><span class="word">avd-ops<\/span><\/a>/);
+  assert.match(bar, /<a class="brand" href="https:\/\/avd-ops\.dev\/"><img class="mark" src="\.\.\/assets\/brand\/mark\.svg" alt="" width="44" height="44"><span class="name"><span class="word">avd-ops<\/span><span class="tag">Deploy quietly<\/span><\/span><\/a>/, 'brand as in the horizontal lockup');
+  // The research notice sits in the bar (design system 2.3.0): a pill that opens to the full text.
+  const notice = (bar.match(/<details class="notice" id="disclaimer">([\s\S]*?)<\/details>/) || [])[1] || '';
+  assert.match(notice, /<strong class="short">Not for production<\/strong>/);
+  assert.match(notice, /<strong>Personal project, not for production\.<\/strong> Provided as is, without warranty of any kind/);
+  assert.match(notice, /MIT License/);
+  assert.match(notice, /Not affiliated with, endorsed by or supported by the author's employer/);
+  assert.match(notice, /Not a certification, a compliance attestation or a security audit\./);
   assert.match(bar, /<a href="https:\/\/avd-ops\.github\.io\/avd-landing-zone\/portal\/">Deploy<\/a><a href="\.\/" aria-current="page">Assess<\/a>/);
   assert.match(bar, /class="iconbtn theme"/);
   assert.doesNotMatch(html, /class="iconbtn menu"|class="side"/, 'no side list in a portal');
