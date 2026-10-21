@@ -1,0 +1,3 @@
+[2026-10-21 09:10:44] [INFO]  Validation Complete -- READY WITH WARNINGS
+[2026-10-21 09:10:44] [INFO] FAIL 0 | WARN 3 | PASS 21 | INFO 4 | SKIP 2
+<<<AVDCS-STATE {"v":1,"stage":"analyze","status":"done","context":{"mode":"PostDeployment","package":"avd-validation-20261021T091000","verdict":"READY WITH WARNINGS"},"counts":{"fail":0,"info":4,"pass":21,"skip":2,"warn":3}} AVDCS-STATE>>>

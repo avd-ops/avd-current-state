@@ -356,6 +356,7 @@ Write-Log "Az modules loaded."
 # Rebuild-fidelity reads (docs/rebuild-fidelity-spec.md): pure helpers and the scope of what is read.
 Import-Module (Join-Path $PSScriptRoot 'lib/AvdRebuild.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot 'lib/AvdRebuildMap.psm1') -Force
+Import-Module (Join-Path $PSScriptRoot 'lib/AvdPortalState.psm1') -Force
 $script:RebuildScope    = Get-RebuildScope -Path (Join-Path $PSScriptRoot 'rebuild/scope.json')
 $script:RebuildReads    = [System.Collections.Generic.List[psobject]]::new()
 $script:RebuildWithheld = [System.Collections.Generic.List[psobject]]::new()
@@ -834,5 +835,28 @@ Write-Log "Summary         : $summaryPath"
 Write-Log "Subscriptions   : $($collectedSubs.Count) collected, $($skippedSubs.Count) skipped"
 Write-Log "Warnings        : $($script:Warnings.Count)"
 Write-Log '═══════════════════════════════════════════════════'
+
+# The assessment portal's state line (docs/assessment-portal-spec.md, section 3): counts and the package
+# folder's name only, never a name or an ID.
+$stateStatus = if (@($collectedSubs | Where-Object { $_ }).Count -eq 0) { 'failed' } elseif (@($skippedSubs | Where-Object { $_ }).Count) { 'partial' } else { 'done' }
+$stateCoverage = @{}
+foreach ($c in $script:RebuildCoverage) {
+    foreach ($k in @($c.Coverage.Keys)) {
+        if (-not $c.Coverage[$k]) { continue }
+        $prev = 0
+        if ($stateCoverage.ContainsKey($k)) { $prev = $stateCoverage[$k] }
+        $stateCoverage[$k] = $prev + [int]$c.Coverage[$k]
+    }
+}
+$stateCounts = @{
+    subscriptions = [int]@($collectedSubs | Where-Object { $_ }).Count
+    skipped       = [int]@($skippedSubs | Where-Object { $_ }).Count
+    datasets      = [int]@($grandTotals.Keys | Where-Object { $grandTotals[$_] -gt 0 }).Count
+    rows          = [int](($grandTotals.Values | Measure-Object -Sum).Sum)
+    hostPools     = [int]$hpCount
+    sessionHosts  = [int]$shCount
+    warnings      = [int]$script:Warnings.Count
+}
+Write-Host (Get-AvdcsStateLine -Stage 'collect' -Status $stateStatus -Context @{ package = $script:PackageName } -Counts $stateCounts -Coverage $stateCoverage)
 
 # endregion

@@ -712,6 +712,15 @@ try {
             Write-FactsLog "  $(($coverage.Needs -join ', ')) need measured usage: avd-readiness-stratusphere turns a 2-4 week Stratusphere UX window into a deployment-ready manifest (https://github.com/nickprignano/avd-readiness-stratusphere)."
         }
     }
+    # The assessment portal's state line (docs/assessment-portal-spec.md, section 3): the estate pseudonym
+    # the intake and the review are keyed by, and the snapshot's file name. No name or ID.
+    $portalState = Join-Path $PSScriptRoot 'lib/AvdPortalState.psm1'
+    if (Test-Path -LiteralPath $portalState) {
+        Import-Module $portalState -Force
+        Write-Host (Get-AvdcsStateLine -Stage 'facts' -Status 'done' -Context @{ estate = $snapshot.estate; snapshot = (Split-Path -Leaf $outFile) } -Counts @{
+                subscriptions = [int]$subscriptions.Count; hostPools = [int]@($subscriptions | ForEach-Object { $_.hostPools }).Count
+                validations = [int]$validations.Count; redacted = [int]$script:RedactedValues })
+    }
     Write-Output $outFile
 } finally {
     foreach ($dir in $script:TempDirs) { if (Test-Path -LiteralPath $dir) { Remove-Item -LiteralPath $dir -Recurse -Force -ErrorAction SilentlyContinue } }
