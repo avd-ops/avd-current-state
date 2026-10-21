@@ -37,6 +37,25 @@
   .actions{display:flex;flex-wrap:wrap;gap:var(--space-3);align-items:center;margin-top:var(--space-4)}
   .later{border-left:3px solid var(--line-strong);padding-left:var(--space-3);color:var(--muted)}
   [aria-invalid="true"]{border-color:var(--bad)!important}
+  .row>.filedrop{flex:1 1 260px}
+  table.findings caption{text-align:left;font:600 .85rem var(--display);color:var(--muted);padding:var(--space-2) .7rem}
+  table.findings td{vertical-align:middle}
+  table.findings td.check strong{display:block;font-weight:600}
+  table.findings td.check code{font-size:.75rem}
+  table.findings .carried{display:block;font-size:.78rem;color:var(--caution)}
+  table.findings select,table.findings input[type=text]{min-width:9rem}
+  table.findings textarea{min-height:2.4rem;min-width:12rem}
+  table.findings tr.hidden-pass{display:none}
+  /* Phones: one card per finding. */
+  @media (max-width:40rem){
+    .findings-wrap{border:0;background:none}
+    table.findings thead{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+    table.findings,table.findings tbody,table.findings tr,table.findings td{display:block;width:100%}
+    table.findings tr{border:1px solid var(--line);border-radius:var(--radius-sm);background:var(--surface);margin-bottom:var(--space-3);padding:var(--space-2) 0}
+    table.findings td{border:0;padding:.35rem .8rem}
+    table.findings td[data-label]::before{content:attr(data-label);display:block;font:600 .7rem var(--mono);text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:2px}
+    table.findings tr.hidden-pass{display:none}
+  }
 </style>
 </head>
 <body class="portal">
@@ -182,7 +201,37 @@
 
   <section class="panel stage hidden" id="stage-review" aria-labelledby="review-title">
     <h2 id="review-title">Review the findings <span class="muted">stage 4 of 5</span></h2>
-    <p class="later">Coming next. You'll load <code>assessment.json</code>, see each finding with its outcome and the standard behind it, and choose Fix, Accept or Defer with a reason. The choices are saved as <code>review.json</code> (avd-assessment-review/v1); private notes per finding go to your notes file.</p>
+    <p class="intro">Decide each finding: fix it, accept it with a reason, or defer it. The decisions become <code>review.json</code> (avd-assessment-review/v1), which pins the report by its hash and holds only check IDs and reason codes. A note on a finding goes to your private notes file.</p>
+    <div class="row">
+      <label class="filedrop" id="assessment-drop"><input type="file" id="assessment-file" accept=".json,application/json" aria-describedby="assessment-hint"><span class="what">Load assessment.json</span><span class="hint" id="assessment-hint">Drop it here or choose it. Read in your browser, never uploaded.</span><span class="file" id="assessment-name"></span><span class="error" id="assessment-error" role="alert"></span></label>
+      <label class="filedrop" id="prior-drop"><input type="file" id="prior-file" accept=".json,application/json" aria-describedby="prior-hint"><span class="what">Earlier review.json (optional)</span><span class="hint" id="prior-hint">Carries forward the decisions whose outcome didn't change, marked for a second look.</span><span class="file" id="prior-name"></span><span class="error" id="prior-error" role="alert"></span></label>
+    </div>
+    <div id="review-body" class="hidden">
+      <div class="result-line" id="review-summary"></div>
+      <div class="row">
+        <label class="switch"><input type="checkbox" id="hide-pass" checked><span><strong>Hide passing checks</strong></span></label>
+        <label class="field"><span>Reviewed on</span><input type="text" id="reviewedOn" autocomplete="off" placeholder="2026-10-21"></label>
+      </div>
+      <div class="table-wrap findings-wrap">
+        <table class="findings">
+          <caption>Findings, worst first</caption>
+          <thead><tr><th scope="col">Check</th><th scope="col">Outcome</th><th scope="col">Decision</th><th scope="col">Reason</th><th scope="col">Review by</th><th scope="col">Private note</th></tr></thead>
+          <tbody id="findings"></tbody>
+        </table>
+      </div>
+      <div class="actions"><button type="button" id="review-build">Build review.json</button><a class="btnlink secondary" id="notes-download-2" href="#" download="discovery-notes.md">Download notes with findings</a></div>
+      <div id="review-errors" aria-live="polite"></div>
+      <div id="review-out" class="hidden gap">
+        <div class="slot">
+          <div class="stop good">
+            <p class="label">Run in Cloud Shell</p>
+            <p class="muted">Writes <code>review.json</code> beside the evidence packages. It holds no names, so this block is safe to paste.</p>
+            <div class="term"><div class="term-head"><span class="term-label">Write review.json</span><button type="button" data-copy="review-cmd">Copy</button></div><pre id="review-cmd"></pre></div>
+            <div class="actions"><a class="btnlink secondary" id="review-download" href="#" download="review.json">Download review.json</a></div>
+          </div>
+        </div>
+      </div>
+    </div>
   </section>
 
   <section class="panel stage hidden" id="stage-plan" aria-labelledby="plan-title">

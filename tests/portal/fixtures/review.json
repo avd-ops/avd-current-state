@@ -1,0 +1,23 @@
+{
+  "schema": "avd-assessment-review/v1",
+  "estate": "est-0a1b2c3d",
+  "reviewedOn": "2026-10-21",
+  "assessment": {
+    "sha256": "5eacd525c2021d5aa501bbbc6adb75e77c476f31a0deed95bd313898f8b8399a",
+    "generatedUtc": "2026-10-20T10:00:00Z"
+  },
+  "decisions": [
+    {
+      "check": "asm-personal-start-vm-on-connect",
+      "outcome": "warn",
+      "disposition": "fix",
+      "reason": "fix-planned"
+    },
+    {
+      "check": "asm-profile-storage-private-endpoint",
+      "outcome": "pass",
+      "disposition": "accept",
+      "reason": "not-applicable"
+    }
+  ]
+}

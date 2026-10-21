@@ -102,3 +102,67 @@ test('the notes hold the narrative and say they are private', () => {
   assert.match(md, /Residency required: eastus2, centralus\./);
   assert.match(md, /07:00 to 19:00, Mon Tue Wed Thu Fri, America\/Chicago/);
 });
+
+// ---- Review (C23) ----
+
+const prior = { schema: 'avd-assessment-review/v1', estate: 'est-0a1b2c3d', reviewedOn: '2026-10-20', assessment: { sha256: 'a'.repeat(64), generatedUtc: '2026-10-20T10:00:00Z' },
+  decisions: [{ check: 'asm-personal-start-vm-on-connect', outcome: 'warn', disposition: 'accept', reason: 'cost', reviewBy: '2027-01-31' },
+    { check: 'asm-host-pool-diagnostics', outcome: 'warn', disposition: 'defer', reason: 'later-phase' }] };
+
+test('reads a C21 report and hashes its bytes', async () => {
+  const text = read('tests/portal/fixtures/assessment.json');
+  const { assessment, error } = core.parseAssessment(text);
+  assert.equal(error, '');
+  assert.equal(assessment.estate, 'est-0a1b2c3d');
+  assert.deepEqual(assessment.counts, { gap: 0, warn: 1, unknown: 0, pass: 1 });
+  assert.equal(await core.sha256Hex(readFileSync(root + 'tests/portal/fixtures/assessment.json')), '5eacd525c2021d5aa501bbbc6adb75e77c476f31a0deed95bd313898f8b8399a');
+  assert.equal(await core.sha256Hex(text), '5eacd525c2021d5aa501bbbc6adb75e77c476f31a0deed95bd313898f8b8399a');
+  assert.match(core.parseAssessment('{"schema":"avd-intake/v1"}').error, /isn't an avd-assessment\/v1/);
+  assert.match(core.parseAssessment('not json').error, /isn't JSON/);
+  assert.match(core.parseAssessment(JSON.stringify({ ...JSON.parse(text), results: [{ check: 'Contoso check', outcome: 'warn' }] })).error, /check ID/);
+});
+
+test('check IDs read as titles', () => {
+  assert.equal(core.checkTitle('asm-personal-start-vm-on-connect'), 'Personal start VM on connect');
+  assert.equal(core.checkTitle('asm-image-wdot'), 'Image wdot');
+});
+
+test('starts worst first and carries forward only unchanged outcomes', () => {
+  const { assessment } = core.parseAssessment(read('tests/portal/fixtures/assessment-wide.json'));
+  const rows = core.startReview(assessment, prior);
+  assert.deepEqual(rows.map((r) => r.outcome), ['gap', 'warn', 'warn', 'unknown', 'pass']);
+  const svm = rows.find((r) => r.check === 'asm-personal-start-vm-on-connect');
+  assert.deepEqual(svm, { check: 'asm-personal-start-vm-on-connect', outcome: 'warn', disposition: 'accept', reason: 'cost', carriedForward: true, reviewBy: '2027-01-31' });
+  assert.equal(rows.find((r) => r.check === 'asm-host-pool-diagnostics').disposition, '', 'its outcome changed from warn to gap, so it is decided again');
+  assert.ok(core.startReview(assessment, { ...prior, estate: 'est-ffffffff' }).every((r) => !r.disposition), 'another estate\'s review is ignored');
+});
+
+test('the decisions become review.json and the fixture, byte for byte', () => {
+  const { assessment } = core.parseAssessment(read('tests/portal/fixtures/assessment.json'));
+  const rows = core.startReview(assessment, null);
+  rows[0].disposition = 'fix'; rows[0].reason = 'fix-planned'; rows[0].reviewBy = '2027-01-01';
+  rows[1].disposition = 'accept'; rows[1].reason = 'not-applicable';
+  const { review, errors } = core.buildReview(assessment, '5eacd525c2021d5aa501bbbc6adb75e77c476f31a0deed95bd313898f8b8399a', rows, '2026-10-21');
+  assert.deepEqual(errors, []);
+  assert.equal(review.decisions[0].reviewBy, undefined, 'a fix has no review-by date');
+  assert.equal(JSON.stringify(review, null, 2) + '\n', read('tests/portal/fixtures/review.json'));
+  const cmd = core.reviewCommand(review);
+  assert.match(cmd, /\$file = Join-Path \$out 'review\.json'/);
+  assert.deepEqual(JSON.parse(cmd.split("\n@'\n")[1].split("\n'@ | Set-Content")[0]), review);
+});
+
+test('review refuses a reason that does not fit, and an empty review', () => {
+  const { assessment } = core.parseAssessment(read('tests/portal/fixtures/assessment.json'));
+  const rows = core.startReview(assessment, null);
+  rows[0].disposition = 'fix'; rows[0].reason = 'cost';
+  assert.match(core.buildReview(assessment, 'b'.repeat(64), rows, '2026-10-21').errors.join(), /pick a reason for fix/);
+  assert.match(core.buildReview(assessment, 'b'.repeat(64), core.startReview(assessment, null), '2026-10-21').errors.join(), /at least one/);
+  rows[0].reason = 'fix-planned';
+  assert.match(core.buildReview(assessment, '', rows, '2026-10-21').errors.join(), /hash/);
+});
+
+test('finding notes join the private notes file, never the review', () => {
+  const md = core.notesMarkdown(answers, {}, '2026-10-21', { 'asm-image-wdot': 'Image team rebuilds monthly.', 'asm-session-host-backup': '  ' });
+  assert.match(md, /## Findings\n\n### Image wdot \(asm-image-wdot\)\n\nImage team rebuilds monthly\./);
+  assert.doesNotMatch(md, /asm-session-host-backup/);
+});

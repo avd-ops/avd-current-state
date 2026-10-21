@@ -198,15 +198,7 @@
   // here-string, which PowerShell never expands; buildIntake only lets structured values through, and the
   // check below refuses anything that could end the here-string early.
   function intakeCommand(intake) {
-    const json = JSON.stringify(intake, null, 2);
-    if (/^'@/m.test(json) || /[^\x20-\x7e\n]/.test(json)) throw new Error('intake.json holds a character the block cannot carry.');
-    return preamble({ signIn: false }).concat([
-      "$intake = Join-Path $out 'intake.json'",
-      "@'",
-      json,
-      "'@ | Set-Content -Path $intake -Encoding utf8",
-      'Get-Content $intake'
-    ]).join('\n');
+    return fileCommand('intake.json', intake);
   }
 
   const TOPICS = [
@@ -220,7 +212,7 @@
 
   // The discovery notes: the narrative an interview gives, which no contract holds. Markdown, for the
   // operator's own device only.
-  function notesMarkdown(a, notes, today) {
+  function notesMarkdown(a, notes, today, findingNotes) {
     const ans = a || {};
     const nt = notes || {};
     const answer = {
@@ -244,13 +236,123 @@
       const text = String(nt[key] || '').trim();
       out.push(text || '_No notes._', '');
     }
+    const findings = Object.keys(findingNotes || {}).filter((k) => String(findingNotes[k] || '').trim()).sort();
+    if (findings.length) {
+      out.push('## Findings', '');
+      for (const k of findings) out.push(`### ${checkTitle(k)} (${k})`, '', String(findingNotes[k]).trim(), '');
+    }
     return out.join('\n');
+  }
+
+  // ---- Review: review.json (C23) ------------------------------------------------------------------
+
+  const OUTCOMES = ['gap', 'warn', 'unknown', 'pass'];
+  const REASONS = {
+    fix: ['fix-planned'],
+    accept: ['cost', 'compensating-control', 'business-need', 'not-applicable'],
+    defer: ['needs-evidence', 'out-of-scope', 'later-phase']
+  };
+  const REASON_LABELS = {
+    'fix-planned': 'Fix planned', cost: 'Cost', 'compensating-control': 'Compensating control', 'business-need': 'Business need',
+    'not-applicable': 'Not applicable', 'needs-evidence': 'Needs evidence', 'out-of-scope': 'Out of scope', 'later-phase': 'Later phase'
+  };
+  const CHECK_RE = /^asm-[a-z0-9-]{3,60}$/;
+  const UTC_RE = /^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$/;
+
+  // SHA-256 of a file's bytes (an ArrayBuffer or a string, as UTF-8), as hex. Web Crypto, in the browser and Node.
+  async function sha256Hex(data) {
+    const bytes = typeof data === 'string' ? new TextEncoder().encode(data) : new Uint8Array(data);
+    const digest = await globalThis.crypto.subtle.digest('SHA-256', bytes);
+    return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, '0')).join('');
+  }
+
+  // The parts of an avd-assessment/v1 report the review needs, or why the text isn't one. C21 holds no names,
+  // so the page may keep this summary.
+  function parseAssessment(text) {
+    let doc;
+    try { doc = JSON.parse(String(text || '')); } catch (e) { return { assessment: null, error: 'This isn\'t JSON. Load the assessment.json the validator wrote.' }; }
+    if (!doc || doc.schema !== 'avd-assessment/v1') return { assessment: null, error: 'This isn\'t an avd-assessment/v1 report (its schema field says otherwise).' };
+    if (!ESTATE_RE.test(doc.estate || '') || !UTC_RE.test(doc.generatedUtc || '') || !Array.isArray(doc.results)) return { assessment: null, error: 'The report is missing its estate, its generatedUtc or its results.' };
+    const results = [];
+    for (const r of doc.results) {
+      if (!r || !CHECK_RE.test(r.check || '') || !OUTCOMES.includes(r.outcome)) return { assessment: null, error: 'A result has a check ID or an outcome this page doesn\'t know.' };
+      results.push({ check: r.check, outcome: r.outcome, subjects: Array.isArray(r.subjects) ? r.subjects.length : 0, facts: Array.isArray(r.facts) ? r.facts.filter((f) => typeof f === 'string') : [] });
+    }
+    const counts = { gap: 0, warn: 0, unknown: 0, pass: 0 };
+    for (const r of results) counts[r.outcome]++;
+    return { assessment: { estate: doc.estate, generatedUtc: doc.generatedUtc, results, counts }, error: '' };
+  }
+
+  // A readable name for a check ID until the pinned method's titles arrive with the validator's assess mode:
+  // asm-personal-start-vm-on-connect -> Personal start VM on connect.
+  function checkTitle(id) {
+    const words = String(id).replace(/^asm-/, '').split('-').map((w) => (/^(vm|avd|rdp|fslogix|nsg|udr|dns|sku|ip)$/.test(w) ? w.toUpperCase() : w));
+    const t = words.join(' ');
+    return t.charAt(0).toUpperCase() + t.slice(1);
+  }
+
+  // The starting decisions for a report: worst outcomes first; a decision from an earlier review carries forward,
+  // marked for a second look, when the check's outcome didn't change. An earlier review for another estate is ignored.
+  function startReview(assessment, prior) {
+    const rank = (o) => OUTCOMES.indexOf(o);
+    const earlier = {};
+    if (prior && prior.schema === 'avd-assessment-review/v1' && prior.estate === assessment.estate && Array.isArray(prior.decisions)) {
+      for (const d of prior.decisions) if (d && REASONS[d.disposition] && REASONS[d.disposition].includes(d.reason)) earlier[d.check] = d;
+    }
+    return assessment.results.slice().sort((a, b) => rank(a.outcome) - rank(b.outcome) || a.check.localeCompare(b.check)).map((r) => {
+      const d = earlier[r.check];
+      const row = { check: r.check, outcome: r.outcome, disposition: '', reason: '' };
+      if (d && d.outcome === r.outcome) Object.assign(row, { disposition: d.disposition, reason: d.reason, carriedForward: true }, d.reviewBy ? { reviewBy: d.reviewBy } : {});
+      return row;
+    });
+  }
+
+  // The decided rows as an avd-assessment-review/v1 object, or what is wrong. Undecided rows are left out: the
+  // plan treats a finding with no decision as fix when its outcome isn't pass.
+  function buildReview(assessment, sha256, rows, reviewedOn) {
+    const errors = [];
+    if (!assessment) errors.push('Load assessment.json first.');
+    if (!/^[0-9a-f]{64}$/.test(sha256 || '')) errors.push('The report\'s hash is missing; load the file again.');
+    if (!DATE_RE.test(reviewedOn || '')) errors.push('Reviewed on must be a date.');
+    const decisions = [];
+    for (const r of rows || []) {
+      if (!r.disposition) continue;
+      if (!REASONS[r.disposition] || !REASONS[r.disposition].includes(r.reason)) { errors.push(`${checkTitle(r.check)}: pick a reason for ${r.disposition}.`); continue; }
+      const d = { check: r.check, outcome: r.outcome, disposition: r.disposition, reason: r.reason };
+      if (r.reviewBy && r.disposition !== 'fix') {
+        if (!DATE_RE.test(r.reviewBy)) { errors.push(`${checkTitle(r.check)}: review by must be a date.`); continue; }
+        d.reviewBy = r.reviewBy;
+      }
+      if (r.carriedForward) d.carriedForward = true;
+      decisions.push(d);
+    }
+    if (!decisions.length && !errors.length) errors.push('Decide at least one finding.');
+    if (errors.length) return { review: null, errors };
+    return { errors, review: { schema: 'avd-assessment-review/v1', estate: assessment.estate, reviewedOn, assessment: { sha256, generatedUtc: assessment.generatedUtc }, decisions } };
+  }
+
+  // A block that writes review.json beside the packages, the same way as intake.json.
+  function reviewCommand(review) {
+    return fileCommand('review.json', review);
+  }
+
+  function fileCommand(name, obj) {
+    const json = JSON.stringify(obj, null, 2);
+    if (/^'@/m.test(json) || /[^\x20-\x7e\n]/.test(json)) throw new Error(`${name} holds a character the block cannot carry.`);
+    return preamble({ signIn: false }).concat([
+      `$file = Join-Path $out '${name}'`,
+      "@'",
+      json,
+      "'@ | Set-Content -Path $file -Encoding utf8",
+      'Get-Content $file'
+    ]).join('\n');
   }
 
   return {
     STAGES, HUBS, IDENTITY, DAYS, TOPICS,
     parseStateLines, latestStates, summarizeCollect, summarizeAnalyze,
     psQuote, nameList, collectCommand, analyzeCommand,
-    regionList, buildIntake, intakeCommand, notesMarkdown
+    regionList, buildIntake, intakeCommand, notesMarkdown,
+    REASONS, REASON_LABELS, sha256Hex, parseAssessment, checkTitle, startReview, buildReview, reviewCommand
   };
 });

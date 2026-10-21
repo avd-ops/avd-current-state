@@ -1,6 +1,6 @@
 # Spec: the assessment portal
 
-Status: accepted, 2026-10-20. Phase 1 built 2026-10-21 (Collect, Discover, Analyze; see section 7). No Azure, no spend.
+Status: accepted, 2026-10-20. Phase 1 built 2026-10-21 (Collect, Discover, Analyze); phase 2 built 2026-10-21 (Review). See section 7. No Azure, no spend.
 
 The owner asked (2026-10-20) for one page that walks an operator through a whole assessment, the way the [avd-landing-zone deployment portal](https://github.com/nickprignano/avd-landing-zone/tree/master/site/portal) walks them through a deployment. It lives here, because avd-current-state is the signal engine: it collects what is there now and judges it against the standards in [avd-assess](https://github.com/nickprignano/avd-assess). The landing zone stays the deployment engine; the brain and avd-swarm stay optional layers on top.
 
@@ -65,10 +65,12 @@ Both follow the foundation rules: no names, IDs or free text; the estate pseudon
 |---|---|
 | `schema`, `estate`, `reviewedOn` | As C21 |
 | `assessment` | `sha256` of the `assessment.json` it reviews, and its `generatedUtc` |
-| `decisions[]` | `check` (C21 check ID), `disposition` (`fix`, `accept`, `defer`), `reason` (enum: `fix-planned`, `cost`, `compensating-control`, `business-need`, `not-applicable`, `needs-evidence`, `out-of-scope`, `later-phase`) |
+| `decisions[]` | `check` (C21 check ID), `outcome` (the C21 outcome it was decided against), `disposition` (`fix`, `accept`, `defer`), `reason` (enum: `fix-planned` for a fix; `cost`, `compensating-control`, `business-need`, `not-applicable` for an accept; `needs-evidence`, `out-of-scope`, `later-phase` for a defer), optional `reviewBy` (a date to look again; never on a fix), optional `carriedForward` (true when the decision came from an earlier review) |
 | `extensions` | Optional, upper layers only |
 
 A review pins the report it reviewed. A new run produces a new report, and the portal carries the earlier dispositions forward for checks whose outcome didn't change, marked for a second look.
+
+Built in avd-assess #18 (`contracts/schemas/assessment-review.schema.json`): the schema itself refuses a reason that doesn't fit its disposition.
 
 **C24 `avd-remediation-plan/v1` (`plan.json`)**
 
@@ -100,7 +102,7 @@ Accessibility: every control is reachable by keyboard; the findings table is a r
 
 ## 6. Tests
 
-- `node --test "tests/portal/*.test.mjs"`: the engine against fixtures (state lines, a C21 report, a review), the heredoc builder (only structured values, quoted), the C23 and C24 writers validated against avd-assess's schemas (pinned copies in `contracts/`), carry-forward of dispositions, and a privacy test: no `fetch`, `XMLHttpRequest`, `WebSocket` or external URL in the page.
+- `node --test "tests/portal/*.test.mjs"`: the engine against fixtures (state lines, a C21 report, a review), the heredoc builder (only structured values, quoted), the C23 and C24 writers validated against avd-assess's schemas (fetched at a pinned commit in CI), carry-forward of dispositions, and a privacy test: no `fetch`, `XMLHttpRequest`, `WebSocket` or external URL in the page.
 - Playwright in a real browser (the owner's rule for portal UI): each stage on desktop and phone width, light and dark, keyboard through the segmented control.
 - The notice at the top of the page and of `assess-core.js` (the entry-point test).
 - American English and ASCII, as the rest of the repo.
@@ -113,7 +115,7 @@ All offline until the last.
 |---|---|
 | 0 | This spec |
 | 1 | avd-ops: promote the portal components (design system 1.1.0), the landing zone re-vendors them. Here: `site/` with the vendored design system, the stepper shell, Settings, Collect and Analyze blocks, the state line in both scripts, Discover writing `intake.json` and the notes file, Pages workflow. **Built** 2026-10-21. Analyze runs the validator's post-deployment checks until its assess mode lands; `intake.json` is checked against avd-assess's C19 example and schema at a pinned commit in CI |
-| 2 | avd-assess: C23. Here: Review (findings table, dispositions, carry-forward), `review.json` |
+| 2 | avd-assess: C23. Here: Review (findings table, dispositions, carry-forward), `review.json`. **Built** 2026-10-21. A finding's title comes from its check ID until the check catalog (C22) gives titles, pillars and claims; the engine's `review.json` fixture and the C21 example are checked against avd-assess's schemas at a pinned commit in CI |
 | 3 | avd-assess: C24. Here: Plan, `plan.json` and `plan.md`, using `rebuild/lz-parameters.json` and the check catalog's remediation hints |
 | 4 | Publish to the operator's own subscription (the landing zone's #74 pattern), and a Report a problem button that redacts in the browser (decision 5 below) |
 | 5 | One sandbox walk-through end to end, with a written cost estimate and the owner's go |
