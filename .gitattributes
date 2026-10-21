@@ -4,3 +4,5 @@
 
 # Vendored contract files are hashed byte for byte (contracts/PINS.json).
 contracts/*.json -text
+# So is the method (assess/PINS.json), which the facts script checks before -Assess.
+assess/*.json -text
