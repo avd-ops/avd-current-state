@@ -50,6 +50,18 @@ BeforeAll {
       @{ DisplayName = 'Contoso Ops'; RoleDefinitionName = 'Contoso Custom Operator'; ObjectType = 'Group'; ObjectId = '1f1e2d3c-4b5a-4968-8778-695a4b3c2d1e' })
     Write-TestJson "$sub/policy-assignments.json" @(@{ DisplayName = 'Contoso allowed locations'; EnforcementMode = 'Default' })
     Write-TestJson "$sub/log-analytics-workspaces.json" @(@{ Name = 'law-contoso'; RetentionDays = 30; CustomerId = '2f1e2d3c-4b5a-4968-8778-695a4b3c2d1e' })
+    # Resource Graph and REST rows the collector saves under rebuild/; ARM omits empty properties.
+    Write-TestJson "$sub/rebuild/resources/microsoft.compute-virtualmachines.json" @(0..($Hosts - 1) | ForEach-Object {
+        $vm = @{ id = $vmIds[$_]; name = "avdhost-$_"; type = 'microsoft.compute/virtualmachines'; properties = @{ hardwareProfile = @{ vmSize = 'Standard_D4ads_v5' } } }
+        if ($_ -ne 0) { $vm.properties.securityProfile = @{ securityType = 'TrustedLaunch'; uefiSettings = @{ secureBootEnabled = $true; vTpmEnabled = $true } } }
+        $vm })
+    Write-TestJson "$sub/rebuild/resources/microsoft.storage-storageaccounts.json" @(@{ id = $script:stId; name = 'stcontosoprofiles'
+        properties = @{ azureFilesIdentityBasedAuthentication = @{ directoryServiceOptions = 'AADKERB' } } })
+    Write-TestJson "$sub/rebuild/rest/file-services.json" @(@{ parentId = $script:stId; status = 'ok'; error = ''
+        items = @(@{ id = "$($script:stId)/fileServices/default"; properties = @{ protocolSettings = @{ smb = @{ channelEncryption = 'AES-128-GCM;AES-256-GCM;' } } } }) })
+    Write-TestJson "$sub/rebuild/resources/microsoft.security-pricings.json" @(
+      @{ id = "/subscriptions/$($script:subId)/providers/Microsoft.Security/pricings/VirtualMachines"; name = 'VirtualMachines'; properties = @{ pricingTier = 'Standard'; subPlan = 'P2' } }
+      @{ id = "/subscriptions/$($script:subId)/providers/Microsoft.Security/pricings/StorageAccounts"; name = 'StorageAccounts'; properties = @{ pricingTier = 'Free' } })
     $pkg
   }
 
@@ -112,6 +124,33 @@ Describe 'avd_current_state_facts.ps1' {
     $sub.roleAssignments.roles.other | Should -Be 1
   }
 
+  It 'keeps the security facts the assess method checks, without a property value' {
+    $sub = $script:run.Data.subscriptions[0]
+    $hp = $sub.hostPools[0]
+    $hp.redirection.drives | Should -Be 'off'
+    $hp.redirection.usb | Should -Be 'default'
+    $hp.redirection.camera | Should -Be 'default'
+    $hp.sessionHosts.trustedLaunch | Should -Be 2
+    $hp.sessionHosts.notTrustedLaunch | Should -Be 1
+    $sub.storageAccounts[0].smbChannelEncryption | Should -Be 'gcm'
+    $sub.storageAccounts[0].filesIdentity | Should -Be 'AADKERB'
+    $sub.defenderPlans.VirtualMachines | Should -Be 'Standard'
+    $sub.defenderPlans.StorageAccounts | Should -Be 'Free'
+  }
+
+  It 'leaves the security facts out when a package has no rebuild rows' {
+    $dir = Join-Path $TestDrive 'no-rebuild'
+    $pkg = New-TestCollector $dir
+    Get-ChildItem $pkg -Recurse -Directory -Filter 'rebuild' | Remove-Item -Recurse
+    $r = Invoke-Facts -Packages $dir -Key $script:key -Out (Join-Path $TestDrive 'out7')
+    $sub = $r.Data.subscriptions[0]
+    $sub.PSObject.Properties.Name | Should -Not -Contain 'defenderPlans'
+    $sub.hostPools[0].sessionHosts.PSObject.Properties.Name | Should -Not -Contain 'notTrustedLaunch'
+    $sub.storageAccounts[0].PSObject.Properties.Name | Should -Not -Contain 'smbChannelEncryption'
+    $errs = $null
+    Test-Json -Json $r.Text -SchemaFile $script:schema -ErrorVariable errs -ErrorAction SilentlyContinue | Should -BeTrue -Because "$errs"
+  }
+
   It 'points validator checks at pseudonyms and redacts a check name that holds a resource name' {
     $v = $script:run.Data.validations[0]
     $v.inputs.sessionHostCount | Should -Be 3
@@ -159,7 +198,7 @@ Describe 'avd_current_state_facts.ps1' {
     ($log | Where-Object { $_ -like '*Manifest coverage:*' }) | Should -Not -Match 'host pool type'
   }
 
-  It 'vendors the fact register byte for byte from avd-second-brain' {
+  It 'vendors the fact register byte for byte from avd-assess' {
     $pins = Get-Content (Join-Path $script:root 'contracts/PINS.json') -Raw | ConvertFrom-Json
     foreach ($f in $pins.files.PSObject.Properties) {
       (Get-FileHash (Join-Path $script:root "contracts/$($f.Name)") -Algorithm SHA256).Hash.ToLowerInvariant() | Should -Be $f.Value -Because $f.Name

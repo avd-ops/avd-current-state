@@ -64,7 +64,7 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
-$script:FactsVersion = '1.0.0'
+$script:FactsVersion = '1.1.0'
 $script:TempDirs = New-Object System.Collections.Generic.List[string]
 $script:RedactedValues = 0
 
@@ -185,6 +185,63 @@ function Get-OptionalBool {
     return (Test-True $Value)
 }
 
+function Get-PathValue {
+    # StrictMode-safe dotted path read (properties.securityProfile.securityType). ARM omits empty
+    # properties, so a missing segment returns the default.
+    param([object]$InputObject, [string]$Path, $Default = $null)
+    $current = $InputObject
+    foreach ($segment in ($Path -split '\.')) {
+        $current = Get-Prop $current $segment
+        if ($null -eq $current) { return $Default }
+    }
+    return $current
+}
+
+function Get-RedirectionFact {
+    # Device redirection from a host pool's custom RDP properties: 'on' or 'off' per kind when the
+    # property is set, 'default' when it isn't. The property's value (a drive or device list) is
+    # never copied.
+    param([string]$CustomRdpProperty)
+    $set = @{}
+    foreach ($pair in ($CustomRdpProperty -split ';')) {
+        $parts = $pair -split ':', 3
+        if ($parts.Count -lt 3) { continue }
+        $set[$parts[0].Trim().ToLowerInvariant()] = $parts[2].Trim()
+    }
+    $kinds = [ordered]@{
+        drives = 'drivestoredirect'; clipboard = 'redirectclipboard'; printers = 'redirectprinters'; usb = 'usbdevicestoredirect'
+        comPorts = 'redirectcomports'; smartCards = 'redirectsmartcards'; camera = 'camerastoredirect'; webAuthn = 'redirectwebauthn'
+    }
+    $result = [ordered]@{}
+    foreach ($k in $kinds.Keys) {
+        $name = $kinds[$k]
+        if (-not $set.ContainsKey($name)) { $result[$k] = 'default'; continue }
+        $value = $set[$name]
+        if ($name -like 'redirect*') { $result[$k] = $(if ($value -eq '0') { 'off' } else { 'on' }) }
+        else { $result[$k] = $(if ($value -eq '') { 'off' } else { 'on' }) }
+    }
+    return $result
+}
+
+function Get-SmbChannelEncryptionFact {
+    # avd-assess obs:smb-channel-aes128-gcm-needed: AES-256-GCM alone denies Entra Kerberos sessions.
+    param([string]$Value)
+    $algs = @($Value -split ';' | ForEach-Object { $_.Trim() } | Where-Object { $_ })
+    if ($algs.Count -eq 0) { return 'default' }
+    if (@($algs | Where-Object { $_ -like '*CCM' }).Count -gt 0) { return 'includes-ccm' }
+    if ($algs -contains 'AES-128-GCM') { return 'gcm' }
+    return 'aes256-gcm-only'
+}
+
+function Test-TrustedLaunch {
+    # Trusted launch (or a confidential VM) with Secure Boot and vTPM on, from a VM's Resource Graph row.
+    param([object]$Vm)
+    $type = "$(Get-PathValue $Vm 'properties.securityProfile.securityType' '')"
+    return ($type -in @('TrustedLaunch', 'ConfidentialVM') -and
+        (Test-True (Get-PathValue $Vm 'properties.securityProfile.uefiSettings.secureBootEnabled')) -and
+        (Test-True (Get-PathValue $Vm 'properties.securityProfile.uefiSettings.vTpmEnabled')))
+}
+
 # endregion
 
 # region Packages
@@ -278,6 +335,34 @@ function Get-SubscriptionFact {
         Add-KnownNamesFrom $ds[$n]
     }
 
+    # The collector's rebuild/ rows hold what the datasets don't: VM security profiles, file service
+    # settings, the storage identity source and Defender plans. An older package has none of them,
+    # and those facts are left out (a check then reads them as unknown).
+    $rebuild = Join-Path $Directory 'rebuild'
+    $rbById = @{}
+    foreach ($type in @('microsoft.compute-virtualmachines', 'microsoft.storage-storageaccounts')) {
+        foreach ($row in @(Read-JsonFile -Path (Join-Path $rebuild "resources/$type.json"))) {
+            $rid = "$(Get-Prop $row 'id' '')".ToLowerInvariant()
+            if ($rid) { $rbById[$rid] = $row }
+        }
+    }
+    $fileServices = @{}
+    foreach ($read in @(Read-JsonFile -Path (Join-Path $rebuild 'rest/file-services.json'))) {
+        if ("$(Get-Prop $read 'status' '')" -ne 'ok') { continue }
+        $item = @(Get-Prop $read 'items' @()) | Select-Object -First 1
+        if ($null -ne $item) { $fileServices["$(Get-Prop $read 'parentId' '')".ToLowerInvariant()] = $item }
+    }
+    $pricingFile = Join-Path $rebuild 'resources/microsoft.security-pricings.json'
+    $defenderPlans = $null
+    if (Test-Path -LiteralPath $pricingFile) {
+        $defenderPlans = [ordered]@{}
+        foreach ($row in @(Read-JsonFile -Path $pricingFile | Sort-Object { "$(Get-Prop $_ 'name' '')" })) {
+            $plan = "$(Get-Prop $row 'name' '')"
+            $tier = "$(Get-PathValue $row 'properties.pricingTier' '')"
+            if ($plan -cmatch '^[A-Za-z][A-Za-z0-9]{1,40}$' -and $tier -in @('Free', 'Standard')) { $defenderPlans[$plan] = $tier }
+        }
+    }
+
     $vmById = @{}
     foreach ($vm in $ds['virtual-machines']) {
         $id = "$(Get-Prop $vm 'Id' '')".ToLowerInvariant()
@@ -307,6 +392,7 @@ function Get-SubscriptionFact {
             validationEnvironment = Get-OptionalBool (Get-Prop $hp 'ValidationEnvironment')
             startVmOnConnect      = Get-OptionalBool (Get-Prop $hp 'StartVMOnConnect')
             rdpProperties         = @($rdp | Sort-Object -Unique)
+            redirection           = Get-RedirectionFact "$(Get-Prop $hp 'CustomRdpProperty' '')"
             appGroups             = [ordered]@{}
             sessionHosts          = $null
             vmSizes               = [ordered]@{}
@@ -365,6 +451,15 @@ function Get-SubscriptionFact {
             osVersions       = Get-CountMap @($hosts | ForEach-Object { Get-Prop $_ 'OSVersion' }) '^[0-9][0-9.]{0,30}$'
             updateStates     = Get-CountMap @($hosts | ForEach-Object { Get-Prop $_ 'UpdateState' }) '^[A-Za-z]{2,40}$'
         }
+        $rbVms = @($hosts | ForEach-Object {
+                $vmId = "$(Get-Prop $_ 'ResourceId' '')".ToLowerInvariant()
+                if ($rbById.ContainsKey($vmId)) { $rbById[$vmId] }
+            })
+        if ($rbVms.Count -gt 0) {
+            $trusted = @($rbVms | Where-Object { Test-TrustedLaunch $_ }).Count
+            $entry.sessionHosts.trustedLaunch = $trusted
+            $entry.sessionHosts.notTrustedLaunch = $rbVms.Count - $trusted
+        }
         $entry.vmSizes = Get-CountMap @($vms | ForEach-Object { Get-Prop $_ 'VMSize' }) '^Standard_[A-Za-z0-9_]{1,40}$'
         $images = @{}
         foreach ($vm in $vms) {
@@ -393,7 +488,8 @@ function Get-SubscriptionFact {
     }
     $storage = @($ds['storage-accounts'] | ForEach-Object {
             $name = "$(Get-Prop $_ 'StorageAccountName' '')".ToLowerInvariant()
-            [ordered]@{
+            $stId = "$(Get-Prop $_ 'Id' '')".ToLowerInvariant()
+            $st = [ordered]@{
                 id                   = Get-Pseudonym 'st' (Get-Prop $_ 'Id' '')
                 region               = Get-PublicValue (Get-Prop $_ 'Location') '^[a-z0-9]{2,40}$'
                 kind                 = Get-PublicValue (Get-Prop $_ 'Kind') '^[A-Za-z0-9]{2,40}$'
@@ -405,6 +501,14 @@ function Get-SubscriptionFact {
                 largeFileShares      = Get-PublicValue (Get-Prop $_ 'LargeFileShares') '^[A-Za-z]{2,20}$'
                 privateEndpoint      = $peTargets.ContainsKey($name)
             }
+            if ($fileServices.ContainsKey($stId)) {
+                $st.smbChannelEncryption = Get-SmbChannelEncryptionFact "$(Get-PathValue $fileServices[$stId] 'properties.protocolSettings.smb.channelEncryption' '')"
+            }
+            if ($rbById.ContainsKey($stId)) {
+                $source = "$(Get-PathValue $rbById[$stId] 'properties.azureFilesIdentityBasedAuthentication.directoryServiceOptions' 'None')"
+                $st.filesIdentity = $(if ($source -in @('AADKERB', 'AD', 'AADDS', 'None')) { $source } else { 'other' })
+            }
+            $st
         } | Where-Object { $_.id })
 
     $routes = @($ds['route-tables'] | ForEach-Object {
@@ -428,7 +532,7 @@ function Get-SubscriptionFact {
         $counts[$key] = $ds[$n].Count
     }
 
-    return [ordered]@{
+    $result = [ordered]@{
         id              = Get-Pseudonym 'sub' $SubscriptionId
         collectedUtc    = $CollectedUtc
         regions         = $regions
@@ -471,6 +575,8 @@ function Get-SubscriptionFact {
             objectTypes = Get-CountMap @($ds['role-assignments'] | ForEach-Object { Get-Prop $_ 'ObjectType' }) '^[A-Za-z]{2,40}$'
         }
     }
+    if ($null -ne $defenderPlans) { $result.defenderPlans = $defenderPlans }
+    return $result
 }
 
 function Get-ValidationFact {
