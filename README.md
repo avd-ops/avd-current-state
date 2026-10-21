@@ -325,7 +325,7 @@ always win. Keys beginning with `_` are treated as comments.
 | Region | Target region availability, AVD metadata region support (read live from the resource provider) |
 | Capacity | VM SKU availability and restrictions, availability zone support, Hyper-V generation, per-family vCPU quota, total regional vCPU quota, network interface quota. On a family quota failure it names the families in the region that do have headroom, and it warns when the regional ceiling is passed by less than one more host |
 | Resource group | Existence, and `ReadOnly` locks that would block deployment |
-| Policy | Allowed-locations and allowed-SKU policies compared against the target, deny-effect assignment sweep, unexpanded initiative count |
+| Policy | Allowed-locations and allowed-SKU policies compared against the target, deny-effect sweep that expands initiatives and resolves parameterized effects, DoNotEnforce assignments reported apart |
 | Network | VNet existence and region match, custom DNS for domain join, peering health, subnet existence, usable IP capacity vs. host count plus buffer, subnet delegation, outbound egress path (NAT gateway / forced tunneling / no default route), NSG rules that would block outbound 443 to the AVD control plane |
 | Storage | Account existence, premium tier, identity-based authentication, minimum TLS, large file shares, storage firewall reachability from the session host subnet, file share existence and quota |
 | Image | Gallery image version existence, replication into the target region, end-of-life date, generalized OS state, and the [WDOT](https://github.com/The-Virtual-Desktop-Team/Windows-Desktop-Optimization-Tool) pin the version records (the `avdlz-wdot` tag the landing zone's image pipeline writes; INFO when absent) |
@@ -488,7 +488,7 @@ Each script ends with one line the page reads, `<<<AVDCS-STATE {...} AVDCS-STATE
 ### Deployment Validator
 
 - **Endpoint probes reflect the machine running the script**, not a session host, unless you run it on one.
-- **Policy initiatives are not expanded.** Deny effects inside an assigned initiative are reported as unexpanded, not evaluated.
+- **Policy effects are read, not simulated.** Initiatives are expanded and parameterized effects are resolved, but policy conditions, exemptions and effects set by other template expressions are not evaluated, so a deny listed here may not apply to this deployment.
 - **Quota reflects the moment of the run.** Another deployment can consume the headroom reported here.
 - **Single subscription per run.** Deployments spanning subscriptions need one run per subscription.
 
