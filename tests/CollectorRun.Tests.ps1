@@ -38,5 +38,9 @@ Describe 'collector: a full offline run' {
     $text | Should -Match '"stage":"collect","status":"done"'
     $text | Should -Match "Subscriptions   : $Subs collected, 0 skipped"
     @(Get-ChildItem -Path $out -Filter 'avd-current-state-*.zip').Count | Should -Be 1
+    $text | Should -Not -Match 'HTML summary skipped'
+    $html = @(Get-ChildItem -Path $out -Recurse -Filter 'summary.html')
+    $html.Count | Should -Be 1
+    Get-Content -Raw $html[0].FullName | Should -Match '<body class="shell report">'
   }
 }

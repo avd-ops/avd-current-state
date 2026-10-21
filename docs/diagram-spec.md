@@ -97,6 +97,8 @@ The spike rendered all three on the fake estate: Azure icons, Tabler icons, and 
 
 The page uses avd-ops tokens: hub `--accent-soft`/`--accent`, spoke `--sunken`/`--line-strong`, broken `--bad-soft`/`--bad` dashed, AVD `--s-design-bg`/`--s-design-fg`, light and dark. Two spike findings to fix in phase 1: a `class` on a subgraph didn't apply its fill in Mermaid 11.4.1 (use `style <subgraph> ...` lines instead), and the default theme's label backgrounds clash with the tokens (set `themeVariables`).
 
+The writer takes all of this from `Get-AvdcsMermaidTheme` (`lib/AvdReport.psm1`), which reads the tokens from the pinned `site/assets/avd-ops.css`, so a design system bump restyles the diagrams with no change here. It returns an init directive with colors and spacing only, for `estate.mmd` and `estate.icons.mmd`; the `mermaid.initialize()` config for `estate.html`, which adds the fonts (Source Sans 3 for labels, Schibsted Grotesk for container titles) and the shapes (8px corners on nodes like the design system's cards, 14px on containers); a `classDef` line per class (`resource`, `hub`, `spoke`, `avd`, `broken`); the same strings for subgraph `style` lines; and the dashed `linkStyle` for a broken link. Two findings from rendering it with Mermaid 11.4.1: the init directive turns quotes inside a value into a broken config, so fonts and CSS go only in the page config; and `estate.html` must load its fonts before it calls `mermaid.run()`, or labels are measured in a fallback font and cut off. Every result still carries a word (a broken peering is labeled, not only red).
+
 ## 6. Checks
 
 - Every VNet, subnet, peering and AVD object in the rows appears in the graph. This is counted from the graph before writing, not read back from a render.

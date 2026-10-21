@@ -1,0 +1,54 @@
+/* avd-current-state report layout, built on the avd-ops design system tokens (site/assets/avd-ops.css).
+   Personal project, not for production, as is; not affiliated with the author's employer or Microsoft.
+   lib/AvdReport.psm1 inlines this file after avd-ops.css and avd-ops-shell.css into each HTML report, so a
+   report is one file that opens offline. Colors come only from tokens; a new color goes to avd-ops first. */
+
+/* Reports carry wide tables, so the column runs to the page width; prose keeps the reading measure. */
+.report main>.col{max-width:var(--page)}
+.report main :is(p,ul,blockquote){max-width:var(--measure)}
+.report main h2{padding-top:var(--space-2);border-top:1px solid var(--line)}
+.report main h3{margin-top:var(--space-5)}
+.report main h4{font:600 .75rem var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:var(--space-5) 0 0}
+.report blockquote{margin:var(--space-4) 0;padding:var(--space-3) var(--space-4);border-left:3px solid var(--accent);background:var(--sunken);border-radius:0 var(--radius-sm) var(--radius-sm) 0;color:var(--muted)}
+.report blockquote p{margin:0} .report blockquote p+p{margin-top:var(--space-2)}
+.report hr{display:none}
+
+/* Run details: the label and value lines a report opens with. */
+.report dl.run{display:grid;grid-template-columns:max-content minmax(0,1fr);gap:var(--space-1) var(--space-4);margin:var(--space-4) 0;padding:var(--space-4);
+  background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);font-size:.95rem}
+.report dl.run dt{font:600 .72rem/2 var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.report dl.run dd{margin:0;overflow-wrap:anywhere}
+
+/* Verdict: the word always shows; the color only repeats it. */
+.report .verdict{display:flex;align-items:center;gap:var(--space-3);margin:var(--space-5) 0;padding:var(--space-4);border-radius:var(--radius);border:1px solid currentColor;font:700 1.25rem var(--display)}
+.report .verdict::before{content:"";width:12px;height:12px;border-radius:50%;background:currentColor;flex:none}
+.report .verdict .lbl{font:600 .72rem var(--mono);letter-spacing:.08em;text-transform:uppercase;opacity:.85}
+.report .v-good{color:var(--good);background:var(--good-soft)} .report .v-caution{color:var(--caution);background:var(--caution-soft)} .report .v-bad{color:var(--bad);background:var(--bad-soft)}
+
+/* Results: FAIL, WARN, PASS, INFO and SKIP as pills in the status column. */
+.report .res{display:inline-block;font:600 .7rem/1.7 var(--mono);letter-spacing:.06em;text-transform:uppercase;border-radius:var(--pill);padding:0 9px;white-space:nowrap}
+.report .r-fail{color:var(--bad);background:var(--bad-soft)} .report .r-warn{color:var(--caution);background:var(--caution-soft)}
+.report .r-pass{color:var(--good);background:var(--good-soft)} .report .r-info{color:var(--info);background:var(--info-soft)}
+.report .r-skip{color:var(--muted);background:var(--sunken)}
+.report .tbl{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius)}
+.report .tbl table{font-size:.92rem} .report .tbl tr:last-child td{border-bottom:0}
+.report .tbl th{background:var(--sunken)} .report td.num,.report th.num{text-align:right;font-variant-numeric:tabular-nums}
+.report th:is(.num,.fit){width:1%;white-space:nowrap}
+.report header.bar .bar-in .what{margin-left:auto;font:600 .72rem var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--shell-muted)}
+
+/* Print and PDF: light tokens whatever the system theme, no sticky bar, tables kept whole where they fit. */
+@media print{
+  :root,:root:not([data-theme="light"]){--bg:#fff;--surface:#fff;--sunken:#f4f6f9;--fg:#152232;--muted:#566578;--line:#d7dee8;--line-strong:#bfc9d6;
+    --accent:#0b7a6e;--accent-soft:#e0f2ef;--good:#18794e;--good-soft:#e1f3e9;--caution:#8a5a00;--caution-soft:#fbf0d9;--bad:#b42323;--bad-soft:#fbe7e7;
+    --info:#2456a6;--info-soft:#e4edfb;--warn-bg:#fff6e0;--warn-line:#e2b74a;--warn-fg:#4d3a07;color-scheme:light}
+  .shell header.bar{position:static}
+  .shell::before{display:none}
+  body{font-size:11pt}
+  .report main>.col{max-width:none}
+  .report .tbl{overflow:visible}
+  .report thead{display:table-header-group}
+  .report tr,.report .verdict,.report dl.run{break-inside:avoid}
+  .report h2,.report h3,.report h4{break-after:avoid}
+  .shell details.notice .more{display:none}
+  * {print-color-adjust:exact;-webkit-print-color-adjust:exact}
+}

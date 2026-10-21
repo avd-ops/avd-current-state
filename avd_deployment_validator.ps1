@@ -3176,6 +3176,25 @@ $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
 $reportPath = Join-Path $script:RootDir 'validation-report.md'
 [System.IO.File]::WriteAllLines($reportPath, $report.ToArray(), $utf8NoBom)
 
+# The same report as one HTML file in the avd-ops look (lib/AvdReport.psm1): offline, no script, prints to PDF.
+# A copy of the script on its own has no lib/ or site/ beside it and writes only the Markdown.
+$htmlReportPath = ''
+$reportModule = Join-Path $PSScriptRoot 'lib/AvdReport.psm1'
+if (Test-Path -LiteralPath $reportModule) {
+    try {
+        Import-Module $reportModule -Force
+        $reportAsset = Get-AvdcsReportAsset -Root $PSScriptRoot
+        if ($reportAsset) {
+            $htmlReportPath = Join-Path $script:RootDir 'validation-report.html'
+            $html = ConvertTo-AvdcsReportHtml -Markdown $report.ToArray() -Asset $reportAsset -Kind 'Deployment validator'
+            [System.IO.File]::WriteAllText($htmlReportPath, $html, $utf8NoBom)
+        }
+    } catch {
+        Write-Log "HTML report skipped: $($_.Exception.Message)" -Level WARN
+        $htmlReportPath = ''
+    }
+}
+
 # Run log
 $logPath = Join-Path $script:RootDir 'run-log.txt'
 [System.IO.File]::WriteAllLines($logPath, $script:LogMessages.ToArray(), $utf8NoBom)
@@ -3245,6 +3264,7 @@ Write-Log '==================================================='
 Write-Log "FAIL $failCount | WARN $warnCount | PASS $passCount | INFO $infoCount | SKIP $skipCount"
 Write-Log "Report folder : $script:RootDir"
 Write-Log "Report        : $reportPath"
+if ($htmlReportPath) { Write-Log "HTML report   : $htmlReportPath" }
 if ($zipPath) { Write-Log "ZIP archive   : $zipPath" }
 if ($script:IsCloudShell -and -not $script:CloudDriveInUse) {
     Write-Log 'WARNING: this Cloud Shell session is ephemeral -- the files above vanish when it ends.' -Level WARN
