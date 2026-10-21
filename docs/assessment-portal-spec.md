@@ -49,7 +49,7 @@ The collector and the validator end with one machine-readable line, the same ide
 | `v` | Schema version (1). Fields are added, never renamed without a bump. |
 | `stage` | `collect` (the collector), `facts` (the facts script, which gives the estate its pseudonym), `analyze` (the validator) |
 | `status` | `done`, `partial` (some subscriptions failed), `failed` |
-| `context` | What the next block needs: `package` (the package folder's name), `estate` (the `est-` pseudonym, facts), `snapshot` (the facts file's name), `mode` and `verdict` (analyze). `lib/AvdPortalState.psm1` refuses any other key and any value that looks like an ID, an email address or a path |
+| `context` | What the next block needs: `package` (the package folder's name), `estate` (the `est-` pseudonym, facts), `snapshot` (the facts file's name), `assessment` (the C21 report's file name, facts with `-Assess`), `mode` and `verdict` (analyze). `lib/AvdPortalState.psm1` refuses any other key and any value that looks like an ID, an email address or a path |
 | `counts` | Collect: subscriptions, skipped, datasets, rows, host pools, session hosts, warnings; facts: subscriptions, host pools, validations, redacted; analyze: the readiness results' `fail`, `warn`, `pass`, `info`, `skip` (the C21 outcomes `pass`, `warn`, `gap`, `unknown` join when the validator's assess mode lands) |
 | `coverage` | Collect: the rebuild map's counts per status (#15) |
 

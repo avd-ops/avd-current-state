@@ -26,12 +26,55 @@ jobs:
           Install-Module PSScriptAnalyzer -Scope CurrentUser -Force
           Invoke-ScriptAnalyzer -Path ./avd_current_state_facts.ps1 -Settings ./PSScriptAnalyzerSettings.psd1 -EnableExit
           Invoke-ScriptAnalyzer -Path ./lib -Recurse -Settings ./PSScriptAnalyzerSettings.psd1 -EnableExit
+          # The collector and validator: parse errors and platform compatibility only, for now.
+          foreach ($p in './avd_current_state_collector.ps1', './avd_deployment_validator.ps1') {
+            Invoke-ScriptAnalyzer -Path $p -Settings ./PSScriptAnalyzerSettings.psd1 -EnableExit `
+              -IncludeRule PSUseCompatibleSyntax, PSUseCompatibleCommands, PSUseCompatibleTypes
+          }
 
       - name: Pester
         shell: pwsh
         run: |
           Install-Module Pester -MinimumVersion 5.5.0 -Scope CurrentUser -Force -SkipPublisherCheck
           Invoke-Pester -Path ./tests -CI -Output Detailed
+
+  # Runs anywhere (avd-ops docs/run-anywhere.md): the same Pester suite on the desktop systems people
+  # run the scripts on. Windows PowerShell 5.1 gets a load check: every script and module parses and
+  # its parameters bind, because the test suite itself needs PowerShell 7.
+  other-os:
+    name: Tests on ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: Windows (PowerShell 7), os: windows-latest, shell: pwsh }
+          - { name: macOS (PowerShell 7), os: macos-latest, shell: pwsh }
+          - { name: Windows PowerShell 5.1, os: windows-latest, shell: powershell }
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Pester
+        if: matrix.shell == 'pwsh'
+        shell: pwsh
+        run: |
+          Install-Module Pester -MinimumVersion 5.5.0 -Scope CurrentUser -Force -SkipPublisherCheck
+          Invoke-Pester -Path ./tests -CI -Output Detailed
+
+      - name: Load every script and module
+        if: matrix.shell == 'powershell'
+        shell: powershell
+        run: |
+          $PSVersionTable.PSVersion.ToString()
+          $failed = 0
+          foreach ($f in @(Get-ChildItem -Path . -Filter *.ps1 -File) + @(Get-ChildItem -Path ./lib -Filter *.psm1 -File)) {
+            $errors = $null
+            [void][System.Management.Automation.Language.Parser]::ParseFile($f.FullName, [ref]$null, [ref]$errors)
+            if ($errors) { $failed++; Write-Host "::error file=$($f.Name)::$($errors[0].Message) (line $($errors[0].Extent.StartLineNumber))"; continue }
+            if ($f.Extension -eq '.psm1') { Import-Module $f.FullName -Force -ErrorAction Stop } else { $null = Get-Command $f.FullName -Syntax -ErrorAction Stop }
+            Write-Host "loads: $($f.Name)"
+          }
+          if ($failed) { throw "$failed file(s) don't parse in Windows PowerShell 5.1." }
 
   portal:
     name: Assessment portal engine + page

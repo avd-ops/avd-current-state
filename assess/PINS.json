@@ -1,0 +1,9 @@
+{
+  "description": "Byte-identical copies of avd-assess's method (contract C20: method.json and index.json). The assess run (lib/AvdAssess.psm1) reads only these copies; nothing is fetched at run time. Each must match the file at commit (tests/Assess.Tests.ps1 checks the hashes). Update the files, commit and the hashes in one PR.",
+  "source": "https://github.com/avd-ops/avd-assess",
+  "commit": "a5f4df1564178e84bc3c52fec123c0c3db59d395",
+  "files": {
+    "method.json": "bc831174a2a85ac116ba26ab9b70d9a088aeaed9d02db5dabd9eebcff0f0c727",
+    "index.json": "515d2aaaff5f8bcb92bca5b0e1881286178347e4c0b30301075447e08cd798d7"
+  }
+}

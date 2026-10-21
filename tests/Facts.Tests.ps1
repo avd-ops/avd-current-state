@@ -111,6 +111,7 @@ Describe 'avd_current_state_facts.ps1' {
     $hp.id | Should -Match '^hp-[0-9a-f]{8}$'
     $hp.type | Should -Be 'Pooled'
     $hp.maxSessionLimit | Should -Be 12
+    $hp.loadBalancer | Should -Be 'BreadthFirst'
     $hp.rdpProperties | Should -Be @('audiocapturemode', 'drivestoredirect', 'full address')
     $hp.appGroups.Desktop | Should -Be 1
     $hp.sessionHosts.total | Should -Be 3
@@ -122,6 +123,7 @@ Describe 'avd_current_state_facts.ps1' {
     $sub.network.defaultRoutes.VirtualAppliance | Should -Be 1
     $sub.roleAssignments.roles.'Desktop Virtualization User' | Should -Be 1
     $sub.roleAssignments.roles.other | Should -Be 1
+    $sub.logAnalytics.retentionDays.'30' | Should -Be 1
   }
 
   It 'keeps the security facts the assess method checks, without a property value' {
@@ -203,6 +205,71 @@ Describe 'avd_current_state_facts.ps1' {
     foreach ($f in $pins.files.PSObject.Properties) {
       (Get-FileHash (Join-Path $script:root "contracts/$($f.Name)") -Algorithm SHA256).Hash.ToLowerInvariant() | Should -Be $f.Value -Because $f.Name
     }
+  }
+
+  It 'with -Assess, writes a valid C21 report beside the snapshot from the pinned method' {
+    $out = Join-Path $TestDrive 'assess1'
+    $log = & $script:facts -PackagePath $script:pk -KeyPath $script:key -OutputPath $out -Assess 6>&1 | ForEach-Object { "$_" }
+    $files = @(Get-ChildItem $out -Filter '*.json' | Sort-Object Name)
+    $files.Name | Should -HaveCount 2
+    $report = $files | Where-Object Name -like 'avd-assessment-*'
+    $snap = $files | Where-Object Name -like 'avd-current-state-facts-*'
+    $report.Name.Substring(15) | Should -Be $snap.Name.Substring(24)
+    $text = Get-Content $report.FullName -Raw
+    $errs = $null
+    Test-Json -Json $text -SchemaFile (Join-Path $script:root 'contracts/assessment.schema.json') -ErrorVariable errs -ErrorAction SilentlyContinue | Should -BeTrue -Because "$errs"
+    foreach ($x in $script:secrets) { $text | Should -Not -Match ([regex]::Escape($x)) }
+    $doc = $text | ConvertFrom-Json
+    $pins = Get-Content (Join-Path $script:root 'assess/PINS.json') -Raw | ConvertFrom-Json
+    $doc.method.commit | Should -Be $pins.commit
+    $doc.method.sha256 | Should -Be $pins.files.'method.json'
+    $doc.inputs.facts.sha256 | Should -Be (Get-FileHash $snap.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+    $doc.inputs.intake | Should -BeNullOrEmpty
+    $outcome = @{}; foreach ($r in $doc.results) { $outcome[$r.check] = $r.outcome }
+    $outcome['asm-pooled-host-redundancy'] | Should -Be 'pass'
+    $outcome['asm-personal-start-vm-on-connect'] | Should -Be 'unknown'
+    $outcome['asm-files-zone-redundant'] | Should -Be 'warn'
+    $outcome['asm-files-private-endpoint'] | Should -Be 'pass'
+    $outcome['asm-defender-servers'] | Should -Be 'pass'
+    ($log | Where-Object { $_ -like '*reliability: score*' }) | Should -Not -BeNullOrEmpty
+    ($log -join ' ') | Should -Match 'Assessment readiness: 2 of 10 design decisions are supported \(hostPool.type, hostPool.appGroup\)'
+    ($log -join ' ') | Should -Not -Match 'Manifest coverage'
+    ($log | Where-Object { $_ -like '*AVDCS-STATE*' }) | Should -Match ([regex]::Escape(('"assessment":"{0}"' -f $report.Name)))
+  }
+
+  It 'with -Assess and an intake for the estate, answers the decisions that need it' {
+    $intake = Get-Content (Join-Path $script:root 'tests/portal/fixtures/intake.json') -Raw | ConvertFrom-Json
+    $intake.estate = $script:run.Data.estate
+    $intakeFile = Join-Path $TestDrive 'intake.json'
+    $intake | ConvertTo-Json -Depth 6 | Set-Content $intakeFile
+    $out = Join-Path $TestDrive 'assess2'
+    & $script:facts -PackagePath $script:pk -KeyPath $script:key -OutputPath $out -Assess -IntakePath $intakeFile 6>$null | Out-Null
+    $doc = Get-Content (Get-ChildItem $out -Filter 'avd-assessment-*').FullName -Raw | ConvertFrom-Json
+    $doc.inputs.intake.sha256 | Should -Be (Get-FileHash $intakeFile -Algorithm SHA256).Hash.ToLowerInvariant()
+    @($doc.decisions | Where-Object { $_.decision -eq 'region' })[0].status | Should -Be 'supported'
+    @($doc.decisions | Where-Object { $_.status -eq 'needs-intake' }).Count | Should -Be 0
+  }
+
+  It 'refuses an intake for another estate, an invalid intake, and -IntakePath without -Assess' {
+    $other = Join-Path $TestDrive 'other-intake.json'
+    Copy-Item (Join-Path $script:root 'tests/portal/fixtures/intake.json') $other
+    { & $script:facts -PackagePath $script:pk -KeyPath $script:key -OutputPath (Join-Path $TestDrive 'assess3') -Assess -IntakePath $other 6>$null } | Should -Throw '*another estate*'
+    $bad = Join-Path $TestDrive 'bad-intake.json'
+    '{"schema":"avd-intake/v1","estate":"est-0a1b2c3d"}' | Set-Content $bad
+    { & $script:facts -PackagePath $script:pk -KeyPath $script:key -OutputPath (Join-Path $TestDrive 'assess4') -Assess -IntakePath $bad 6>$null } | Should -Throw '*avd-intake/v1*'
+    { & $script:facts -PackagePath $script:pk -KeyPath $script:key -OutputPath $TestDrive -IntakePath $other 6>$null } | Should -Throw '*goes with -Assess*'
+  }
+
+  It 'with -Assess, checks the intake before writing anything, and resolves it from the current location' {
+    $out = Join-Path $TestDrive 'assess5'
+    $other = Join-Path $TestDrive 'other-intake.json'
+    { & $script:facts -PackagePath $script:pk -KeyPath $script:key -OutputPath $out -Assess -IntakePath $other 6>$null } | Should -Throw
+    @(Get-ChildItem $out -ErrorAction SilentlyContinue).Count | Should -Be 0
+    { & $script:facts -PackagePath $script:pk -KeyPath $script:key -OutputPath $out -Assess -IntakePath $TestDrive 6>$null } | Should -Throw '*Intake file not found*'
+    Push-Location $TestDrive
+    try { & $script:facts -PackagePath $script:pk -KeyPath $script:key -OutputPath $out -Assess -IntakePath 'intake.json' 6>$null | Should -HaveCount 1 }
+    finally { Pop-Location }
+    @(Get-ChildItem $out -Filter 'avd-assessment-*').Count | Should -Be 1
   }
 
   It 'refuses packages from more than one tenant' {

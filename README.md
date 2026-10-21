@@ -455,6 +455,33 @@ key, so its host pool pseudonyms match this snapshot's.
 The decisions and facts come from `contracts/fact-register.json`, a byte-identical copy of
 avd-assess's fact register (contract C15), pinned with the schema in `contracts/PINS.json`.
 
+### The assessment method
+
+`assess/` holds byte-identical copies of [avd-assess](https://github.com/avd-ops/avd-assess)'s
+`method.json` and `index.json` (contract C20), pinned by commit and SHA-256 in `assess/PINS.json`
+at the same commit as `contracts/`. `lib/AvdAssess.psm1` runs the method's checks over a snapshot
+and an optional `intake.json` (C19) and builds the assessment report (C21): one row per check
+(`pass`, `warn`, `gap` or `unknown`, with the pseudonyms it looked at), the pillar scores with
+their coverage, and each design decision's readiness. A missing fact makes a subject `unknown`,
+never a failure. Nothing is fetched at run time, and none of it needs the brain or avd-swarm. A
+method update is a PR that copies the files at a new avd-assess commit and updates both PINS files;
+`tests/Assess.Tests.ps1` fails if a copy drifts.
+
+Run it with the facts script's `-Assess` switch, and give the Discover stage's `intake.json` when
+you have one:
+
+```powershell
+./avd_current_state_facts.ps1 -PackagePath $out -KeyPath (Join-Path $out 'estate.key') -OutputPath $out -Assess -IntakePath (Join-Path $out 'intake.json')
+```
+
+It writes `avd-assessment-<timestamp>.json` beside the snapshot with the same timestamp, and
+prints one line per pillar, the count of checks by outcome, and which design decisions the
+inputs support, in place of the manifest coverage line above. Before it reads any package, it
+refuses a pinned copy in `assess/` or `contracts/` that doesn't match its hash and an intake that
+isn't valid C19; an intake for another estate is refused before anything is written, and so is a
+report the leak scan flags. The script's output is still the snapshot's path; the report's file
+name is in the log and the state line (`assessment`).
+
 ---
 
 ## Assessment portal

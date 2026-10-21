@@ -3,6 +3,7 @@
 // Run: node --test "tests/portal/*.test.mjs"
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 
@@ -28,7 +29,8 @@ test('the avd-ops design system is vendored at one version and nothing else is l
   assert.equal(v('site/assets/avd-ops-portal.css', /^\/\* avd-ops portal components (v\d+\.\d+\.\d+) /), base);
   for (const [, src] of read('site/assets/avd-ops.css').matchAll(/url\("([^"]+)"\)/g)) assert.ok(existsSync(join(root, 'site/assets', src)), src);
   const html = read('site/portal/index.html');
-  assert.match(html, /<body class="portal">/);
+  assert.match(html, /<body class="portal shell">/);
+  for (const [f, re] of [['site/assets/avd-ops-shell.css', /^\/\* avd-ops app shell (v\d+\.\d+\.\d+) /], ['site/assets/theme.js', /^\/\* avd-ops theme and drawer (v\d+\.\d+\.\d+) /]]) assert.equal(v(f, re), base, f);
   assert.doesNotMatch(html, /style="/, 'no inline styles');
   const style = html.match(/<style>([\s\S]*?)<\/style>/)[1];
   assert.doesNotMatch(style, /#[0-9a-fA-F]{3,6}\b|:root|@font-face/, 'colors and fonts come from avd-ops.css');
@@ -57,5 +59,30 @@ test('American English and ASCII in the page and the scripts', () => {
     const t = read(f);
     assert.doesNotMatch(t, /[^\x00-\x7e]/, `${f}: ASCII only (use entities or escapes)`);
     assert.doesNotMatch(t, /\b(colour|organis|behaviour|licence|analys(e|ing)\b|catalogue|centre)\w*/i, `${f}: American English`);
+  }
+});
+
+// The portal opens in the avd-ops shell (avd-ops docs/design-system.md, "Shell"): the brand bar with the Docs,
+// Deploy and Assess switcher (Assess is this page) and the theme button, but no side list or menu.
+test('the portal opens in the avd-ops shell bar, with the credit line', () => {
+  const html = read('site/portal/index.html');
+  assert.match(html, /<link rel="stylesheet" href="\.\.\/assets\/avd-ops-shell\.css">\s*<script src="\.\.\/assets\/theme\.js"><\/script>/);
+  const bar = (html.match(/<header class="bar">([\s\S]*?)<\/header>/) || [])[1] || '';
+  assert.match(bar, /<a class="brand" href="https:\/\/avd-ops\.dev\/"><img class="mark" src="\.\.\/assets\/brand\/mark\.svg" alt=""[^>]*><span class="word">avd-ops<\/span><\/a>/);
+  assert.match(bar, /<a href="https:\/\/avd-ops\.github\.io\/avd-landing-zone\/portal\/">Deploy<\/a><a href="\.\/" aria-current="page">Assess<\/a>/);
+  assert.match(bar, /class="iconbtn theme"/);
+  assert.doesNotMatch(html, /class="iconbtn menu"|class="side"/, 'no side list in a portal');
+  assert.match(html, /<p class="credit">A <a href="https:\/\/prignano\.ai\/">prignano\.ai<\/a> production<\/p>/);
+});
+
+// design-system.lock.json records the avd-ops tag and commit the copy came from and the hashes of its MANIFEST.json,
+// so a local edit to a vendored file fails here; this repo's own styles go in the page, never in the copy.
+test('the vendored files match the hashes in design-system.lock.json', () => {
+  const lock = JSON.parse(read('site/assets/design-system.lock.json'));
+  assert.match(lock.tag, /^ds-v\d+\.\d+\.\d+$/);
+  assert.match(lock.commit, /^[0-9a-f]{40}$/);
+  assert.ok(read('site/assets/avd-ops.css').startsWith(`/* avd-ops design system ${lock.tag.slice(3)} `), 'the lock names the copy\'s version');
+  for (const [f, sha] of Object.entries(lock.files)) {
+    assert.equal(createHash('sha256').update(readFileSync(join(root, 'site/assets', f))).digest('hex'), sha, f);
   }
 });
