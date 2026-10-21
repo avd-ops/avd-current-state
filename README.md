@@ -453,7 +453,7 @@ package, into a manifest that [avd-landing-zone](https://github.com/nickprignano
 key, so its host pool pseudonyms match this snapshot's.
 
 The decisions and facts come from `contracts/fact-register.json`, a byte-identical copy of
-avd-second-brain's fact register (contract C15), pinned with the schema in `contracts/PINS.json`.
+avd-assess's fact register (contract C15), pinned with the schema in `contracts/PINS.json`.
 
 ---
 
