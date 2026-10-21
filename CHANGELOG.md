@@ -16,6 +16,7 @@ All notable changes, in the format of [Keep a Changelog](https://keepachangelog.
 
 ### Changed
 
+- The vendored contracts and the assess method are re-pinned to avd-assess commit `a5f4df1`: the fact register gains the map's 31 specified facts and marks `c11.hostPool.loadBalancer` and `c11.logAnalytics.retentionDays` built (the snapshot already carries both, and the tests now check them), and `index.json` gains the map index. `method.json` and the schemas are unchanged.
 - The vendored contracts (`contracts/`) are pinned to avd-assess commit `a4e5827` (source now `avd-ops/avd-assess`) and gain the C19 intake, C20 method and C21 assessment schemas; the fact register and the C11 schema are unchanged.
 - The validator's policy checks expand initiative (policy set) assignments: each member's effect is resolved through the initiative and assignment parameters, allowed-locations and allowed-SKU members are compared against the target like direct assignments, deny effects in DoNotEnforce assignments are reported apart as not blocking, and parameterized effects on direct assignments are now resolved too (before, only a hard-coded `deny` was found).
 - The vendored contracts (`contracts/`) move to avd-second-brain commit `fccd644`: the fact register gains the group-behavior privacy class and its facts.

@@ -111,6 +111,7 @@ Describe 'avd_current_state_facts.ps1' {
     $hp.id | Should -Match '^hp-[0-9a-f]{8}$'
     $hp.type | Should -Be 'Pooled'
     $hp.maxSessionLimit | Should -Be 12
+    $hp.loadBalancer | Should -Be 'BreadthFirst'
     $hp.rdpProperties | Should -Be @('audiocapturemode', 'drivestoredirect', 'full address')
     $hp.appGroups.Desktop | Should -Be 1
     $hp.sessionHosts.total | Should -Be 3
@@ -122,6 +123,7 @@ Describe 'avd_current_state_facts.ps1' {
     $sub.network.defaultRoutes.VirtualAppliance | Should -Be 1
     $sub.roleAssignments.roles.'Desktop Virtualization User' | Should -Be 1
     $sub.roleAssignments.roles.other | Should -Be 1
+    $sub.logAnalytics.retentionDays.'30' | Should -Be 1
   }
 
   It 'keeps the security facts the assess method checks, without a property value' {

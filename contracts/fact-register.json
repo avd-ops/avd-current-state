@@ -499,6 +499,333 @@
       ]
     },
     {
+      "id": "c11.hostPool.loadBalancer",
+      "tier": "azure",
+      "contract": "C11",
+      "path": "/subscriptions/*/hostPools/*/loadBalancer",
+      "grain": "hostPool",
+      "unit": "enum",
+      "privacy": "public",
+      "status": "built",
+      "evidences": []
+    },
+    {
+      "id": "c11.hostPool.publicNetworkAccess",
+      "tier": "azure",
+      "contract": "C11",
+      "path": "/subscriptions/*/hostPools/*/publicNetworkAccess",
+      "grain": "hostPool",
+      "unit": "enum",
+      "privacy": "public",
+      "status": "specified",
+      "evidences": [
+        "network"
+      ]
+    },
+    {
+      "id": "c11.hostPool.sessionHosts.insightsDcr",
+      "tier": "azure",
+      "contract": "C11",
+      "path": "/subscriptions/*/hostPools/*/sessionHosts/insightsDcr",
+      "grain": "hostPool",
+      "unit": "hosts",
+      "privacy": "count",
+      "status": "specified",
+      "evidences": []
+    },
+    {
+      "id": "c11.hostPool.sessionHosts.monitoringAgent",
+      "tier": "azure",
+      "contract": "C11",
+      "path": "/subscriptions/*/hostPools/*/sessionHosts/monitoringAgent",
+      "grain": "hostPool",
+      "unit": "hosts",
+      "privacy": "count",
+      "status": "specified",
+      "evidences": []
+    },
+    {
+      "id": "c11.hostPool.udp.direct",
+      "tier": "azure",
+      "contract": "C11",
+      "path": "/subscriptions/*/hostPools/*/udp/direct",
+      "grain": "hostPool",
+      "unit": "enum",
+      "privacy": "public",
+      "status": "specified",
+      "evidences": [
+        "network"
+      ]
+    },
+    {
+      "id": "c11.hostPool.udp.managedPrivate",
+      "tier": "azure",
+      "contract": "C11",
+      "path": "/subscriptions/*/hostPools/*/udp/managedPrivate",
+      "grain": "hostPool",
+      "unit": "enum",
+      "privacy": "public",
+      "status": "specified",
+      "evidences": [
+        "network"
+      ]
+    },
+    {
+      "id": "c11.hostPool.udp.privateLink",
+      "tier": "azure",
+      "contract": "C11",
+      "path": "/subscriptions/*/hostPools/*/udp/privateLink",
+      "grain": "hostPool",
+      "unit": "enum",
+      "privacy": "public",
+      "status": "specified",
+      "evidences": [
+        "network"
+      ]
+    },
+    {
+      "id": "c11.hostPool.udp.public",
+      "tier": "azure",
+      "contract": "C11",
+      "path": "/subscriptions/*/hostPools/*/udp/public",
+      "grain": "hostPool",
+      "unit": "enum",
+      "privacy": "public",
+      "status": "specified",
+      "evidences": [
+        "network"
+      ]
+    },
+    {
+      "id": "c11.hostPool.udp.relay",
+      "tier": "azure",
+      "contract": "C11",
+      "path": "/subscriptions/*/hostPools/*/udp/relay",
+      "grain": "hostPool",
+      "unit": "enum",
+      "privacy": "public",
+      "status": "specified",
+      "evidences": [
+        "network"
+      ]
+    },
+    {
+      "id": "c11.monitoring.alerts",
+      "tier": "azure",
+      "contract": "C11",
+      "path": "/subscriptions/*/monitoring/alerts",
+      "grain": "subscription",
+      "unit": "count",
+      "privacy": "count",
+      "status": "specified",
+      "evidences": []
+    },
+    {
+      "id": "c11.monitoring.diagnostics",
+      "tier": "azure",
+      "contract": "C11",
+      "path": "/subscriptions/*/monitoring/diagnostics",
+      "grain": "subscription",
+      "unit": "count",
+      "privacy": "count",
+      "status": "specified",
+      "evidences": []
+    },
+    {
+      "id": "c11.logAnalytics.retentionDays",
+      "tier": "azure",
+      "contract": "C11",
+      "path": "/subscriptions/*/logAnalytics/retentionDays",
+      "grain": "subscription",
+      "unit": "count",
+      "privacy": "count",
+      "status": "built",
+      "evidences": []
+    },
+    {
+      "id": "c11.network.bastionHosts",
+      "tier": "azure",
+      "contract": "C11",
+      "path": "/subscriptions/*/network/bastionHosts",
+      "grain": "subscription",
+      "unit": "count",
+      "privacy": "count",
+      "status": "specified",
+      "evidences": []
+    },
+    {
+      "id": "c11.network.flowLogs",
+      "tier": "azure",
+      "contract": "C11",
+      "path": "/subscriptions/*/network/flowLogs",
+      "grain": "subscription",
+      "unit": "count",
+      "privacy": "count",
+      "status": "specified",
+      "evidences": []
+    },
+    {
+      "id": "c11.network.hostPublicRdp",
+      "tier": "azure",
+      "contract": "C11",
+      "path": "/subscriptions/*/network/hostPublicRdp",
+      "grain": "subscription",
+      "unit": "count",
+      "privacy": "count",
+      "status": "specified",
+      "evidences": []
+    },
+    {
+      "id": "c11.network.hostSubnets.avdOutboundDenied",
+      "tier": "azure",
+      "contract": "C11",
+      "path": "/subscriptions/*/network/hostSubnets/avdOutboundDenied",
+      "grain": "subscription",
+      "unit": "count",
+      "privacy": "count",
+      "status": "specified",
+      "evidences": [
+        "network"
+      ]
+    },
+    {
+      "id": "c11.network.hostSubnets.defaultOutboundAccess",
+      "tier": "azure",
+      "contract": "C11",
+      "path": "/subscriptions/*/network/hostSubnets/defaultOutboundAccess",
+      "grain": "subscription",
+      "unit": "count",
+      "privacy": "count",
+      "status": "specified",
+      "evidences": [
+        "network"
+      ]
+    },
+    {
+      "id": "c11.network.hostSubnets.explicitEgress",
+      "tier": "azure",
+      "contract": "C11",
+      "path": "/subscriptions/*/network/hostSubnets/explicitEgress",
+      "grain": "subscription",
+      "unit": "count",
+      "privacy": "count",
+      "status": "specified",
+      "evidences": [
+        "network"
+      ]
+    },
+    {
+      "id": "c11.network.hostSubnets.fabricDenyRules",
+      "tier": "azure",
+      "contract": "C11",
+      "path": "/subscriptions/*/network/hostSubnets/fabricDenyRules",
+      "grain": "subscription",
+      "unit": "count",
+      "privacy": "count",
+      "status": "specified",
+      "evidences": [
+        "network"
+      ]
+    },
+    {
+      "id": "c11.network.hostSubnets.freeAddresses",
+      "tier": "azure",
+      "contract": "C11",
+      "path": "/subscriptions/*/network/hostSubnets/freeAddresses",
+      "grain": "subscription",
+      "unit": "count",
+      "privacy": "count",
+      "status": "specified",
+      "evidences": [
+        "network"
+      ]
+    },
+    {
+      "id": "c11.network.privateDnsZoneLinks",
+      "tier": "azure",
+      "contract": "C11",
+      "path": "/subscriptions/*/network/privateDnsZoneLinks",
+      "grain": "subscription",
+      "unit": "count",
+      "privacy": "count",
+      "status": "specified",
+      "evidences": [
+        "network"
+      ]
+    },
+    {
+      "id": "c11.network.privateEndpointZoneGroups",
+      "tier": "azure",
+      "contract": "C11",
+      "path": "/subscriptions/*/network/privateEndpointZoneGroups",
+      "grain": "subscription",
+      "unit": "count",
+      "privacy": "count",
+      "status": "specified",
+      "evidences": [
+        "network"
+      ]
+    },
+    {
+      "id": "c11.hostPool.sessionHosts.acceleratedNetworking",
+      "tier": "azure",
+      "contract": "C11",
+      "path": "/subscriptions/*/hostPools/*/sessionHosts/acceleratedNetworking",
+      "grain": "hostPool",
+      "unit": "hosts",
+      "privacy": "count",
+      "status": "specified",
+      "evidences": [
+        "hostPool.vmSize"
+      ]
+    },
+    {
+      "id": "c11.hostPool.sessionHosts.encryptionAtHost",
+      "tier": "azure",
+      "contract": "C11",
+      "path": "/subscriptions/*/hostPools/*/sessionHosts/encryptionAtHost",
+      "grain": "hostPool",
+      "unit": "hosts",
+      "privacy": "count",
+      "status": "specified",
+      "evidences": []
+    },
+    {
+      "id": "c11.hostPool.sessionHosts.osDiskTypes",
+      "tier": "azure",
+      "contract": "C11",
+      "path": "/subscriptions/*/hostPools/*/sessionHosts/osDiskTypes",
+      "grain": "hostPool",
+      "unit": "count",
+      "privacy": "count",
+      "status": "specified",
+      "evidences": []
+    },
+    {
+      "id": "c11.hostPool.sessionHosts.zones",
+      "tier": "azure",
+      "contract": "C11",
+      "path": "/subscriptions/*/hostPools/*/sessionHosts/zones",
+      "grain": "hostPool",
+      "unit": "count",
+      "privacy": "count",
+      "status": "specified",
+      "evidences": []
+    },
+    {
+      "id": "c11.workspace.publicNetworkAccess",
+      "tier": "azure",
+      "contract": "C11",
+      "path": "/subscriptions/*/workspaces/publicNetworkAccess",
+      "grain": "subscription",
+      "unit": "count",
+      "privacy": "count",
+      "status": "specified",
+      "evidences": [
+        "network"
+      ]
+    },
+    {
       "id": "c12.window.days",
       "tier": "forensic",
       "contract": "C12",
@@ -926,6 +1253,70 @@
       "privacy": "public",
       "status": "built",
       "evidences": []
+    },
+    {
+      "id": "intake.clientApps",
+      "tier": "intake",
+      "contract": "C19",
+      "path": "/clientApps",
+      "grain": "estate",
+      "unit": "list",
+      "privacy": "public",
+      "status": "specified",
+      "evidences": [
+        "network"
+      ]
+    },
+    {
+      "id": "intake.graphicsWorkloads",
+      "tier": "intake",
+      "contract": "C19",
+      "path": "/graphicsWorkloads",
+      "grain": "estate",
+      "unit": "enum",
+      "privacy": "public",
+      "status": "specified",
+      "evidences": [
+        "hostPool.vmSize"
+      ]
+    },
+    {
+      "id": "intake.inspection",
+      "tier": "intake",
+      "contract": "C19",
+      "path": "/inspection",
+      "grain": "estate",
+      "unit": "enum",
+      "privacy": "public",
+      "status": "specified",
+      "evidences": [
+        "network"
+      ]
+    },
+    {
+      "id": "intake.keyRequirements",
+      "tier": "intake",
+      "contract": "C19",
+      "path": "/keyRequirements",
+      "grain": "estate",
+      "unit": "enum",
+      "privacy": "public",
+      "status": "specified",
+      "evidences": []
+    },
+    {
+      "id": "intake.userNetworks",
+      "tier": "intake",
+      "contract": "C19",
+      "path": "/userNetworks",
+      "grain": "estate",
+      "unit": "list",
+      "privacy": "public",
+      "status": "specified",
+      "evidences": [
+        "network",
+        "region"
+      ]
     }
   ]
 }
