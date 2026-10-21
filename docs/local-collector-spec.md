@@ -232,20 +232,20 @@ Phases 0 to 3 cost nothing. Running the collector costs nothing: Run Command, Ba
 Fable, 2026-10-21. Fifteen findings, all folded in above:
 
 1. A host bundle of every user's events had no location, access or retrieval path, and a pooled host is reimaged: a new SYSTEM- and admin-only folder that must not pre-exist, its path in the summary, the host copy is a working copy until copied off (3.2, questions 8 and 9).
-2. Elevated copies from user-writable folders followed junctions: `-LiteralPath`, reparse points skipped, resolved paths kept under the root, a junction fixture (4).
-3. A TLS handshake and a proxy bypass need .NET calls in Windows PowerShell 5.1, and the CLM rule was misstated: TCP connect only, the real CLM rule, metadata through the proxy as a finding (3.1, 4).
-4. The program allowlist and the URL tool were inconsistent: one allowlist per mode with full paths; the URL tool's path and publisher checked, its own name list the one exception; never `Win32_Product` (3.2, 4).
+2. Elevated copies from user-writable folders followed junctions: `-LiteralPath`, reparse points skipped, resolved paths kept under the root, a junction fixture (4a).
+3. A TLS handshake and a proxy bypass need .NET calls in Windows PowerShell 5.1, and the CLM rule was misstated: TCP connect only, the real CLM rule, metadata through the proxy as a finding (3.1, 4a).
+4. The program allowlist and the URL tool were inconsistent: one allowlist per mode with full paths; the URL tool's path and publisher checked, its own name list the one exception; never `Win32_Product` (3.2, 4a).
 5. Matching local files to hosts by name was unsound: join on `vmId`, name as fallback, `ambiguous` on duplicates (7).
 6. No defense against stale or edited files: a time window, mode check, newest per host, hashes in the manifest, `source: local` (7).
 7. Managed and action Run Command were mixed up, and the landing zone already uses the managed kind: corrected, managed for phase 5, no SAS needed, the extension install named as a write, Run Command checks no signature (5).
-8. Host mode cannot prompt and sees SYSTEM as its account: no consent screen, `-AllUsers` and `-RequestedBy` (4, 6).
-9. Intune's defaults (SYSTEM, 32-bit) break device and session modes quietly: the settings that work in the README, a first-line context check (4).
-10. Module and program planting in an operator's profile: modules from `$PSHOME`, programs by full path, `-NoProfile` (4).
+8. Host mode cannot prompt and sees SYSTEM as its account: no consent screen, `-AllUsers` and `-RequestedBy` (4a, 6).
+9. Intune's defaults (SYSTEM, 32-bit) break device and session modes quietly: the settings that work in the README, a first-line context check (4a).
+10. Module and program planting in an operator's profile: modules from `$PSHOME`, programs by full path, `-NoProfile` (4a).
 11. "Writes no event" was too strong: the run is logged by Windows as any script is (1).
 12. The FSLogix ODFC key and Cloud Cache locations were wrong or missing (3.2).
 13. Preflight results differ per subnet, and four open ports do not prove a domain join (3.1).
-14. Linux CI cannot run the readers or CLM: plain-object readers with JSON fixtures, a Windows job (4, 10).
-15. Missing questions and details: retrieval, hosts signed in, non-Azure hosts, Azure Government, `-ListSources`, `schemaVersion`, notice versus consent, Intune's Graph request (4, 6, 8, 13).
+14. Linux CI cannot run the readers or CLM: plain-object readers with JSON fixtures, a Windows job (4a, 10).
+15. Missing questions and details: retrieval, hosts signed in, non-Azure hosts, Azure Government, `-ListSources`, `schemaVersion`, notice versus consent, Intune's Graph request (4a, 6, 8, 13).
 
 The code review (Claude code-review skill) caught ten more, also fixed: a Cloud Cache entry can carry a storage key in plain text (redacted); the SMBIOS UUID is no stand-in for `vmId` (no ID instead); the validator's probe uses a type CLM blocks (not shared); a configured proxy turns a failed direct connect into WARN; `$PSHOME` in PowerShell 7 lacks the Windows modules (System32 path); a self-checking signature is no trust anchor (the pin is); Arc and Azure Local do have Run Command; host working copies versus evidence retention made consistent; the client fleet facts are proposed, not registered; preflight facts stay per subnet.
 
