@@ -203,6 +203,36 @@ Describe 'Get-LzRebuildMap: the dev landing zone round trip' {
   }
 }
 
+Describe 'Get-LzRoundTripResult' {
+  BeforeAll {
+    $e = Get-DevEstate
+    $script:devMap = (Get-LzRebuildMap -Rows $e.Rows -Rest $e.Rest -RoleAssignments $e.Roles -ParameterList $script:params)[0]
+    $script:want = [ordered]@{ namePrefix = 'avdlz'; sessionHostCount = 1; sessionHostVmSize = 'Standard_E4as_v5'; availabilityZones = @(); avdUsersGroupObjectId = $script:usersGroup }
+  }
+
+  It 'passes the dev estate, from memory and from the JSON file the collector writes' {
+    (Get-LzRoundTripResult -Map $script:devMap -Expected $script:want).Passed | Should -BeTrue
+    $fromFile = ConvertTo-Json -InputObject $script:devMap -Depth 20 | ConvertFrom-Json
+    $r = Get-LzRoundTripResult -Map $fromFile -Expected $script:want
+    $r.Passed | Should -BeTrue
+    @($r.Rows | Where-Object { $_.Check -eq 'match' }).Count | Should -Be 5
+  }
+
+  It 'fails on a different value or a missing parameter, and never prints values' {
+    $wrong = [ordered]@{ sessionHostVmSize = 'Standard_D2as_v5'; noSuchParameter = 1 }
+    $r = Get-LzRoundTripResult -Map $script:devMap -Expected $wrong
+    $r.Passed | Should -BeFalse
+    @($r.Rows | Where-Object { $_.Check -eq 'NO MATCH' }).Count | Should -Be 2
+    ($r.Rows | ConvertTo-Json) | Should -Not -Match 'Standard_|avdlz|00000000-'
+  }
+
+  It 'fails a brownfield estate' {
+    $b = Get-BrownfieldEstate
+    $map = (Get-LzRebuildMap -Rows $b.Rows -Rest $b.Rest -RoleAssignments $b.Roles -ParameterList $script:params)[0]
+    (Get-LzRoundTripResult -Map $map -Expected @{}).Passed | Should -BeFalse
+  }
+}
+
 Describe 'Get-LzRebuildMap: a brownfield estate' {
   BeforeAll {
     $e = Get-BrownfieldEstate

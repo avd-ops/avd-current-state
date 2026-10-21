@@ -431,4 +431,37 @@ function Get-LzHostPoolMap {
     return [ordered]@{ hostPool = $HostPool.id; landingZoneCommit = ''; parameters = $ordered; coverage = $coverage }
 }
 
-Export-ModuleMember -Function Get-LzStatusList, Get-LzRebuildMap, Get-LzDefaultValue
+function Get-LzRoundTripResult {
+    <#
+    .SYNOPSIS
+        Compares one host pool's rebuild map with the values a deployment used (spec section 11). Returns
+        @{ Rows = parameter, status, check; Passed }. Rows never carry values, so they can be shared.
+        Passed: no parameter is ambiguous, unexpressible or unknown, and every expected value matches.
+    #>
+    param([Parameter(Mandatory)] $Map, [Parameter(Mandatory)] [System.Collections.IDictionary]$Expected)
+    $parameters = Get-RebuildValue $Map 'parameters'
+    $entries = if ($parameters -is [System.Collections.IDictionary]) { @($parameters.Keys | ForEach-Object { @{ Name = $_; Entry = $parameters[$_] } }) }
+    else { @($parameters.PSObject.Properties | ForEach-Object { @{ Name = $_.Name; Entry = $_.Value } }) }
+    $rows = @(); $passed = $true
+    foreach ($e in $entries) {
+        $status = "$(Get-RebuildValue $e.Entry 'status')"
+        if (@('ambiguous', 'unexpressible', 'unknown') -contains $status) { $passed = $false }
+        $check = ''
+        if ($Expected.Contains($e.Name)) {
+            # Read the value directly, never through a function or an if-expression: both unroll an empty array to null.
+            $value = $e.Entry.value
+            if ($e.Entry -is [System.Collections.IDictionary]) { $value = $e.Entry['value'] }
+            $got = ConvertTo-Json -InputObject $value -Compress -Depth 10
+            $want = ConvertTo-Json -InputObject $Expected[$e.Name] -Compress -Depth 10
+            $check = if ($got -eq $want) { 'match' } else { 'NO MATCH' }
+            if ($check -ne 'match') { $passed = $false }
+        }
+        $rows += [pscustomobject]@{ Parameter = $e.Name; Status = $status; Check = $check }
+    }
+    foreach ($k in $Expected.Keys) {
+        if (@($entries | Where-Object { $_.Name -eq $k }).Count -eq 0) { $rows += [pscustomobject]@{ Parameter = $k; Status = 'missing'; Check = 'NO MATCH' }; $passed = $false }
+    }
+    return @{ Rows = $rows; Passed = $passed }
+}
+
+Export-ModuleMember -Function Get-LzStatusList, Get-LzRebuildMap, Get-LzDefaultValue, Get-LzRoundTripResult
