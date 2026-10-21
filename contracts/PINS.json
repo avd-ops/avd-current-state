@@ -1,6 +1,6 @@
 {
   "description": "Byte-identical copies of avd-assess's foundation contract files (contracts/README.md there). Each must match the file at commit (tests/Facts.Tests.ps1 checks the hashes). Update the files, commit and the hashes in one PR.",
-  "source": "https://github.com/nickprignano/avd-assess",
+  "source": "https://github.com/avd-ops/avd-assess",
   "commit": "eafa66e349cdce1dd744ef1cb7df9ecc57efd4d3",
   "files": {
     "fact-register.json": "08049b1f60e694f9da9fc12adbc745f573ff3aef15d3b9588bd50100626252fc",

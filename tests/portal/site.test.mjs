@@ -49,7 +49,7 @@ test('no request to another site: every src and stylesheet is local, the scripts
     assert.doesNotMatch(js, /innerHTML|outerHTML|insertAdjacentHTML|document\.write/, `${f}: text goes in with textContent`);
   }
   const urls = [...read('site/portal/assess-core.js').matchAll(/https?:\/\/[^\s'"`]+/g)].map((m) => m[0]);
-  assert.deepEqual([...new Set(urls)], ['https://github.com/nickprignano/avd-current-state.git'], 'the only URL is the clone in the commands');
+  assert.deepEqual([...new Set(urls)], ['https://github.com/avd-ops/avd-current-state.git'], 'the only URL is the clone in the commands');
 });
 
 test('American English and ASCII in the page and the scripts', () => {

@@ -4,7 +4,7 @@ Part of [avd-ops](https://avd-ops.dev/), the open toolkit for Azure Virtual Desk
 
 Read-only PowerShell tooling for Azure Virtual Desktop (AVD) environments on Azure
 Commercial. The collector and validator read through Azure Resource Manager and write
-nothing. Their evidence packages feed [avd-second-brain](https://github.com/nickprignano/avd-second-brain), which turns them into a
+nothing. Their evidence packages feed [avd-second-brain](https://github.com/avd-ops/avd-second-brain), which turns them into a
 living knowledge base of the estate.
 
 > [!WARNING]
@@ -20,7 +20,7 @@ living knowledge base of the estate.
 | [`avd_current_state_collector.ps1`](#current-state-collector) | Any time | *What is in this environment today?* Produces a portable evidence package. |
 | [`avd_deployment_validator.ps1`](#deployment-validator) | Before and after an AVD deployment | *Is this subscription ready to deploy, and did the deployment land correctly?* Produces a pass/fail report. |
 | [`avd_current_state_facts.ps1`](#facts-snapshot-for-the-brain-and-avd-swarm) | After a collector or validator run | *What can the brain's agents know about this estate?* Turns the packages into one redacted facts snapshot: counts, public values and pseudonyms, no names or IDs. |
-| [`avd_second_brain.ps1`](#second-brain) (in [avd-second-brain](https://github.com/nickprignano/avd-second-brain)) | After every collector or validator run | *What changed, what is still broken, and why is it built this way?* Keeps a Markdown knowledge base of the estate over time. |
+| [`avd_second_brain.ps1`](#second-brain) (in [avd-second-brain](https://github.com/avd-ops/avd-second-brain)) | After every collector or validator run | *What changed, what is still broken, and why is it built this way?* Keeps a Markdown knowledge base of the estate over time. |
 
 ## Read-Only by Design
 
@@ -366,16 +366,16 @@ avd-validation-20260919T141120.zip
 
 ## Second Brain
 
-The estate's memory moved to **[avd-second-brain](https://github.com/nickprignano/avd-second-brain)**: one second brain for the
+The estate's memory moved to **[avd-second-brain](https://github.com/avd-ops/avd-second-brain)**: one second brain for the
 whole AVD lifecycle, shared with
 the assessment project
-and [avd-landing-zone](https://github.com/nickprignano/avd-landing-zone) (deployment and operations).
+and [avd-landing-zone](https://github.com/avd-ops/avd-landing-zone) (deployment and operations).
 The script and its vault template are there, at `vault/avd_second_brain.ps1`, with the
 same parameters plus an optional `-KnowledgePath`. This repository stays the **sensor**: the collector and the validator
-produce the evidence packages the vault ingests ([contract C1](https://github.com/nickprignano/avd-second-brain/blob/main/docs/contracts.md)).
+produce the evidence packages the vault ingests ([contract C1](https://github.com/avd-ops/avd-second-brain/blob/main/docs/contracts.md)).
 
 ```powershell
-git clone https://github.com/nickprignano/avd-second-brain.git ..\avd-second-brain
+git clone https://github.com/avd-ops/avd-second-brain.git ..\avd-second-brain
 ..\avd-second-brain\vault\avd_second_brain.ps1 -BrainPath ..\avd-brain -Init
 ..\avd-second-brain\vault\avd_second_brain.ps1 -BrainPath ..\avd-brain -PackagePath .\avd-current-state-20261015T091500, .\avd-validation-20261016T100000.zip
 ```
@@ -383,10 +383,10 @@ git clone https://github.com/nickprignano/avd-second-brain.git ..\avd-second-bra
 What the move adds: `-Init` seeds a vault with the organization's shared runbooks, and
 `scripts/Get-VaultHarvest.ps1` proposes what a vault may contribute back to the shared
 knowledge base, generalized, without tenant data. The vault itself still belongs in its own
-**private** repository. See [the vault docs](https://github.com/nickprignano/avd-second-brain/blob/main/docs/vault.md).
+**private** repository. See [the vault docs](https://github.com/avd-ops/avd-second-brain/blob/main/docs/vault.md).
 
 A change to the packages' dataset names or fields is a contract change: avd-second-brain's
-The brain's [tests/Connectors.Tests.ps1](https://github.com/nickprignano/avd-second-brain/blob/main/tests/Connectors.Tests.ps1) runs minimal collector and validator packages through the vault.
+The brain's [tests/Connectors.Tests.ps1](https://github.com/avd-ops/avd-second-brain/blob/main/tests/Connectors.Tests.ps1) runs minimal collector and validator packages through the vault.
 
 ---
 
@@ -394,9 +394,9 @@ The brain's [tests/Connectors.Tests.ps1](https://github.com/nickprignano/avd-sec
 
 The packages hold tenant data: subscription and object IDs, resource and user names, IP
 addresses, tags. They belong in the customer's private vault. `avd_current_state_facts.ps1`
-makes the form of the same evidence that [avd-second-brain](https://github.com/nickprignano/avd-second-brain)'s agents read and that
-[avd-swarm](https://github.com/nickprignano/avd-swarm) sees through the brain: the fact collection layer of both, defined as
-[contract C11](https://github.com/nickprignano/avd-second-brain/blob/main/docs/contracts.md) (`avd-current-state-facts/v1`). avd-swarm never consumes a
+makes the form of the same evidence that [avd-second-brain](https://github.com/avd-ops/avd-second-brain)'s agents read and that
+[avd-swarm](https://github.com/avd-ops/avd-swarm) sees through the brain: the fact collection layer of both, defined as
+[contract C11](https://github.com/avd-ops/avd-second-brain/blob/main/docs/contracts.md) (`avd-current-state-facts/v1`). avd-swarm never consumes a
 package or a snapshot directly; the brain cites the facts, and avd-swarm's governance gate
 re-reads live state before any change.
 
@@ -449,7 +449,7 @@ host count), the profile share and the identity lane need measured demand, concu
 sizes and app dependencies. An assessment collects them with Liquidware
 Stratusphere UX over a 2 to 4 week window (appliances and a license for the window, so it is
 priced before it starts), and turns them, together with this snapshot and the collector
-package, into a manifest that [avd-landing-zone](https://github.com/nickprignano/avd-landing-zone) deploys. It uses the same estate
+package, into a manifest that [avd-landing-zone](https://github.com/avd-ops/avd-landing-zone) deploys. It uses the same estate
 key, so its host pool pseudonyms match this snapshot's.
 
 The decisions and facts come from `contracts/fact-register.json`, a byte-identical copy of
@@ -464,12 +464,12 @@ avd-assess's fact register (contract C15), pinned with the schema in `contracts/
 | Stage | What you do | What it writes |
 |---|---|---|
 | 1. Collect | Run the collector and the facts script, paste the output | Nothing new; the estate gets its `est-` pseudonym, and its key stays beside the packages in Cloud Shell |
-| 2. Discover | Answer the discovery interview | `intake.json` (contract C19 in [avd-assess](https://github.com/nickprignano/avd-assess/tree/main/contracts)), written into Cloud Shell by a block that holds no names, and `discovery-notes.md`, your private narrative, downloaded to your device |
+| 2. Discover | Answer the discovery interview | `intake.json` (contract C19 in [avd-assess](https://github.com/avd-ops/avd-assess/tree/main/contracts)), written into Cloud Shell by a block that holds no names, and `discovery-notes.md`, your private narrative, downloaded to your device |
 | 3. Analyze | Run the validator, paste the output | Nothing new |
 | 4. Review | Load `assessment.json` (and an earlier `review.json` to carry decisions forward), decide each finding: fix, accept or defer, with a reason | `review.json` (contract C23), pinned to the report by its SHA-256 and holding only check IDs and reason codes; private notes per finding go into `discovery-notes.md` |
 | 5. Plan | Coming next: a plan from the fixes (`plan.json`, C24) | |
 
-Each script ends with one line the page reads, `<<<AVDCS-STATE {...} AVDCS-STATE>>>`, built by `lib/AvdPortalState.psm1`. It holds counts, the package folder's name and the estate pseudonym, never a name or an ID. The page uses the [avd-ops design system](https://github.com/nickprignano/avd-ops/blob/main/docs/design-system.md), vendored in `site/assets/`. Run it locally with `python3 -m http.server -d site` and open `http://localhost:8000/portal/`.
+Each script ends with one line the page reads, `<<<AVDCS-STATE {...} AVDCS-STATE>>>`, built by `lib/AvdPortalState.psm1`. It holds counts, the package folder's name and the estate pseudonym, never a name or an ID. The page uses the [avd-ops design system](https://github.com/avd-ops/avd-ops/blob/main/docs/design-system.md), vendored in `site/assets/`. Run it locally with `python3 -m http.server -d site` and open `http://localhost:8000/portal/`.
 
 ## Limitations
 
@@ -525,7 +525,7 @@ Each script ends with one line the page reads, `<<<AVDCS-STATE {...} AVDCS-STATE
 
 ## Entry points
 
-Each links its reference page, generated from the script's own help by the second brain's [Update-BrainDocs.ps1](https://github.com/nickprignano/avd-second-brain/blob/main/scripts/Update-BrainDocs.ps1). Edit the help, not the page. Changes are in [CHANGELOG.md](CHANGELOG.md).
+Each links its reference page, generated from the script's own help by the second brain's [Update-BrainDocs.ps1](https://github.com/avd-ops/avd-second-brain/blob/main/scripts/Update-BrainDocs.ps1). Edit the help, not the page. Changes are in [CHANGELOG.md](CHANGELOG.md).
 
 <!-- generated:entry-points begin -->
 <!-- Generated by scripts/Update-BrainDocs.ps1. Do not edit between the markers; edit the source and regenerate. -->

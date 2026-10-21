@@ -9,7 +9,7 @@
 })(typeof self !== 'undefined' ? self : this, function () {
   'use strict';
 
-  const REPO_URL = 'https://github.com/nickprignano/avd-current-state.git';
+  const REPO_URL = 'https://github.com/avd-ops/avd-current-state.git';
   const STAGES = ['collect', 'facts', 'analyze'];
   const STATUSES = ['done', 'partial', 'failed'];
   const HUBS = ['none', 'azure-hub', 'vwan', 'other'];
