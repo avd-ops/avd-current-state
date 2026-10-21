@@ -231,6 +231,7 @@ Describe 'avd_current_state_facts.ps1' {
     $outcome['asm-defender-servers'] | Should -Be 'pass'
     ($log | Where-Object { $_ -like '*reliability: score*' }) | Should -Not -BeNullOrEmpty
     ($log -join ' ') | Should -Match 'Assessment readiness: 2 of 10 design decisions are supported \(hostPool.type, hostPool.appGroup\)'
+    ($log -join ' ') | Should -Not -Match 'Manifest coverage'
     ($log | Where-Object { $_ -like '*AVDCS-STATE*' }) | Should -Match ([regex]::Escape(('"assessment":"{0}"' -f $report.Name)))
   }
 
@@ -255,6 +256,18 @@ Describe 'avd_current_state_facts.ps1' {
     '{"schema":"avd-intake/v1","estate":"est-0a1b2c3d"}' | Set-Content $bad
     { & $script:facts -PackagePath $script:pk -KeyPath $script:key -OutputPath (Join-Path $TestDrive 'assess4') -Assess -IntakePath $bad 6>$null } | Should -Throw '*avd-intake/v1*'
     { & $script:facts -PackagePath $script:pk -KeyPath $script:key -OutputPath $TestDrive -IntakePath $other 6>$null } | Should -Throw '*goes with -Assess*'
+  }
+
+  It 'with -Assess, checks the intake before writing anything, and resolves it from the current location' {
+    $out = Join-Path $TestDrive 'assess5'
+    $other = Join-Path $TestDrive 'other-intake.json'
+    { & $script:facts -PackagePath $script:pk -KeyPath $script:key -OutputPath $out -Assess -IntakePath $other 6>$null } | Should -Throw
+    @(Get-ChildItem $out -ErrorAction SilentlyContinue).Count | Should -Be 0
+    { & $script:facts -PackagePath $script:pk -KeyPath $script:key -OutputPath $out -Assess -IntakePath $TestDrive 6>$null } | Should -Throw '*Intake file not found*'
+    Push-Location $TestDrive
+    try { & $script:facts -PackagePath $script:pk -KeyPath $script:key -OutputPath $out -Assess -IntakePath 'intake.json' 6>$null | Should -HaveCount 1 }
+    finally { Pop-Location }
+    @(Get-ChildItem $out -Filter 'avd-assessment-*').Count | Should -Be 1
   }
 
   It 'refuses packages from more than one tenant' {

@@ -476,9 +476,11 @@ you have one:
 
 It writes `avd-assessment-<timestamp>.json` beside the snapshot with the same timestamp, and
 prints one line per pillar, the count of checks by outcome, and which design decisions the
-inputs support. It refuses a method copy that doesn't match its pin, an intake that isn't valid
-C19 or is for another estate, and a report the leak scan flags. The manifest coverage line above
-stays as it was; the report's `decisions` are the method's readiness rows.
+inputs support, in place of the manifest coverage line above. Before it reads any package, it
+refuses a pinned copy in `assess/` or `contracts/` that doesn't match its hash and an intake that
+isn't valid C19; an intake for another estate is refused before anything is written, and so is a
+report the leak scan flags. The script's output is still the snapshot's path; the report's file
+name is in the log and the state line (`assessment`).
 
 ---
 

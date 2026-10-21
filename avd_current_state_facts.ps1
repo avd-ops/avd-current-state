@@ -715,44 +715,58 @@ function Get-ManifestCoverage {
     [pscustomobject]@{ Total = @($Register.decisions).Count; Supported = $supported; Needs = $needs }
 }
 
-function Write-Assessment {
-    # Runs the method pinned in assess/ over the snapshot just written (lib/AvdAssess.psm1) and writes the
-    # C21 report. Refuses a method copy that drifted from its pin, an intake that isn't C19 for this
-    # estate, and a report the leak scan flags.
-    param([string]$SnapshotJson, [string]$SnapshotFile, [string]$IntakeFile, [string]$Destination)
+function Read-AssessInput {
+    # Everything -Assess needs, read and checked before any package is: every pinned copy in assess/ and
+    # contracts/ against its hash (the run uses the method, the register and the schemas), and the intake
+    # against C19. A mistake here stops the run before it writes anything.
+    param([string]$IntakeFile)
     Import-Module (Join-Path $PSScriptRoot 'lib/AvdAssess.psm1') -Force
-    $pinsFile = Join-Path $PSScriptRoot 'assess/PINS.json'
+    $pins = $null
+    foreach ($dir in @('assess', 'contracts')) {
+        $p = Get-Content -LiteralPath (Join-Path $PSScriptRoot "$dir/PINS.json") -Raw | ConvertFrom-Json
+        if ("$($p.commit)" -notmatch '^[0-9a-f]{40}$') { throw "$dir/PINS.json has no full commit." }
+        foreach ($f in $p.files.PSObject.Properties) {
+            $sha = Get-Sha256Hex ([System.IO.File]::ReadAllBytes((Join-Path $PSScriptRoot "$dir/$($f.Name)")))
+            if ($sha -ne "$($f.Value)") { throw "$dir/$($f.Name) does not match its hash in $dir/PINS.json. Re-copy it from avd-assess at the pinned commit." }
+        }
+        if ($dir -eq 'assess') { $pins = $p }
+    }
     $methodFile = Join-Path $PSScriptRoot 'assess/method.json'
-    $pins = Get-Content -LiteralPath $pinsFile -Raw | ConvertFrom-Json
-    $methodSha = Get-Sha256Hex ([System.IO.File]::ReadAllBytes($methodFile))
-    if ($methodSha -ne "$($pins.files.'method.json')") { throw 'assess/method.json does not match its hash in assess/PINS.json. Re-copy it from avd-assess at the pinned commit.' }
-    $method = Get-Content -LiteralPath $methodFile -Raw | ConvertFrom-Json
-    $register = Get-Content -LiteralPath (Join-Path $PSScriptRoot 'contracts/fact-register.json') -Raw | ConvertFrom-Json
-
-    $intake = $null; $intakeSha = $null
+    $result = [ordered]@{
+        Commit       = "$($pins.commit)"
+        MethodSha256 = "$($pins.files.'method.json')"
+        Method       = Get-Content -LiteralPath $methodFile -Raw | ConvertFrom-Json
+        Register     = Get-Content -LiteralPath (Join-Path $PSScriptRoot 'contracts/fact-register.json') -Raw | ConvertFrom-Json
+        Intake       = $null
+        IntakeSha256 = $null
+    }
     if ($IntakeFile) {
-        $intakeBytes = [System.IO.File]::ReadAllBytes([System.IO.Path]::GetFullPath($IntakeFile))
+        $intakeBytes = [System.IO.File]::ReadAllBytes($IntakeFile)
         $intakeText = [System.Text.Encoding]::UTF8.GetString($intakeBytes).TrimStart([char]0xFEFF)
-        $intakeSchema = Join-Path $PSScriptRoot 'contracts/intake.schema.json'
         if (Get-Command Test-Json -ErrorAction SilentlyContinue) {
             $errs = $null
-            if (-not (Test-Json -Json $intakeText -SchemaFile $intakeSchema -ErrorVariable errs -ErrorAction SilentlyContinue)) { throw "The intake isn't valid avd-intake/v1: $errs" }
+            if (-not (Test-Json -Json $intakeText -SchemaFile (Join-Path $PSScriptRoot 'contracts/intake.schema.json') -ErrorVariable errs -ErrorAction SilentlyContinue)) { throw "The intake isn't valid avd-intake/v1: $errs" }
         } else {
             Write-FactsLog 'Windows PowerShell has no Test-Json: the intake is checked for its schema and estate only.' -Level WARN
         }
-        $intake = $intakeText | ConvertFrom-Json
-        if ("$(Get-Prop $intake 'schema' '')" -ne 'avd-intake/v1') { throw "The intake isn't avd-intake/v1." }
-        $intakeSha = Get-Sha256Hex $intakeBytes
+        $result.Intake = $intakeText | ConvertFrom-Json
+        if ("$(Get-Prop $result.Intake 'schema' '')" -ne 'avd-intake/v1') { throw "The intake isn't avd-intake/v1." }
+        $result.IntakeSha256 = Get-Sha256Hex $intakeBytes
     }
+    return $result
+}
 
-    $snapshotSha = Get-Sha256Hex ([System.IO.File]::ReadAllBytes($SnapshotFile))
-    $report = Get-AvdAssessment -Method $method -MethodCommit "$($pins.commit)" -MethodSha256 $methodSha -Register $register `
-        -Snapshot ($SnapshotJson | ConvertFrom-Json) -SnapshotSha256 $snapshotSha -Intake $intake -IntakeSha256 $intakeSha `
-        -ProducerName 'avd_current_state_facts.ps1' -ProducerVersion $script:FactsVersion
+function Write-Assessment {
+    # Runs the pinned method over the snapshot just written (lib/AvdAssess.psm1) and writes the C21
+    # report; refuses one the leak scan flags.
+    param($AssessInput, [string]$SnapshotJson, [object]$Snapshot, [string]$Destination)
+    $report = Get-AvdAssessment -Method $AssessInput.Method -MethodCommit $AssessInput.Commit -MethodSha256 $AssessInput.MethodSha256 -Register $AssessInput.Register `
+        -Snapshot $Snapshot -SnapshotSha256 (Get-Sha256Hex ((New-Object System.Text.UTF8Encoding $false).GetBytes($SnapshotJson))) `
+        -Intake $AssessInput.Intake -IntakeSha256 $AssessInput.IntakeSha256 -ProducerName 'avd_current_state_facts.ps1' -ProducerVersion $script:FactsVersion
     $leaks = @(Find-Leak -Node $report)
     if ($leaks.Count) { throw "Refusing to write the assessment: it looks like it holds tenant data ($(($leaks | Select-Object -First 5) -join '; '))." }
     [System.IO.File]::WriteAllText($Destination, ($report | ConvertTo-Json -Depth 12), (New-Object System.Text.UTF8Encoding $false))
-    Write-FactsLog "Assessment: $Destination (avd-assess method v$($method.version) at $("$($pins.commit)".Substring(0, 7)))"
+    Write-FactsLog "Assessment: $Destination (avd-assess method v$($AssessInput.Method.version) at $($AssessInput.Commit.Substring(0, 7)))"
     return $report
 }
 
@@ -760,7 +774,16 @@ function Write-Assessment {
 
 try {
     if ($IntakePath -and -not $Assess) { throw '-IntakePath goes with -Assess.' }
-    if ($IntakePath -and -not (Test-Path -LiteralPath $IntakePath)) { throw "Intake file not found: $IntakePath" }
+    $assessInput = $null
+    if ($Assess) {
+        $intakeFile = $null
+        if ($IntakePath) {
+            # Resolved against PowerShell's location, which .NET's file calls don't follow.
+            if (-not (Test-Path -LiteralPath $IntakePath -PathType Leaf)) { throw "Intake file not found: $IntakePath" }
+            $intakeFile = (Resolve-Path -LiteralPath $IntakePath).ProviderPath
+        }
+        $assessInput = Read-AssessInput -IntakeFile $intakeFile
+    }
     if (-not (Test-Path -LiteralPath $KeyPath)) {
         if (-not $NewKey) { throw "Key file not found: $KeyPath. Pass -NewKey to create one for a new estate." }
         $bytes = New-Object byte[] 32
@@ -854,6 +877,10 @@ try {
         redactedValues = $script:RedactedValues
     }
 
+    if ($assessInput -and $assessInput.Intake -and "$(Get-Prop $assessInput.Intake 'estate' '')" -cne $snapshot.estate) {
+        throw "The intake is for another estate than these packages ($($snapshot.estate)). Use the intake.json the Discover stage wrote for this estate."
+    }
+
     $leaks = @(Find-Leak -Node $snapshot)
     if ($leaks.Count) {
         throw "Refusing to write the snapshot: it looks like it holds tenant data ($(($leaks | Select-Object -First 5) -join '; ')). Report this with the check or dataset name, never the value."
@@ -868,8 +895,9 @@ try {
     Write-FactsLog "Facts snapshot: $outFile"
     Write-FactsLog "  $($subscriptions.Count) subscription(s), $(@($subscriptions | ForEach-Object { $_.hostPools }).Count) host pool(s), $($validations.Count) validator run(s), $($script:RedactedValues) value(s) redacted."
     # What this snapshot can and can't decide, and what the rest needs.
+    # With -Assess the method's readiness rows answer this instead (below), so the run gives one answer.
     $registerFile = Join-Path $PSScriptRoot 'contracts/fact-register.json'
-    if (Test-Path -LiteralPath $registerFile) {
+    if (-not $Assess -and (Test-Path -LiteralPath $registerFile)) {
         $coverage = Get-ManifestCoverage -Snapshot ($json | ConvertFrom-Json) -Register (Get-Content -LiteralPath $registerFile -Raw | ConvertFrom-Json)
         $line = "Manifest coverage: $($coverage.Supported.Count) of $($coverage.Total) design decisions can come from this snapshot"
         if ($coverage.Supported.Count) { $line += " ($(($coverage.Supported | ForEach-Object { $_.ToLowerInvariant() }) -join ', '))" }
@@ -881,7 +909,7 @@ try {
     $assessFile = $null
     if ($Assess) {
         $assessFile = Join-Path (Split-Path -Parent $outFile) "avd-assessment-$stamp.json"
-        $assessment = Write-Assessment -SnapshotJson $json -SnapshotFile $outFile -IntakeFile $IntakePath -Destination $assessFile
+        $assessment = Write-Assessment -AssessInput $assessInput -SnapshotJson $json -Snapshot ($json | ConvertFrom-Json) -Destination $assessFile
         foreach ($p in $assessment.pillars) {
             $score = if ($null -eq $p.score) { 'no score' } else { 'score {0:0.00}' -f $p.score }
             Write-FactsLog ("  {0}: {1}, {2} of {3} checks assessed (coverage {4:0%})." -f $p.pillar, $score, $p.assessed, $p.checks, $p.coverage)
@@ -910,7 +938,6 @@ try {
                 validations = [int]$validations.Count; redacted = [int]$script:RedactedValues })
     }
     Write-Output $outFile
-    if ($assessFile) { Write-Output $assessFile }
 } finally {
     foreach ($dir in $script:TempDirs) { if (Test-Path -LiteralPath $dir) { Remove-Item -LiteralPath $dir -Recurse -Force -ErrorAction SilentlyContinue } }
 }
