@@ -17,6 +17,7 @@ All notable changes, in the format of [Keep a Changelog](https://keepachangelog.
 
 ### Changed
 
+- The vendored contracts and the assess method move from a commit pin to avd-assess's first release, `v1.0.0` (commit `a5a7eee`): both PINS files gain `release` and `manifest` (the SHA-256 of the release's `datapackage.json`, vendored in `assess/`), the release's PowerShell bundle verifier is vendored as `assess/AvdAssessBundle.psm1`, and a test checks every copy against the manifest. The method gains the operations pillar's two policy checks, the fact register gains 100 specified facts (none removed, register version 1), and every schema gains its `$id`. Nothing is fetched at run time.
 - The vendored avd-ops design system moves to 2.2.0 (`ds-v2.2.0`, avd-ops commit `78af4f2`), adding the lockup SVGs.
 - The vendored contracts and the assess method are re-pinned to avd-assess commit `a5f4df1`: the fact register gains the map's 31 specified facts and marks `c11.hostPool.loadBalancer` and `c11.logAnalytics.retentionDays` built (the snapshot already carries both, and the tests now check them), and `index.json` gains the map index. `method.json` and the schemas are unchanged.
 - The vendored contracts (`contracts/`) are pinned to avd-assess commit `a4e5827` (source now `avd-ops/avd-assess`) and gain the C19 intake, C20 method and C21 assessment schemas; the fact register and the C11 schema are unchanged.

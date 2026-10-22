@@ -1,11 +1,13 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://assess.avd-ops.dev/schemas/avd-assess-method/v1.json",
   "title": "avd-assess-method/v1: the rules avd-assess's method runs (method.json)",
   "description": "Contract C20. The machine-readable part of avd-assess's gap files: where each fact comes from (collection), declarative checks of published claims against registered facts (assessment), what each C14 decision needs (readiness) and how outcomes roll up (scoring). No code: a check is a JSON pointer, a filter and an expectation. avd-current-state runs a byte-identical copy pinned by commit; the brain checks it with Test-AssessMethod.",
   "type": "object",
   "required": ["schema", "version", "factRegister", "collection", "checks", "readiness", "scoring"],
   "additionalProperties": false,
   "$defs": {
+    "deprecated": {"type": "object", "description": "Marks an ID that a later major release may remove (docs/distribution-spec.md section 6): the release that first carried the mark and the ID that replaces it, if any. Readers keep using a deprecated ID until it is gone.", "required": ["since"], "additionalProperties": false, "properties": {"since": {"type": "string", "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$"}, "replacedBy": {"type": ["string", "null"]}}},
     "remediation": {
       "type": "object",
       "description": "What would make a non-pass outcome pass, as a hint for the remediation plan (C24). lz-parameter: an avd-landing-zone parameter and the public value it should take; lz-setting: something the landing zone always applies, so a redeploy from it fixes the finding; manual: outside what a landing zone redeploy fixes, with a code, never free text (rebuild-hosts: hosts the landing zone deploys have it, existing hosts must be replaced).",
@@ -84,6 +86,7 @@
         "additionalProperties": false,
         "properties": {
           "id": { "type": "string", "pattern": "^asm-[a-z0-9-]{3,60}$" },
+          "deprecated": { "$ref": "#/$defs/deprecated" },
           "title": { "$ref": "#/$defs/line" },
           "pillar": { "enum": ["reliability", "security", "cost", "operations", "performance"] },
           "severity": { "enum": ["high", "medium", "low"] },

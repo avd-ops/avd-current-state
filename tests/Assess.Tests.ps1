@@ -48,7 +48,7 @@ Describe 'Pinned copies' {
     $pins = Read-TestJson 'assess/PINS.json'
     $pins.commit | Should -Match '^[0-9a-f]{40}$'
     $pins.source | Should -Be 'https://github.com/avd-ops/avd-assess'
-    @($pins.files.PSObject.Properties).Count | Should -Be 2
+    @($pins.files.PSObject.Properties).Count | Should -Be 3
     foreach ($f in $pins.files.PSObject.Properties) {
       (Get-FileHash (Join-Path $script:root "assess/$($f.Name)") -Algorithm SHA256).Hash.ToLowerInvariant() | Should -Be $f.Value -Because $f.Name
     }
@@ -56,6 +56,38 @@ Describe 'Pinned copies' {
 
   It 'pins assess/ and contracts/ to the same avd-assess commit' {
     (Read-TestJson 'assess/PINS.json').commit | Should -Be (Read-TestJson 'contracts/PINS.json').commit
+  }
+
+  It 'pins assess/ and contracts/ to the same avd-assess release and manifest' {
+    $a = Read-TestJson 'assess/PINS.json'; $c = Read-TestJson 'contracts/PINS.json'
+    $a.release | Should -Match '^v\d+\.\d+\.\d+$'
+    $a.manifest | Should -Match '^[0-9a-f]{64}$'
+    $c.release | Should -Be $a.release
+    $c.manifest | Should -Be $a.manifest
+  }
+
+  It 'every pinned copy checks out against the release manifest (the vendored bundle verifier)' {
+    # docs/distribution-spec.md in avd-assess, sections 8 and 9: the manifest's own hash is the pin and
+    # it pins every file. Bundle paths are found by base name, which the release keeps unique.
+    $a = Read-TestJson 'assess/PINS.json'
+    $manifest = Read-TestJson 'assess/datapackage.json'
+    $manifest.version | Should -Be $a.release.TrimStart('v')
+    $manifest.avdAssess.tag | Should -Be $a.release
+    $manifest.avdAssess.commit | Should -Be $a.commit
+    $map = @{}
+    foreach ($dir in 'assess', 'contracts') {
+      foreach ($f in (Read-TestJson "$dir/PINS.json").files.PSObject.Properties) {
+        $paths = @($manifest.resources | Where-Object { ($_.path -split '/')[-1] -ceq $f.Name } | ForEach-Object path)
+        $paths | Should -HaveCount 1 -Because "$dir/$($f.Name) must be one file in the release"
+        $map[$paths[0]] = "$dir/$($f.Name)"
+      }
+    }
+    Import-Module (Join-Path $script:root 'assess/AvdAssessBundle.psm1') -Force
+    $checks = @(Get-AvdAssessBundleCheck -Path $script:root -ManifestPath (Join-Path $script:root 'assess/datapackage.json') -ManifestSha256 $a.manifest -PathMap $map)
+    $checks | Should -Not -BeNullOrEmpty
+    @($checks | Where-Object status -eq 'FAIL' | ForEach-Object { "$($_.id): $($_.detail)" }) | Should -BeNullOrEmpty
+    @($checks | Where-Object id -eq 'manifest-pin' | Where-Object status -eq 'PASS') | Should -HaveCount 1
+    @($checks | Where-Object id -eq 'resource-hash' | Where-Object status -eq 'PASS').detail | Should -Match "^$($map.Count) files match"
   }
 
   It 'the method cites the register it is pinned with' {
@@ -236,7 +268,7 @@ Describe 'Get-AvdAssessScore' {
 
   It 'scores null with nothing assessed, and lists pillars in name order' {
     $scores = @(Get-AvdAssessScore -Method $script:method -Result @())
-    @($scores.pillar) | Should -Be @('cost', 'reliability', 'security')
+    @($scores.pillar) | Should -Be @('cost', 'operations', 'reliability', 'security')
     foreach ($s in $scores) { $s.score | Should -BeNullOrEmpty; $s.coverage | Should -Be 0 }
   }
 }

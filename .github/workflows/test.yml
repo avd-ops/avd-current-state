@@ -76,6 +76,33 @@ jobs:
           }
           if ($failed) { throw "$failed file(s) don't parse in Windows PowerShell 5.1." }
 
+  # The vendored avd-assess files come from a published release (avd-assess docs/distribution-spec.md,
+  # sections 8 and 9). The run never fetches anything; this job proves the pin: the release named in
+  # assess/PINS.json exists, its datapackage.json is the vendored one with the pinned SHA-256, and GitHub's
+  # build provenance attestation for it checks out. The Pester suite then checks every file against it.
+  assess-release:
+    name: avd-assess release pin is published and attested
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Release manifest matches the pin
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          release=$(jq -r .release assess/PINS.json)
+          manifest=$(jq -r .manifest assess/PINS.json)
+          for f in contracts/PINS.json; do
+            [ "$(jq -r .release "$f")" = "$release" ] && [ "$(jq -r .manifest "$f")" = "$manifest" ] || { echo "::error::$f pins another release or manifest"; exit 1; }
+          done
+          d=$(mktemp -d)
+          echo "Downloading datapackage.json from avd-assess release $release"
+          gh release download "$release" -R avd-ops/avd-assess -p datapackage.json -D "$d" || { echo "::error::avd-assess release $release is not published yet; merge after it is"; exit 1; }
+          echo "$manifest  $d/datapackage.json" | sha256sum -c -
+          cmp "$d/datapackage.json" assess/datapackage.json
+          echo "Checking the build provenance attestation"
+          gh attestation verify "$d/datapackage.json" -R avd-ops/avd-assess
+
   portal:
     name: Assessment portal engine + page
     runs-on: ubuntu-latest

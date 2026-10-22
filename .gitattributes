@@ -6,3 +6,4 @@
 contracts/*.json -text
 # So is the method (assess/PINS.json), which the facts script checks before -Assess.
 assess/*.json -text
+assess/*.psm1 -text
