@@ -354,6 +354,7 @@
   // the whole block in one pwsh. Where each script works: platforms.json (copied here; a test keeps them equal).
   const PLATFORMS = {
     "avd_current_state_collector.ps1": {"cloudshell-pwsh": "untested", "cloudshell-bash": "untested", "windows": "untested", "macos": "untested", "winps51": "untested", "requires": "PowerShell 7.2 or later, the Az modules"},
+    "avd_current_state_drift.ps1": {"cloudshell-pwsh": "untested", "cloudshell-bash": "untested", "windows": "untested", "macos": "untested", "winps51": "untested", "requires": "PowerShell 7.2 or later, the Az modules (Az.Accounts; Az.Resources for role assignments), Reader on the subscription"},
     "avd_current_state_facts.ps1": {"cloudshell-pwsh": "untested", "cloudshell-bash": "untested", "windows": "tested", "macos": "tested", "winps51": "untested", "requires": "PowerShell 7.2 or later (offline: no Az modules, no sign-in)", "evidence": "CI on every pull request (tests/Facts.Tests.ps1 runs the script end to end on a fixture package, -Assess included) on Windows and macOS with PowerShell 7, avd-current-state #36, 2026-10-21; no Azure needed"},
     "avd_deployment_validator.ps1": {"cloudshell-pwsh": "untested", "cloudshell-bash": "untested", "windows": "untested", "macos": "untested", "winps51": "untested", "requires": "PowerShell 7.2 or later, the Az modules"}
   };

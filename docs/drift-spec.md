@@ -1,6 +1,6 @@
 # Spec: drift and conformance checks (report first, fix on approval)
 
-Status: v3, 2026-10-21. v2 went through a red team (17 findings) and a code review (11 findings), all folded in (section 9). v3 records the owner's answers to the open questions (section 10) and adds the digest and approval for suppression rules (section 3.6). Design only. Nothing is built, nothing runs in Azure, no spend.
+Status: v3, 2026-10-21. v2 went through a red team (17 findings) and a code review (11 findings), all folded in (section 9). v3 records the owner's answers to the open questions (section 10) and adds the digest and approval for suppression rules (section 3.6). Phase 1 is built and tested offline (section 7.1); nothing has run in Azure yet, and no spend.
 
 The ask: something run again and again (a script, a pipeline, a scheduled job) that compares a live Azure Virtual Desktop estate with a declared desired state, says what drifted in plain language, and changes nothing until a person approves the fix. No Terraform. Azure and Microsoft tooling, and open source only.
 
@@ -225,6 +225,18 @@ Fixtures use `<tenant-id>`, `contoso.com` and `10.x`. Report values never reach 
 Build order for phase 1, each a PR, offline first: (1) C22 entries in avd-assess, pinned here; (2) `lib/AvdDrift.psm1` with fixtures, the two reviewed files and the approval and digest functions (section 3.6); (3) the entry point; (4) `samples/drift.yml` with its tests and checklist, for the owner's private estate repo; (5) one read-only run against the sandbox estate, which costs nothing in Azure but still waits for the owner's go.
 
 Phases 2 and 3 are approved to plan (section 10). Each still needs its own written estimate and the owner's exact go before a sandbox run, and phase 3 needs Entra ID P1 or above confirmed in the sandbox tenant first.
+
+### 7.1 Phase 1 as built (2026-10-22)
+
+Built offline, as sections 3.1 to 3.6 describe, with these choices made while building:
+
+- **One catalog ID per kind,** not one per parameter: `drift-param` carries the parameter as its subject. The catalog gains `drift-couldnt-check` (gate `block`) for the exit 2 cases. C22 itself is new in avd-assess (`check-catalog.schema.json`), pinned in `checks/PINS.json`.
+- **Private files** in the operator's repo, read from `-ConfigPath`: `drift-exceptions.json`, `drift-approvals.json` and `drift-values.json`, which resolves the rule files' placeholders (`<auto-shutdown-principal-id>`) so the digest covers the real values.
+- **Runtime paths are set aside first;** what's left of a change is then matched against the expected actors, so one change can be part run-time state and part automation.
+- **An unexpected error is exit 2,** never 1 or 0. In GitHub Actions the log prints counts, not names.
+- **The what-if noise file stays in the landing zone;** `Get-DriftSuppressionApproval` and the digest rule are pure functions it can vendor with the checks module.
+
+To verify on the first read-only run (assumptions, not yet observed): whether a deployment record carries parameters left at their defaults (the compare skips any parameter the record doesn't carry); whether session host changes reach the change log or only the Activity Log; and which ID the change log and the Activity Log give for a managed identity (`expected-actors.json` matches `changedBy` exactly).
 
 ## 8. Cost
 
