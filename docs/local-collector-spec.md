@@ -1,6 +1,6 @@
 # Spec: current-state on hosts and devices (the local collector)
 
-Status: draft, 2026-10-21. Nothing is built. No Azure, no spend. Red-teamed (section 12); open questions in section 13.
+Status: accepted, 2026-10-21. Nothing is built. No Azure, no spend. Red-teamed (section 12); the owner answered the name, the schedule and the build order (section 13); the rest of section 13 is open.
 
 The owner, 2026-10-21: avd-current-state "has been approached as an admin tool but could also become a collector/validator that runs in the target AVD environment for the preflight and also on the end-user device for troubleshooting as well as session host collector too", and "maybe the collector should be an optional part of avd-current-state". Today every script here runs from Cloud Shell or a workstation and reads Azure Resource Manager. This spec adds an **optional local collector**: one script that runs on the machine it describes, reads only that machine, and writes only to a local folder. The avd-linecheck log bundle (avd-linecheck `docs/spec.md` section 17) is built here as two of its modes, so there is one on-box collector in the family instead of two. The owner set the roles the same day: "avd-assess should be the map and the dictionary, avd-current-state is the collector/validator, landing zone is the deployment engine, linecheck is the enduser portal".
 
@@ -229,14 +229,14 @@ Spikes, offline or free first:
 - **S3 (free, reading):** Intune Collect diagnostics' list against `sources.json`.
 - **S4 (sandbox):** preflight on the landing zone's jumpbox and host mode on one landing zone host, elevated and not, recording which sources need admin and how Run Command's 4 KB limit holds. Needs a cost estimate and the owner's exact `go batch <id> $<total>`; it can ride a batch that already deploys a landing zone, with avd-linecheck S5b.
 
-Build order, each a PR, offline first:
+Build order, each a PR, offline first. The owner, 2026-10-21: "session host collector mode first, end user device mode later". Preflight rides with host mode because it shares the network readers and the per-subnet facts; session mode rides with device mode because together they are the linecheck bundle.
 
 | Phase | Repo | What |
 |---|---|---|
 | 0 | here | This spec |
 | 1 | avd-assess | Proposed fact IDs and `runsOn` in the C22 proposal |
-| 2 | here | `lib/AvdLocal.psm1`, `local/sources.json`, `-Mode Device` and `-Mode Session` (the linecheck bundle), unsigned, CI only, no release |
-| 3 | here | `-Mode Host` and `-Mode Preflight`, `local-facts.json`, the validator's `-LocalPath`, the facts script's `-LocalPath` |
+| 2 | here | The front door `avd_current_state.ps1`, `lib/AvdLocal.psm1`, `local/sources.json`, `-Mode Host` and `-Mode Preflight`, `local-facts.json`, the validator's `-LocalPath`, the facts script's `-LocalPath`; unsigned, CI only, no release |
+| 3 | here | `-Mode Session` and `-Mode Device` (the linecheck bundle), later |
 | 4 | here, avd-ops | Release workflow with Artifact Signing once the signing account exists (#41, the owner's go and cost line) |
 | 5 | avd-landing-zone, then here, then avd-second-brain and avd-swarm | The landing zone's `avdcs-local` managed Run Command and its schedule (5.1); `collect` reads its `instanceView`; the swarm action for a remote run, paired |
 
@@ -268,12 +268,12 @@ The code review (Claude code-review skill) caught ten more, also fixed: a Cloud 
 
 ## 13. Open questions for Nick
 
-1. **Name.** The front door `avd_current_state.ps1` with routines `collect`, `validate`, `facts`, `assess`, `local -Mode Preflight|Host|Session|Device` (section 4), or another name (after a name check). The existing script names keep working either way.
+1. **Name.** Answered 2026-10-21: agreed. The front door `avd_current_state.ps1` with routines `collect`, `validate`, `facts`, `assess`, `local -Mode Preflight|Host|Session|Device` (section 4). The existing script names keep working either way.
 2. **Where the log bundle lives.** Answered 2026-10-21: here, as the session and device modes ("avd-current-state is the collector/validator"). Follow-ups: avd-linecheck 17.8, question 11 and #3 point here (the linecheck thread), avd-ops decision 0008 section 5.2 names this repo, and the endpoint map goes to avd-assess.
 3. **Host-side collector.** This settles the host half of the open "host-side and directory read-only collectors" decision (avd-assess map plan, section 6) as: a local script, started by a person or by the landing zone or an approved avd-swarm plan, never by avd-current-state. Agree, or prefer another path (for example only Machine Configuration and Log Analytics, no script on hosts).
-4. **Order.** Device and session modes first, since avd-linecheck already designed them (recommended), or host and preflight first, since they unlock `unknown` assess checks.
+4. **Order.** Answered 2026-10-21: host mode first (with preflight), device mode later (with session mode); section 10.
 5. **macOS.** Point macOS devices to the Windows App's own logs (recommended for version 1), or plan a PowerShell 7 or bash device mode later.
-6. **Run Command delivery.** Answered 2026-10-21: host mode assumes a remote or scheduled run. The proposal in 5.1 (the landing zone owns a managed Run Command and its schedule, `collect` reads the result with Reader) needs a yes, and a schedule: daily outside working hours is the suggested default.
+6. **Run Command delivery.** Answered 2026-10-21: host mode assumes a remote or scheduled run. The schedule is agreed (2026-10-21): daily outside working hours. The proposal in 5.1 (the landing zone owns a managed Run Command and that schedule, `collect` reads the result with Reader) is how it runs.
 7. **"Remote Desktop Analyzer".** Which tool was meant, so it can be checked as prior art.
 8. **Host bundle retrieval.** Bundles are on demand only (`-Bundle`, never on a schedule). Retrieve them by operator copy through Bastion or the organization's tooling (recommended for version 1), or also let the landing zone send them to the run store blob.
 9. **Host mode with users signed in.** Scheduled facts-only runs are light enough to run anytime; a `-Bundle` run warns when users are signed in (recommended), or refuses unless the host is drained.
