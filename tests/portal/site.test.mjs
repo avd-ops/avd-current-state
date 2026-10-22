@@ -12,9 +12,9 @@ const read = (f) => readFileSync(join(root, f), 'utf8');
 const pages = ['site/index.html', 'site/portal/index.html'];
 const scripts = ['site/portal/portal-config.js', 'site/portal/assess-catalog.js', 'site/portal/assess-core.js', 'site/portal/portal.js'];
 
-test('the notice comes before the first stage, and each script carries it', () => {
+test('the notice comes before the step list, and each script carries it', () => {
   const html = read('site/portal/index.html');
-  const top = html.split('<ol class="steps"')[0];
+  const top = html.split('<ol class="wz-list"')[0];
   assert.match(top, /Personal project, not for production\./);
   assert.match(top, /without warranty of any kind/);
   assert.match(top, /Not affiliated with, endorsed by or supported by the author's employer/);
@@ -119,4 +119,25 @@ test('the portal engine copy matches engine.lock.json, needs nothing unlisted, a
   assert.ok(at('../assets/engine/core.js') >= 0, 'core.js is loaded');
   for (const [f, need] of needs) assert.ok(at(`../assets/engine/${need}`) >= 0 && at(`../assets/engine/${need}`) < at(`../assets/engine/${f}`), `${need} loads before ${f}`);
   for (const f of Object.keys(lock.files)) assert.ok(at(`../assets/engine/${f}`) >= at('../assets/engine/core.js') && at(`../assets/engine/${f}`) < at('assess-core.js'), `${f} loads after core.js and before assess-core.js`);
+});
+
+// The portal is the avd-ops wizard (avd-ops docs/design-system.md, "Wizard"): steps down the left, one step on
+// screen at a time, each opening with its title and one purpose line, Back and Next along the bottom.
+test('the portal is a wizard: every step has its screen, a title and one purpose line', () => {
+  const html = read('site/portal/index.html');
+  const js = read('site/portal/portal.js');
+  assert.match(html, /<main class="wz-layout">\s*<header class="top wz-rail">/);
+  assert.match(html, /<ol class="wz-list" id="steps"[^>]*><\/ol>\s*<ol class="wz-progress" id="steps-bar"[^>]*><\/ol>/);
+  assert.match(html, /<nav class="wz-nav wide"[^>]*><div class="in">[\s\S]*?id="back"[\s\S]*?id="where"[\s\S]*?id="next"/);
+  const steps = [...js.match(/const STEPS = \[([\s\S]*?)\];/)[1].matchAll(/id: '(\w+)', stage: '(\w+)'/g)];
+  assert.deepEqual([...new Set(steps.map((m) => m[2]))], ['collect', 'discover', 'analyze', 'review', 'plan'], 'the five stages, in order');
+  for (const [, id] of steps) {
+    const sec = (html.match(new RegExp(`<section class="wz-stage[^"]*" id="stage-${id}" data-step="${id}"[^>]*>([\\s\\S]*?)</section>`)) || [])[1];
+    assert.ok(sec, `${id} has a screen`);
+    assert.match(sec, new RegExp(`^\\s*<h2 id="${id}-title">[^<]+</h2>\\s*<p class="purpose">`), `${id} opens with its title and purpose line`);
+    const purpose = sec.match(/<p class="purpose">([\s\S]*?)<\/p>/)[1].replace(/<[^>]+>/g, '');
+    assert.ok(purpose.length <= 100, `${id}: the purpose line is one short line`);
+  }
+  assert.equal([...html.matchAll(/<section class="wz-stage/g)].length, steps.length, 'one screen per step');
+  for (const s of ['settings-panel', 'report-panel']) assert.match(html, new RegExp(`<section class="sheet hidden" id="${s}" role="dialog" aria-modal="true"`), s);
 });
