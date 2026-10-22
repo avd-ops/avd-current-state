@@ -136,6 +136,10 @@
       <div class="stop" id="collect-run">
         <p class="label run-label">Run in Cloud Shell</p>
         <div class="term"><div class="term-head"><span class="term-label">Collect and pseudonymize</span><button type="button" data-copy="collect-cmd">Copy</button></div><pre id="collect-cmd"></pre></div>
+        <details class="reader" id="reader-run"><summary>Running it on a schedule? Check the optional reader</summary>
+          <p class="muted">An optional read-only identity lets GitHub Actions in your private repo run the collector with nobody signed in. Set it up from the <a href="https://github.com/avd-ops/avd-current-state/blob/main/docs/reader-identity.md">reader guide</a>; this check only reads.</p>
+          <div class="term"><div class="term-head"><span class="term-label">Check the reader</span><button type="button" data-copy="reader-cmd">Copy</button></div><pre id="reader-cmd"></pre></div>
+        </details>
       </div>
       <div class="stop" id="collect-paste-stop">
         <p class="label">Paste the output</p>

@@ -26,6 +26,14 @@
    "macos": "untested",
    "winps51": "untested",
    "requires": "PowerShell 7.2 or later, the Az modules"
+  },
+  "avd_ops_reader.ps1": {
+   "cloudshell-pwsh": "untested",
+   "cloudshell-bash": "untested",
+   "windows": "untested",
+   "macos": "untested",
+   "winps51": "untested",
+   "requires": "PowerShell 7.2 or later, Az.Accounts"
   }
  }
 }

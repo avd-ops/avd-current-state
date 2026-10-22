@@ -25,6 +25,7 @@ jobs:
           Set-PSRepository PSGallery -InstallationPolicy Trusted
           Install-Module PSScriptAnalyzer -Scope CurrentUser -Force
           Invoke-ScriptAnalyzer -Path ./avd_current_state_facts.ps1 -Settings ./PSScriptAnalyzerSettings.psd1 -EnableExit
+          Invoke-ScriptAnalyzer -Path ./avd_ops_reader.ps1 -Settings ./PSScriptAnalyzerSettings.psd1 -EnableExit
           Invoke-ScriptAnalyzer -Path ./lib -Recurse -Settings ./PSScriptAnalyzerSettings.psd1 -EnableExit
           # The collector and validator: parse errors and platform compatibility only, for now.
           foreach ($p in './avd_current_state_collector.ps1', './avd_deployment_validator.ps1') {

@@ -146,6 +146,15 @@
     return preamble().concat([cmd]).join('\n');
   }
 
+  // The optional avd-ops-reader (docs/reader-identity.md): only its check, which reads. Setting it up writes to
+  // Entra and ARM, so that command lives in the docs, not on this page.
+  function readerCommand() {
+    return preamble().concat([
+      "if (-not $env:AVD_READER_CLIENT_ID) { $env:AVD_READER_CLIENT_ID = Read-Host 'The reader''s client ID (not a secret)' }",
+      './avd_ops_reader.ps1 -Mode Test'
+    ]).join('\n');
+  }
+
   // ---- Discover: intake.json (C19) and the private notes --------------------------------------------
 
   function regionList(text) {
@@ -481,7 +490,8 @@
   const PLATFORMS = {
     "avd_current_state_collector.ps1": {"cloudshell-pwsh": "untested", "cloudshell-bash": "untested", "windows": "untested", "macos": "untested", "winps51": "untested", "requires": "PowerShell 7.2 or later, the Az modules"},
     "avd_current_state_facts.ps1": {"cloudshell-pwsh": "untested", "cloudshell-bash": "untested", "windows": "tested", "macos": "tested", "winps51": "untested", "requires": "PowerShell 7.2 or later (offline: no Az modules, no sign-in)", "evidence": "CI on every pull request (tests/Facts.Tests.ps1 runs the script end to end on a fixture package, -Assess included) on Windows and macOS with PowerShell 7, avd-current-state #36, 2026-10-21; no Azure needed"},
-    "avd_deployment_validator.ps1": {"cloudshell-pwsh": "untested", "cloudshell-bash": "untested", "windows": "untested", "macos": "untested", "winps51": "untested", "requires": "PowerShell 7.2 or later, the Az modules"}
+    "avd_deployment_validator.ps1": {"cloudshell-pwsh": "untested", "cloudshell-bash": "untested", "windows": "untested", "macos": "untested", "winps51": "untested", "requires": "PowerShell 7.2 or later, the Az modules"},
+    "avd_ops_reader.ps1": {"cloudshell-pwsh": "untested", "cloudshell-bash": "untested", "windows": "untested", "macos": "untested", "winps51": "untested", "requires": "PowerShell 7.2 or later, Az.Accounts"}
   };
   const PLACES = { cloudshell: 'Cloud Shell', windows: 'Windows', macos: 'macOS' };
   // Windows runs PowerShell 7 only; Bash there means WSL, which is its own Linux machine.
@@ -524,7 +534,7 @@
   return {
     STAGES, HUBS, IDENTITY, DAYS, TOPICS,
     parseStateLines, latestStates, summarizeCollect, summarizeAnalyze,
-    psQuote, nameList, collectCommand, analyzeCommand,
+    psQuote, nameList, collectCommand, analyzeCommand, readerCommand,
     regionList, buildIntake, intakeCommand, notesMarkdown,
     REASONS, REASON_LABELS, sha256Hex, parseAssessment, checkTitle, startReview, buildReview, reviewCommand,
     reviewText, titleOf, buildPlan, planMarkdown, planCommand, CODE_SHORT, skippedWhy,

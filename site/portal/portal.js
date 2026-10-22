@@ -87,6 +87,7 @@
   function renderCommands() {
     setCommand('collect-cmd', () => core.collectCommand(state.settings));
     setCommand('analyze-cmd', () => core.analyzeCommand(state.settings));
+    setCommand('reader-cmd', () => core.readerCommand());
   }
   document.addEventListener('click', (ev) => {
     const btn = ev.target.closest('[data-copy]');
