@@ -2,7 +2,7 @@
    assess-core.js: the assessment portal's engine (docs/assessment-portal-spec.md). Pure functions, no DOM and no
    network: it reads the AVDCS-STATE lines the scripts print, builds the self-contained Cloud Shell blocks, and
    turns the discovery answers into intake.json (contract C19, avd-intake/v1, in avd-assess contracts/) and the
-   private discovery notes. Runs in the browser (window.AssessCore) and in Node (tests/portal/). */
+   private discovery notes, the decisions into review.json (C23), and the review into plan.json (C24) and plan.md. Runs in the browser (window.AssessCore) and in Node (tests/portal/). */
 (function (root, factory) {
   if (typeof module === 'object' && module.exports) module.exports = factory();
   else root.AssessCore = factory();
@@ -289,7 +289,8 @@
     }
     const counts = { gap: 0, warn: 0, unknown: 0, pass: 0 };
     for (const r of results) counts[r.outcome]++;
-    return { assessment: { estate: doc.estate, generatedUtc: doc.generatedUtc, results, counts }, error: '' };
+    const methodVersion = doc.method && Number.isInteger(doc.method.version) ? doc.method.version : 0;
+    return { assessment: { estate: doc.estate, generatedUtc: doc.generatedUtc, methodVersion, results, counts }, error: '' };
   }
 
   // A readable name for a check ID until the pinned method's titles arrive with the validator's assess mode:
@@ -350,11 +351,136 @@
     if (/^'@/m.test(json) || /[^\x20-\x7e\n]/.test(json)) throw new Error(`${name} holds a character the block cannot carry.`);
     return preamble({ signIn: false }).concat([
       `$file = Join-Path $out '${name}'`,
-      "@'",
+      "$text = @'",
       json,
-      "'@ | Set-Content -Path $file -Encoding utf8",
+      "'@",
+      // The file gets exactly the bytes the download has (LF line ends, one final LF, UTF-8 with no BOM) on every
+      // platform, so a hash taken in the browser (plan.json pins review.json by its SHA-256) matches the file.
+      '[System.IO.File]::WriteAllText($file, ($text -replace "`r`n", "`n") + "`n", [System.Text.UTF8Encoding]::new($false))',
       'Get-Content $file'
     ]).join('\n');
+  }
+
+  // ---- Plan: plan.json (C24) and plan.md ---------------------------------------------------------
+  // avd-assess methods/remediation.md: the review's Fix rows and every non-pass check with no decision (marked
+  // unreviewed, as C23 says) become items; Accept and Defer make none. An unknown outcome plans evidence, never a
+  // change. The order is a rule, not a judgment: gap, warn, unknown; then high, medium, low; then check ID.
+
+  const RANK = { gap: 0, warn: 1, unknown: 2, high: 0, medium: 1, low: 2 };
+  const SEVERITIES = ['high', 'medium', 'low'];
+  const CODE_LABELS = {
+    'collect-evidence': 'Collect the missing evidence and run again before changing anything',
+    'rebuild-hosts': 'Replace the hosts: hosts the landing zone deploys have it, existing hosts don\'t change',
+    'private-value': 'Set it in your own parameter file (it needs a value only you hold)',
+    'outside-landing-zone': 'Outside the landing zone: change it where it is managed',
+    process: 'An operating practice, not a setting',
+    'no-known-change': 'No known change yet'
+  };
+
+  // The same codes, short, for the page's table; and why a finding is left out.
+  const CODE_SHORT = {
+    'collect-evidence': 'Collect the evidence, then run again', 'rebuild-hosts': 'Replace the hosts', 'private-value': 'Your own parameter file',
+    'outside-landing-zone': 'Outside the landing zone', process: 'An operating practice', 'no-known-change': 'No known change yet'
+  };
+  function skippedWhy(s) {
+    return s.why === 'not-in-method' ? 'not in the pinned method, so there is nothing to cite' : `${s.why === 'accept' ? 'accepted' : 'deferred'} in the review (${REASON_LABELS[s.reason] || s.reason})`;
+  }
+
+  // The text review.json is written as (the same bytes the download and the block carry), for its hash.
+  function reviewText(review) {
+    return JSON.stringify(review, null, 2) + '\n';
+  }
+
+  // A check's title from the pinned method, or one read from its ID when the method doesn't have it.
+  function titleOf(id, catalog) {
+    const c = catalog && catalog.checks && catalog.checks[id];
+    return c && c.title ? c.title : checkTitle(id);
+  }
+
+  // The plan as an avd-remediation-plan/v1 object, the findings it leaves out and why, or what is missing.
+  // review is the C23 object (or null); its decisions only count when they were made against the same outcome.
+  function buildPlan(assessment, sha256, review, reviewSha, catalog, plannedOn) {
+    const errors = [];
+    if (!assessment) errors.push('Load assessment.json in the Review stage first.');
+    if (!/^[0-9a-f]{64}$/.test(sha256 || '')) errors.push('The report\'s hash is missing; load assessment.json again.');
+    if (!DATE_RE.test(plannedOn || '')) errors.push('Planned on must be a date.');
+    if (review && !/^[0-9a-f]{64}$/.test(reviewSha || '')) errors.push('The review\'s hash is missing; build review.json again.');
+    if (!catalog || !catalog.checks || !(catalog.method >= 1)) errors.push('The pinned method is missing from the page.');
+    if (errors.length) return { plan: null, skipped: [], errors };
+    // The plan cites the method the report ran; a report from another version is planned after a new run.
+    if (assessment.methodVersion && assessment.methodVersion !== catalog.method) errors.push(`The report ran method version ${assessment.methodVersion}; this page carries version ${catalog.method}. Run the assessment again with this version.`);
+    if (review && (review.estate !== assessment.estate || !review.assessment || review.assessment.sha256 !== sha256)) errors.push('The review is for another report: review this report and build review.json again.');
+    if (errors.length) return { plan: null, skipped: [], errors };
+    const decided = {};
+    if (review) for (const d of review.decisions || []) decided[d.check] = d;
+    const items = [], skipped = [];
+    for (const r of assessment.results) {
+      if (r.outcome === 'pass') continue;
+      const d = decided[r.check] && decided[r.check].outcome === r.outcome ? decided[r.check] : null;
+      if (d && d.disposition !== 'fix') { skipped.push({ check: r.check, outcome: r.outcome, why: d.disposition, reason: d.reason }); continue; }
+      const c = catalog.checks[r.check];
+      if (!c || !Array.isArray(c.claims) || !c.claims.length || !SEVERITIES.includes(c.severity)) { skipped.push({ check: r.check, outcome: r.outcome, why: 'not-in-method' }); continue; }
+      const h = c.remediation || { kind: 'manual', code: 'no-known-change' };
+      let change;
+      if (r.outcome === 'unknown') change = { kind: 'manual', code: 'collect-evidence' };
+      else if (h.kind === 'lz-parameter') change = Object.assign({ kind: 'lz-parameter', name: h.name }, h.to !== undefined ? { to: h.to } : {});
+      else if (h.kind === 'lz-setting') change = { kind: 'lz-setting', name: h.name };
+      else change = { kind: 'manual', code: CODE_LABELS[h.code] ? h.code : 'no-known-change' };
+      items.push({ check: r.check, outcome: r.outcome, pillar: c.pillar, severity: c.severity, claims: c.claims.slice(), source: d ? 'review-fix' : 'unreviewed', change });
+    }
+    items.sort((a, b) => RANK[a.outcome] - RANK[b.outcome] || RANK[a.severity] - RANK[b.severity] || (a.check < b.check ? -1 : a.check > b.check ? 1 : 0));
+    const basis = { assessment: sha256 };
+    if (review) basis.review = reviewSha;
+    basis.method = catalog.method;
+    if (/^[0-9a-f]{40}$/.test(catalog.landingZoneCommit || '')) basis.landingZoneCommit = catalog.landingZoneCommit;
+    const plan = {
+      schema: 'avd-remediation-plan/v1',
+      estate: assessment.estate,
+      plannedOn,
+      basis,
+      items: items.map((it, i) => ({ order: i + 1, check: it.check, outcome: it.outcome, pillar: it.pillar, severity: it.severity, claims: it.claims, source: it.source, change: it.change }))
+    };
+    return { plan, skipped, errors };
+  }
+
+  function changeText(ch) {
+    if (ch.kind === 'lz-parameter') return ch.to !== undefined ? `Landing zone parameter ${ch.name} = ${JSON.stringify(ch.to)}` : `Landing zone parameter ${ch.name} (its default)`;
+    if (ch.kind === 'lz-setting') return `Landing zone setting ${ch.name}: a redeploy from the landing zone applies it`;
+    return CODE_LABELS[ch.code] || ch.code;
+  }
+
+  // plan.md for people: the same items, in order, with titles and what to change. Like plan.json it holds no
+  // names: only the estate pseudonym, check IDs, citations and public values.
+  function planMarkdown(plan, skipped, catalog) {
+    const out = [
+      `# Remediation plan (${plan.estate})`,
+      '',
+      `Planned ${plan.plannedOn} with the avd-current-state assessment portal, from method version ${plan.basis.method}${catalog && catalog.assessCommit ? ` (avd-assess ${catalog.assessCommit.slice(0, 7)})` : ''}${plan.basis.review ? ' and a review' : ' with no review: every finding that isn\'t a pass is planned'}.`,
+      '',
+      'Order is priority, not schedule: gap, then warn, then unknown; then severity. Every landing zone item lands in the same redeploy. A landing zone change fixes only what the landing zone deployed; a finding on a resource it doesn\'t own is changed where that resource is managed.',
+      ''
+    ];
+    if (plan.basis.landingZoneCommit) out.push(`Landing zone names come from avd-landing-zone at ${plan.basis.landingZoneCommit.slice(0, 7)} (bicep/main.bicep).`, '');
+    if (!plan.items.length) out.push('_Nothing to change: every finding passed, or was accepted or deferred in the review._', '');
+    for (const it of plan.items) {
+      out.push(`## ${it.order}. ${titleOf(it.check, catalog)}`, '',
+        `- Check: \`${it.check}\` (${it.outcome}, ${it.pillar}, ${it.severity})${it.source === 'unreviewed' ? ', not reviewed' : ''}`,
+        `- Change: ${changeText(it.change)}`,
+        `- Why: ${it.claims.map((c) => `\`${c}\``).join(', ')} (avd-assess)`, '');
+    }
+    if (skipped.length) {
+      out.push('## Not in the plan', '');
+      for (const s of skipped) {
+        out.push(`- ${titleOf(s.check, catalog)} (\`${s.check}\`, ${s.outcome}): ${skippedWhy(s)}`);
+      }
+      out.push('');
+    }
+    return out.join('\n');
+  }
+
+  // A block that writes plan.json beside the packages, the same way as intake.json and review.json.
+  function planCommand(plan) {
+    return fileCommand('plan.json', plan);
   }
 
   // ---- Run in (avd-ops docs/design-system.md, "Run in") ----------------------------------------------
@@ -411,6 +537,7 @@
     psQuote, nameList, collectCommand, analyzeCommand, readerCommand,
     regionList, buildIntake, intakeCommand, notesMarkdown,
     REASONS, REASON_LABELS, sha256Hex, parseAssessment, checkTitle, startReview, buildReview, reviewCommand,
+    reviewText, titleOf, buildPlan, planMarkdown, planCommand, CODE_SHORT, skippedWhy,
     PLATFORMS, PLACES, validRunIn, isDefaultRunIn, scriptsIn, support, forRunIn
   };
 });
