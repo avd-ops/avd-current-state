@@ -262,44 +262,18 @@ function Read-RebuildEvidence {
         Write-Log "  Resource list read failed: $($_.Exception.Message)" -Level WARN
     }
 
+    $log = { param($Message, $Level) Write-Log $Message -Level $Level }
+    $evidence = Get-RebuildEvidence -Scope $script:RebuildScope -SubscriptionId $SubscriptionId -GraphInvoker $graph -RestInvoker $rest -Log $log
     foreach ($t in @($script:RebuildScope.resourceGraph)) {
-        Write-Log "  Reading $($t.type) through Resource Graph ..."
-        $status = 'ok'; $err = ''
-        try {
-            $found = @(Invoke-RebuildGraphQuery -Query (Get-RebuildQuery -Table $t.table -Type $t.type) -SubscriptionId $SubscriptionId -Invoker $graph)
-        } catch {
-            $found = @(); $status = 'failed'; $err = $_.Exception.Message
-            Write-Log "  $($t.type) read failed: $err" -Level WARN
-        }
-        $written = Write-RebuildFile -Path (Join-Path $rebuildDir (Join-Path 'resources' (Get-RebuildFileName -Type $t.type))) -Data $found -Label $t.type
+        $written = Write-RebuildFile -Path (Join-Path $rebuildDir (Join-Path 'resources' (Get-RebuildFileName -Type $t.type))) -Data @($evidence.Rows[$t.type]) -Label $t.type
         $rows[$t.type] = if ($null -ne $written) { @($written) } else { @() }
-        $script:RebuildReads.Add([pscustomobject]@{ Subscription = $SubscriptionId; Read = $t.type; Source = $t.table; Items = $found.Count; Status = $status; Error = $err })
     }
-
-    $sessionHostVms = @{}
-    foreach ($sh in @($rows['microsoft.desktopvirtualization/hostpools/sessionhosts'])) {
-        $vmId = "$(Get-RebuildValue $sh 'properties.resourceId' '')".ToLowerInvariant()
-        if ($vmId) { $sessionHostVms[$vmId] = $true }
+    foreach ($name in @($evidence.Rest.Keys)) {
+        $written = Write-RebuildFile -Path (Join-Path $rebuildDir (Join-Path 'rest' "$name.json")) -Data @($evidence.Rest[$name]) -Label $name
+        $script:RebuildRest[$name] = if ($null -ne $written) { @($written) } else { @() }
     }
-    foreach ($read in @($script:RebuildScope.rest)) {
-        $parents = @()
-        foreach ($p in @($read.parentTypes)) {
-            if ($p -eq 'subscription') { $parents += "/subscriptions/$SubscriptionId" }
-            else { $parents += @($rows[$p] | ForEach-Object { $_.id }) }
-        }
-        # Run Commands are read only on session hosts: that's where the landing zone keeps FSLogix's.
-        if ($read.name -eq 'run-commands') { $parents = @($parents | Where-Object { $sessionHostVms.ContainsKey("$_".ToLowerInvariant()) }) }
-        if ($parents.Count -eq 0) { continue }
-        Write-Log "  Reading $($read.name) for $($parents.Count) resource(s) ..."
-        $results = @(foreach ($parentId in $parents) {
-                $r = Invoke-RebuildRestRead -Path (Get-RebuildRestPath -Read $read -ParentId $parentId) -Invoker $rest
-                if ($r.Status -eq 'failed') { Write-Log "  $($read.name) failed for ${parentId}: $($r.Error)" -Level WARN }
-                [pscustomobject][ordered]@{ parentId = $parentId; status = $r.Status; error = $r.Error; items = @($r.Items) }
-            })
-        $written = Write-RebuildFile -Path (Join-Path $rebuildDir (Join-Path 'rest' "$($read.name).json")) -Data $results -Label $read.name
-        $script:RebuildRest[$read.name] = if ($null -ne $written) { @($written) } else { @() }
-        $failed = @($results | Where-Object { $_.status -eq 'failed' }).Count
-        $script:RebuildReads.Add([pscustomobject]@{ Subscription = $SubscriptionId; Read = $read.name; Source = 'rest'; Items = $results.Count; Status = $(if ($failed) { "failed for $failed" } else { 'ok' }); Error = '' })
+    foreach ($r in $evidence.Reads) {
+        $script:RebuildReads.Add([pscustomobject]@{ Subscription = $SubscriptionId; Read = $r.Read; Source = $r.Source; Items = $r.Items; Status = $r.Status; Error = $r.Error })
     }
     return $rows
 }

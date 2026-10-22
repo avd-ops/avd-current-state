@@ -146,6 +146,16 @@ Describe 'Resource Graph and REST helpers' {
     $failed = Invoke-RebuildRestRead -Path '/w' -Invoker (Get-SessionResponse @(@{ StatusCode = 500; Content = 'boom' })).Invoker
     $failed.Status | Should -Be 'failed'
     $failed.Error | Should -Be 'HTTP 500: boom'
+    $r.Complete | Should -BeTrue
+  }
+
+  It 'says when a REST read stopped with pages left' {
+    $more = '{"value":[{"name":"one"}],"nextLink":"https://management.azure.com/x?page=2"}'
+    (Invoke-RebuildRestRead -Path '/x' -Invoker (Get-SessionResponse @(@{ StatusCode = 200; Content = $more })).Invoker -MaxPages 1).Complete | Should -BeFalse
+    $empty = '{"value":[],"nextLink":"https://management.azure.com/x?page=2"}'
+    $r = Invoke-RebuildRestRead -Path '/x' -Invoker (Get-SessionResponse @(@{ StatusCode = 200; Content = $empty })).Invoker
+    $r.Status | Should -Be 'ok'
+    $r.Complete | Should -BeFalse
   }
 }
 

@@ -82,6 +82,9 @@ Describe 'the declared side' {
     $s.secure | Should -Be @('localAdminPassword')
     $s.names.hostPool | Should -Be 'vdpool-avdlz-dev'
     Get-DriftLandingZoneCorrelationId -Deployments $d | Should -Be @('corr-1', 'corr-2')
+    # Another landing zone's deployments in the same subscription explain nothing here.
+    $d += Get-TestDeployment 'avdlz-test-1' -Env 'test' -Correlation 'corr-other'
+    Get-DriftLandingZoneCorrelationId -Deployments $d -NamePrefix 'avdlz' -Environment 'dev' | Should -Not -Contain 'corr-other'
   }
 
   It 'asks for -Environment when the subscription holds two, and returns nothing when none matches' {
@@ -147,8 +150,17 @@ Describe 'parameter drift' {
     $r.open | Should -BeFalse
   }
 
-  It 'proposes a baseline from found and derived values only' {
-    $b = Get-DriftBaselineProposal -Map $script:map
+  It 'takes a renewed exception appended after the expired one' {
+    $ex = @(
+      (ConvertTo-Row @{ parameter = 'scalingTimeZone'; acceptedValue = 'UTC'; reason = 'old'; expires = '2026-10-01' }),
+      (ConvertTo-Row @{ parameter = 'scalingTimeZone'; acceptedValue = 'UTC'; reason = 'renewed'; expires = '2026-12-01' }))
+    $f = Get-DriftParameterResult -Map $script:map -Declared $script:declared -ParameterList $script:params -Exceptions $ex -Now $script:now
+    ($f | Where-Object subject -eq 'scalingTimeZone').kind | Should -Be 'accepted'
+  }
+
+  It 'proposes a baseline from found and derived values only, with the resource groups to watch' {
+    $b = Get-DriftBaselineProposal -Map $script:map -ResourceGroups @('RG-Pool', 'rg-hosts', 'rg-pool')
+    $b.resourceGroups | Should -Be @('rg-hosts', 'rg-pool')
     $b.parameters.Contains('maxSessionLimit') | Should -BeTrue
     $b.parameters.Contains('rdpProperties') | Should -BeFalse
     $b.parameters.Contains('localAdminPassword') | Should -BeFalse
@@ -173,6 +185,9 @@ Describe 'changes and attribution' {
     $a.type | Should -Be 'microsoft.authorization/roleassignments'
     $a.actorType | Should -Be 'User'
     ConvertFrom-DriftActivityEvent -ActivityEvent (& $ev 'Started' 'Microsoft.Authorization/roleAssignments/write') | Should -BeNullOrEmpty
+    # A type the change log covers is left to it, unless the event is older than the change log's window.
+    ConvertFrom-DriftActivityEvent -ActivityEvent (& $ev 'Succeeded' 'Microsoft.Compute/virtualMachines/write') | Should -BeNullOrEmpty
+    (ConvertFrom-DriftActivityEvent -ActivityEvent (& $ev 'Succeeded' 'Microsoft.Compute/virtualMachines/write') -AnyType).type | Should -Be 'microsoft.compute/virtualmachines'
     ConvertFrom-DriftActivityEvent -ActivityEvent (& $ev 'Succeeded' 'Microsoft.Compute/virtualMachines/write') | Should -BeNullOrEmpty
   }
 
@@ -243,9 +258,29 @@ Describe 'suppression rules: approval and digest' {
     $line = Get-DriftApprovalLine -Approval $a -Now $script:now -Days 60
     (Get-DriftSuppressionApproval -Rules @($r) -Approvals @($line | ConvertFrom-Json) -Now $script:now).state | Should -Be 'approved'
     { Get-DriftApprovalLine -Approval $a -Days 120 } | Should -Throw
+    # Unapproved, it hides nothing; it is an open finding only once it would have hidden a change.
     $f = Get-DriftSuppressionResult -Approval @($a)
     $f.kind | Should -Be 'suppression-unapproved'
+    $f.open | Should -BeFalse
+    $c = [pscustomobject]@{ timestamp = $script:now; type = 't'; operation = 'o'; correlationId = 'c' }
+    $f = Get-DriftSuppressionResult -Approval @($a) -Attribution @([pscustomobject]@{ change = $c; by = 'unexplained'; rules = @(); wouldMatch = @($a.id) })
     $f.open | Should -BeTrue
+  }
+
+  It 'takes a renewal appended after an expired approval, and ignores an approval for another digest' {
+    $r = [pscustomobject]@{ File = 'expected-actors.json'; Rule = (Resolve-DriftRule -Rule $script:rule -Values $script:values).Rule; Missing = @() }
+    $a = (Get-DriftSuppressionApproval -Rules @($r) -Now $script:now)[0]
+    $old = Get-DriftApprovalLine -Approval $a -Now $script:now.AddDays(-100) -Days 30 | ConvertFrom-Json
+    $new = Get-DriftApprovalLine -Approval $a -Now $script:now.AddDays(-1) -Days 30 | ConvertFrom-Json
+    (Get-DriftSuppressionApproval -Rules @($r) -Approvals @($old) -Now $script:now).state | Should -Be 'expired'
+    (Get-DriftSuppressionApproval -Rules @($r) -Approvals @($old, $new) -Now $script:now).state | Should -Be 'approved'
+    $other = $new.PSObject.Copy(); $other.digest = 'x' * 64
+    (Get-DriftSuppressionApproval -Rules @($r) -Approvals @($other) -Now $script:now).state | Should -Be 'changed'
+  }
+
+  It 'closes the finding of a rule that needs a private value nobody set' {
+    $unresolved = [pscustomobject]@{ id = 'needs-value'; file = 'a'; state = 'unresolved'; expires = $null; digest = ''; missing = @('<x>') }
+    @(Get-DriftSuppressionResult -Approval @($unresolved) | Where-Object { $_.open }).Count | Should -Be 0
   }
 
   It 'digests what each rule hid, which hid nothing and which approvals expire soon' {
@@ -418,6 +453,9 @@ Describe 'the entry point, offline' {
         changeAttributes = @{ timestamp = '2026-10-21T09:00:00Z'; changedByType = 'User'; changedBy = 'someone@contoso.com'; clientType = 'Azure Portal'; operation = 'Microsoft.DesktopVirtualization/hostPools/write'; correlationId = 'corr-portal' } } }
     $event = @{ eventDataId = 'ev-1'; status = @{ value = 'Succeeded' }; operationName = @{ value = 'Microsoft.Authorization/roleAssignments/write' }; caller = 'someone@contoso.com'
       correlationId = 'corr-role'; resourceId = "$($script:sub)/resourceGroups/rg-avdlz-dev-avd/providers/Microsoft.Authorization/roleAssignments/r1"; eventTimestamp = '2026-10-21T08:00:00Z' }
+    # A role assignment at subscription scope sits in no resource group; the subscription-wide read finds it.
+    $subEvent = @{ eventDataId = 'ev-2'; status = @{ value = 'Succeeded' }; operationName = @{ value = 'Microsoft.Authorization/roleAssignments/write' }; caller = 'someone@contoso.com'
+      correlationId = 'corr-subrole'; resourceId = "$($script:sub)/providers/Microsoft.Authorization/roleAssignments/r2"; eventTimestamp = '2026-10-21T08:30:00Z' }
     $graph = { param($rows) @{ totalRecords = @($rows).Count; count = @($rows).Count; data = @($rows) } }
     $routes = @(
       @{ match = 'resourcechanges'; status = 200; content = (& $graph @($change)) },
@@ -426,6 +464,7 @@ Describe 'the entry point, offline' {
       @{ match = "subscriptions/resourcegroups'"; status = 200; content = (& $graph @($rgRow)) },
       @{ match = 'ResourceGraph|^\{'; status = 200; content = (& $graph @()) },
       @{ match = 'Microsoft.Resources/deployments\?'; status = 200; content = @{ value = @($dep) } },
+      @{ match = 'resourceProvider'; status = 200; content = @{ value = @($event, $subEvent) } },
       @{ match = 'eventtypes/management/values'; status = 200; content = @{ value = @($event) } })
     $out = Join-Path $TestDrive 'deployed'
     $r = Invoke-Drift -Arguments "-OutputPath '$out' -Digest" -Routes $routes
@@ -436,12 +475,28 @@ Describe 'the entry point, offline' {
     $drift = @($results.findings | Where-Object { $_.kind -eq 'drift' })
     $drift.subject | Should -Contain 'maxSessionLimit'
     $changes = @($results.findings | Where-Object { $_.kind -eq 'unexplained-change' })
-    $changes.Count | Should -Be 2
+    $changes.Count | Should -Be 3
     $md = Get-Content (Join-Path $out 'drift-report.md') -Raw
     $md | Should -Match 'Weekly digest of suppression rules'
     $md | Should -Match 'by a user'
     $md | Should -Not -Match 'contoso'
     $manifest = Get-Content (Join-Path $out 'manifest.json') -Raw | ConvertFrom-Json
     $manifest.files.'drift-report.md' | Should -Be (Get-FileHash (Join-Path $out 'drift-report.md') -Algorithm SHA256).Hash.ToLowerInvariant()
+  }
+
+  It "reads a baseline's resource groups, and says couldn't check when it lists none" {
+    $base = Join-Path $TestDrive 'baseline.json'
+    @{ schema = 'avd-current-state-drift-baseline/v1'; hostPool = $script:hp; parameters = @{ maxSessionLimit = 8 } } | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $base
+    $r = Invoke-Drift -Arguments "-OutputPath '$(Join-Path $TestDrive 'nogroups')' -BaselinePath '$base'"
+    $r.Code | Should -Be 2 -Because $r.Text
+    $r.Text | Should -Match 'lists no resource groups'
+  }
+
+  It 'writes no baseline proposal when a read failed' {
+    $out = Join-Path $TestDrive 'propose'
+    $r = Invoke-Drift -Arguments "-OutputPath '$out' -ProposeBaseline" -Routes @(@{ match = 'desktopvirtualization/hostpools'; status = 403; content = 'denied' })
+    $r.Code | Should -Be 2 -Because $r.Text
+    $r.Text | Should -Match 'no baseline was proposed'
+    @(Get-ChildItem -Path $out -Filter 'drift-baseline.proposed.*' -ErrorAction SilentlyContinue).Count | Should -Be 0
   }
 }

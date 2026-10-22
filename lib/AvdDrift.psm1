@@ -170,6 +170,8 @@ function Get-DriftDeclaredState {
     $names = Get-DriftLandingZoneName -NamePrefix $pick.Prefix -Environment $pick.Environment
     return [ordered]@{
         source        = 'deployment-record'
+        namePrefix    = $pick.Prefix
+        environment   = $pick.Environment
         deployment    = "$(Get-RebuildValue $d 'name')"
         deploymentId  = "$(Get-RebuildValue $d 'id')"
         timestamp     = $pick.Time
@@ -181,9 +183,18 @@ function Get-DriftDeclaredState {
 }
 
 function Get-DriftLandingZoneCorrelationId {
-    <# .SYNOPSIS Correlation IDs of every landing zone deployment, so their changes count as deployments. #>
-    param([object[]]$Deployments = @())
-    return @($Deployments | Where-Object { $null -ne $_ -and "$(Get-RebuildValue $_ 'name' '')" -match '^avdlz-' } |
+    <#
+    .SYNOPSIS
+        Correlation IDs of this landing zone's deployments (an avdlz-* name and the same namePrefix and
+        environmentName, succeeded or not, since a failed deployment still changed what it reached), so
+        their changes count as deployments. A deployment named that way with another template still
+        passes: who may deploy at subscription scope is the reader proposal's control, not this one.
+    #>
+    param([object[]]$Deployments = @(), [string]$NamePrefix, [string]$Environment)
+    return @($Deployments | Where-Object {
+            $null -ne $_ -and "$(Get-RebuildValue $_ 'name' '')" -match '^avdlz-' -and
+            (-not $NamePrefix -or "$(Get-RebuildValue $_ 'properties.parameters.namePrefix.value' '')" -eq $NamePrefix) -and
+            (-not $Environment -or "$(Get-RebuildValue $_ 'properties.parameters.environmentName.value' '')" -eq $Environment) } |
             ForEach-Object { "$(Get-RebuildValue $_ 'properties.correlationId' '')".ToLowerInvariant() } | Where-Object { $_ } | Sort-Object -Unique)
 }
 
@@ -191,9 +202,10 @@ function Get-DriftBaselineProposal {
     <#
     .SYNOPSIS
         A proposed declared state for an estate the landing zone didn't deploy: every found or derived
-        value in the map. A person reviews and commits it; nothing uses it until then (spec section 2).
+        value in the map, and the resource groups whose changes the run reads. A person reviews and
+        commits it; nothing uses it until then (spec section 2).
     #>
-    param([Parameter(Mandatory)] $Map)
+    param([Parameter(Mandatory)] $Map, [string[]]$ResourceGroups = @())
     $values = [ordered]@{}
     $params = Get-RebuildValue $Map 'parameters'
     $names = if ($params -is [System.Collections.IDictionary]) { @($params.Keys) } else { @($params.PSObject.Properties | ForEach-Object { $_.Name }) }
@@ -201,14 +213,23 @@ function Get-DriftBaselineProposal {
         $e = if ($params -is [System.Collections.IDictionary]) { $params[$n] } else { $params.$n }
         if ($script:Compared -contains "$(Get-RebuildValue $e 'status')") { $values[$n] = Get-DriftEntryValue $e }
     }
-    return [ordered]@{ schema = 'avd-current-state-drift-baseline/v1'; hostPool = "$(Get-RebuildValue $Map 'hostPool')"; parameters = $values }
+    return [ordered]@{ schema = 'avd-current-state-drift-baseline/v1'; hostPool = "$(Get-RebuildValue $Map 'hostPool')"
+        resourceGroups = @($ResourceGroups | ForEach-Object { "$_".ToLowerInvariant() } | Sort-Object -Unique); parameters = $values }
 }
 
 # ---------------------------------------------------------------- parameter drift
 
 function Get-DriftException {
+    # A parameter's exceptions, latest expiry first, so a renewal appended after an expired entry wins.
     param([object[]]$Exceptions, [string]$Parameter)
-    return @($Exceptions | Where-Object { $null -ne $_ -and "$(Get-RebuildValue $_ 'parameter' '')" -eq $Parameter }) | Select-Object -First 1
+    return @($Exceptions | Where-Object { $null -ne $_ -and "$(Get-RebuildValue $_ 'parameter' '')" -eq $Parameter } |
+            Sort-Object -Property @{ Expression = { $d = Get-DriftDate (Get-RebuildValue $_ 'expires'); if ($d) { $d } else { [datetime]::MinValue } } } -Descending)
+}
+
+function Test-DriftExpired {
+    param($Exception, [datetime]$Now)
+    $expires = Get-DriftDate (Get-RebuildValue $Exception 'expires')
+    return ($null -eq $expires -or $expires -lt $Now)
 }
 
 function Get-DriftParameterResult {
@@ -238,16 +259,11 @@ function Get-DriftParameterResult {
         if ($null -eq $entry) { continue }
         $status = "$(Get-RebuildValue $entry 'status')"
         $want = $Declared[$name]
-        $exception = Get-DriftException $Exceptions $name
-        $expired = $false
-        if ($exception) {
-            $expires = Get-DriftDate (Get-RebuildValue $exception 'expires')
-            $expired = ($null -eq $expires -or $expires -lt $Now)
-        }
+        $mine = @(Get-DriftException $Exceptions $name)
         if ($script:NeverCompared -contains $status) { continue }
         if ($script:CantTell -contains $status) {
-            $pinned = if ($exception) { "$(Get-RebuildValue $exception 'status' '')" } else { '' }
-            if ($pinned -eq $status -and -not $expired) {
+            $exception = @($mine | Where-Object { "$(Get-RebuildValue $_ 'status' '')" -eq $status -and -not (Test-DriftExpired $_ $Now) }) | Select-Object -First 1
+            if ($exception) {
                 $findings += Get-DriftFinding -Check 'drift-cant-tell' -Kind 'cant-tell' -Subject $name -Open $false -Action 'none' `
                     -Message "$name can't be read back from the estate ($status); acknowledged until $(Get-RebuildValue $exception 'expires')."
             } else {
@@ -266,18 +282,18 @@ function Get-DriftParameterResult {
                 -Message "Start VM on Connect is off because auto shutdown has locked the host pool $(ConvertTo-DriftLiteral $hostPool); expected while the lock holds."
             continue
         }
-        if ($exception -and $exception.PSObject.Properties['acceptedValue']) {
-            $accepted = ConvertTo-DriftCanonicalJson $exception.acceptedValue
-            if ($accepted -eq $gotJson) {
-                if ($expired) {
-                    $findings += Get-DriftFinding -Check 'drift-exception-expired' -Kind 'expired-exception' -Subject $name -Action 'codify' `
-                        -Message "$name differs from the deployment, and its exception expired on $(Get-RebuildValue $exception 'expires'). Renew it, codify the value, or revert." -Data @{ declared = $want; live = $got }
-                } else {
-                    $findings += Get-DriftFinding -Check 'drift-param' -Kind 'accepted' -Subject $name -Open $false -Action 'none' `
-                        -Message "$name differs from the deployment by an accepted exception, until $(Get-RebuildValue $exception 'expires')." -Data @{ declared = $want; live = $got }
-                }
-                continue
+        $matching = @($mine | Where-Object { $_.PSObject.Properties['acceptedValue'] -and (ConvertTo-DriftCanonicalJson $_.acceptedValue) -eq $gotJson })
+        if ($matching.Count -gt 0) {
+            # Latest expiry first: if it has expired, they all have.
+            $exception = $matching[0]
+            if (Test-DriftExpired $exception $Now) {
+                $findings += Get-DriftFinding -Check 'drift-exception-expired' -Kind 'expired-exception' -Subject $name -Action 'codify' `
+                    -Message "$name differs from the deployment, and its exception expired on $(Get-RebuildValue $exception 'expires'). Renew it, codify the value, or revert." -Data @{ declared = $want; live = $got }
+            } else {
+                $findings += Get-DriftFinding -Check 'drift-param' -Kind 'accepted' -Subject $name -Open $false -Action 'none' `
+                    -Message "$name differs from the deployment by an accepted exception, until $(Get-RebuildValue $exception 'expires')." -Data @{ declared = $want; live = $got }
             }
+            continue
         }
         $findings += Get-DriftFinding -Check 'drift-param' -Kind 'drift' -Subject $name -Action 'revert' `
             -Message "$name was deployed as $(ConvertTo-DriftLiteral $want) and is now $(ConvertTo-DriftLiteral $got) ($status). Codify it in the parameter file, revert it with a redeploy, or accept it." `
@@ -320,14 +336,15 @@ function ConvertFrom-DriftActivityEvent {
     <#
     .SYNOPSIS
         One Activity Log event as a change record, or $null for anything but a succeeded write or delete
-        on a type the change log doesn't cover.
+        on a type the change log doesn't cover. -AnyType keeps every type: for the span before the change
+        log's 14 days, the Activity Log is the only record (who and when, no properties).
     #>
-    param([Parameter(Mandatory)] $ActivityEvent)
+    param([Parameter(Mandatory)] $ActivityEvent, [switch]$AnyType)
     if ("$(Get-RebuildValue $ActivityEvent 'status.value' '')" -ne 'Succeeded') { return $null }
     $op = "$(Get-RebuildValue $ActivityEvent 'operationName.value' '')".ToLowerInvariant()
     if ($op -notmatch '/(write|delete)$') { return $null }
     $type = ($op -replace '/(write|delete)$', '')
-    if ($script:ActivityLogTypes -notcontains $type) { return $null }
+    if (-not $AnyType -and $script:ActivityLogTypes -notcontains $type) { return $null }
     $caller = "$(Get-RebuildValue $ActivityEvent 'caller' '')"
     $actorType = if ($caller -match '@') { 'User' } elseif ($caller -match '^[0-9a-fA-F-]{36}$') { 'AppId' } else { 'Unknown' }
     return [pscustomobject][ordered]@{
@@ -470,7 +487,7 @@ function Get-DriftWindowGap {
     $days = ($Now - $last).TotalDays
     if ($days -le $script:ChangeLogDays) { return }
     return (Get-DriftFinding -Check 'drift-window-gap' -Kind 'window-gap' -Subject 'window' -Action 'investigate' `
-            -Message ("The last successful run was {0:N0} days ago, longer than the change log keeps ({1} days). Changes between {2:yyyy-MM-dd} and {3:yyyy-MM-dd} are read from the Activity Log only, which doesn't list changed properties." -f $days, $script:ChangeLogDays, $last, $Now.AddDays(-$script:ChangeLogDays)) `
+            -Message ("The last successful run was {0:N0} days ago, longer than the change log keeps ({1} days). Changes between {2:yyyy-MM-dd} and {3:yyyy-MM-dd} are read from the Activity Log only, which says who and when but not which properties changed." -f $days, $script:ChangeLogDays, $last, $Now.AddDays(-$script:ChangeLogDays)) `
             -Data @{ lastSuccess = $last })
 }
 
@@ -512,14 +529,20 @@ function Get-DriftSuppressionApproval {
         $id = "$(Get-RebuildValue $r.Rule 'id')"
         $digest = Get-DriftDigest $r.Rule
         $mine = @($Approvals | Where-Object { $null -ne $_ -and "$(Get-RebuildValue $_ 'entry' '')" -eq $id })
-        $match = @($mine | Where-Object { "$(Get-RebuildValue $_ 'digest' '')" -eq $digest }) | Select-Object -First 1
+        $same = @($mine | Where-Object { "$(Get-RebuildValue $_ 'digest' '')" -eq $digest })
         $state = 'unapproved'; $expires = $null
         if (@($r.Missing).Count -gt 0) { $state = 'unresolved' }
-        elseif ($match) {
-            $on = Get-DriftDate (Get-RebuildValue $match 'approvedOn')
-            $expires = Get-DriftDate (Get-RebuildValue $match 'expires')
-            if ($null -eq $on -or $null -eq $expires -or ($expires - $on).TotalDays -gt $script:MaxApprovalDays -or $expires -lt $Now -or $on -gt $Now) { $state = 'expired' }
-            else { $state = 'approved' }
+        elseif ($same.Count -gt 0) {
+            # Any valid entry approves, so a renewal appended after an expired one counts.
+            $state = 'expired'
+            foreach ($m in $same) {
+                $on = Get-DriftDate (Get-RebuildValue $m 'approvedOn')
+                $until = Get-DriftDate (Get-RebuildValue $m 'expires')
+                if ($null -eq $on -or $null -eq $until) { continue }
+                if (($until - $on).TotalDays -gt $script:MaxApprovalDays -or $until -lt $Now -or $on -gt $Now) { if ($null -eq $expires -or $until -gt $expires) { $expires = $until }; continue }
+                if ($state -ne 'approved' -or $until -gt $expires) { $expires = $until }
+                $state = 'approved'
+            }
         } elseif ($mine.Count -gt 0) { $state = 'changed' }
         $rows += [pscustomobject][ordered]@{ id = $id; file = $r.File; digest = $digest; state = $state; expires = $expires; missing = @($r.Missing) }
     }
@@ -527,19 +550,27 @@ function Get-DriftSuppressionApproval {
 }
 
 function Get-DriftSuppressionResult {
-    <# .SYNOPSIS One finding per rule that may not suppress, saying why and how to approve it. #>
-    param([object[]]$Approval = @())
+    <#
+    .SYNOPSIS
+        One finding per rule that may not suppress, saying why and how to approve it. It holds the issue
+        open when the rule changed or its approval lapsed (someone must look), or when it would have
+        explained a change in this run. A rule never approved that matched nothing, or one with no value
+        for its placeholder (it can't match anything), is listed but doesn't hold the issue open.
+    #>
+    param([object[]]$Approval = @(), [object[]]$Attribution = @())
     $findings = @()
     foreach ($a in @($Approval | Where-Object { $_.state -ne 'approved' })) {
+        $wouldHide = @($Attribution | Where-Object { @($_.wouldMatch) -contains $a.id }).Count
+        $open = ($a.state -in @('changed', 'expired')) -or ($a.state -eq 'unapproved' -and $wouldHide -gt 0)
         $why = switch ($a.state) {
             'unapproved' { 'has no approval' }
             'changed' { 'changed since it was approved' }
             'expired' { 'has an approval that expired or runs longer than 90 days' }
             'unresolved' { "names placeholder(s) with no value: $((@($a.missing) | ForEach-Object { ConvertTo-DriftLiteral $_ }) -join ', ')" }
         }
-        $findings += Get-DriftFinding -Check 'drift-suppression-unapproved' -Kind 'suppression-unapproved' -Subject $a.id -Action 'approve' `
-            -Message "Rule $(ConvertTo-DriftLiteral $a.id) in $(ConvertTo-DriftLiteral $a.file) $why, so it hides nothing: the changes it would hide are reported. Digest $(ConvertTo-DriftLiteral $a.digest)." `
-            -Data @{ file = $a.file; digest = $a.digest; state = $a.state }
+        $findings += Get-DriftFinding -Check 'drift-suppression-unapproved' -Kind 'suppression-unapproved' -Subject $a.id -Action 'approve' -Open $open `
+            -Message "Rule $(ConvertTo-DriftLiteral $a.id) in $(ConvertTo-DriftLiteral $a.file) $why, so it hides nothing: $(if ($wouldHide) { "$wouldHide change(s) it would explain are reported" } else { 'it matched no change in this run' }). Digest $(ConvertTo-DriftLiteral $a.digest)." `
+            -Data @{ file = $a.file; digest = $a.digest; state = $a.state; wouldHide = $wouldHide }
     }
     return , $findings
 }

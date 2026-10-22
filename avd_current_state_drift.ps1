@@ -195,7 +195,9 @@ if ($BaselinePath) {
     if (-not $b) { Write-Step "Stopped: $BaselinePath not found."; exit 2 }
     $values = [ordered]@{}; foreach ($p in @((Get-RebuildValue $b 'parameters').PSObject.Properties)) { $values[$p.Name] = $p.Value }
     $hpName = (("$(Get-RebuildValue $b 'hostPool' '')") -split '/')[-1]
-    $declared = [ordered]@{ source = 'baseline'; deployment = (Split-Path $BaselinePath -Leaf); timestamp = $null; correlationId = ''; names = @{ hostPool = $hpName; resourceGroupPrefix = '' }; parameters = $values; secure = @() }
+    $baselineGroups = @(@(Get-RebuildValue $b 'resourceGroups' @()) | ForEach-Object { "$_".ToLowerInvariant() } | Where-Object { $_ })
+    $declared = [ordered]@{ source = 'baseline'; namePrefix = ''; environment = ''; deployment = (Split-Path $BaselinePath -Leaf); timestamp = $null; correlationId = ''
+        names = @{ hostPool = $hpName; resourceGroupPrefix = '' }; resourceGroups = $baselineGroups; parameters = $values; secure = @() }
 } elseif ($dep.Status -ne 'failed') {
     $declared = Get-DriftDeclaredState -Deployments $deployments -Environment $Environment -DeploymentName $DeploymentName
 }
@@ -215,39 +217,41 @@ $rows = @{}
 $readFailures = 0
 if ($declared -or $ProposeBaseline) {
     Write-Step "Reading $(@($scope.resourceGraph).Count) Resource Graph types and $(@($scope.rest).Count) REST reads ..."
-    foreach ($t in @($scope.resourceGraph)) {
-        try { $rows[$t.type] = @((ConvertTo-RebuildSafeObject -InputObject @(Invoke-RebuildGraphQuery -Query (Get-RebuildQuery -Table $t.table -Type $t.type) -SubscriptionId $SubscriptionId -Invoker $graph)).Object) }
-        catch { $rows[$t.type] = @(); $readFailures++; Write-Step "  $($t.type) failed: $($_.Exception.Message)" }
-    }
+    # The collector's reader (lib/AvdRebuild.psm1), so the two never read the estate differently.
+    $log = { param($Message, $Level) if ($Level -eq 'WARN' -and -not $quiet) { Write-Step $Message } }
+    $evidence = Get-RebuildEvidence -Scope $scope -SubscriptionId $SubscriptionId -GraphInvoker $graph -RestInvoker $rest -Log $log
+    foreach ($k in @($evidence.Rows.Keys)) { $rows[$k] = @((ConvertTo-RebuildSafeObject -InputObject @($evidence.Rows[$k])).Object) }
     $restData = @{}
-    $vmIds = @{}
-    foreach ($sh in @($rows['microsoft.desktopvirtualization/hostpools/sessionhosts'])) { $v = "$(Get-RebuildValue $sh 'properties.resourceId' '')".ToLowerInvariant(); if ($v) { $vmIds[$v] = $true } }
-    foreach ($read in @($scope.rest)) {
-        $parents = @()
-        foreach ($p in @($read.parentTypes)) { if ($p -eq 'subscription') { $parents += $sub } else { $parents += @($rows[$p] | ForEach-Object { $_.id }) } }
-        if ($read.name -eq 'run-commands') { $parents = @($parents | Where-Object { $vmIds.ContainsKey("$_".ToLowerInvariant()) }) }
-        $results = @(foreach ($parentId in $parents) {
-                $r = Invoke-RebuildRestRead -Path (Get-RebuildRestPath -Read $read -ParentId $parentId) -Invoker $rest
-                if ($r.Status -eq 'failed') { $readFailures++; Write-Step "  $($read.name) failed for one resource: $($r.Error)" }
-                [pscustomobject][ordered]@{ parentId = $parentId; status = $r.Status; error = $r.Error; items = @($r.Items) }
-            })
-        $restData[$read.name] = @((ConvertTo-RebuildSafeObject -InputObject $results).Object)
-    }
+    foreach ($k in @($evidence.Rest.Keys)) { $restData[$k] = @((ConvertTo-RebuildSafeObject -InputObject @($evidence.Rest[$k])).Object) }
+    $failedReads = @($evidence.Reads | Where-Object { $_.Status -ne 'ok' })
+    $readFailures += $failedReads.Count
+    if ($quiet -and $failedReads.Count -gt 0) { Write-Step "  $($failedReads.Count) read(s) failed or stopped with pages left." }
     $roleAssignments = @()
     if (Get-Command Get-AzRoleAssignment -ErrorAction SilentlyContinue) {
         try { $roleAssignments = @(Get-AzRoleAssignment -Scope $sub -ErrorAction Stop | Select-Object DisplayName, SignInName, RoleDefinitionName, Scope, ObjectType, ObjectId) }
-        catch { $readFailures++; Write-Step "  Role assignments failed: $($_.Exception.Message)" }
+        catch { $readFailures++; $failedReads += [pscustomobject]@{ Read = 'role-assignments'; Status = 'failed'; Error = $_.Exception.Message }; Write-Step '  Role assignments failed.' }
     } else { Write-Step '  Az.Resources is missing: role assignment parameters will read as unknown.' }
     $maps = Get-LzRebuildMap -Rows $rows -Rest $restData -RoleAssignments $roleAssignments -ParameterList $lzParameters
     Write-Step "  Rebuild map for $(@($maps).Count) host pool(s). Quota left: $(if ($script:QuotaLeft) { $script:QuotaLeft } else { 'not reported' })."
-    if ($readFailures -gt 0) { Add-CouldNotCheck 'reads' "$readFailures read(s) failed, so the comparison may be incomplete." }
+    if ($readFailures -gt 0) {
+        $detail = @($failedReads | ForEach-Object { "$($_.Read): $($_.Status)$(if ($_.Error) { " ($(ConvertTo-DriftLiteral $_.Error))" })" }) -join '; '
+        Add-CouldNotCheck 'reads' "$readFailures read(s) failed or stopped with pages left, so the comparison may be incomplete: $detail"
+    }
 }
 
 if ($ProposeBaseline) {
+    # A proposal from a partial read would hide what it missed, so it is not written (spec section 2).
+    if ($readFailures -gt 0) { Write-Step 'Stopped: some reads failed, so no baseline was proposed. Fix the reads and run again.'; exit 2 }
     $null = New-Item -ItemType Directory -Path $OutputPath -Force
     foreach ($m in @($maps)) {
-        $file = Join-Path $OutputPath ("drift-baseline.proposed.{0}.json" -f ((("$($m.hostPool)") -split '/')[-1]))
-        (Get-DriftBaselineProposal -Map $m | ConvertTo-Json -Depth 20) | Set-Content -LiteralPath $file -Encoding utf8
+        $hpId = "$($m.hostPool)"
+        $groups = @(($hpId -split '/')[4])
+        foreach ($sh in @($rows['microsoft.desktopvirtualization/hostpools/sessionhosts'] | Where-Object { "$($_.id)".ToLowerInvariant().StartsWith($hpId.ToLowerInvariant() + '/') })) {
+            $vm = "$(Get-RebuildValue $sh 'properties.resourceId' '')"
+            if ($vm) { $groups += ($vm -split '/')[4] }
+        }
+        $file = Join-Path $OutputPath ("drift-baseline.proposed.{0}.json" -f (($hpId -split '/')[-1]))
+        (Get-DriftBaselineProposal -Map $m -ResourceGroups $groups | ConvertTo-Json -Depth 20) | Set-Content -LiteralPath $file -Encoding utf8
         Write-Step "Proposed baseline written: $file. Review it, commit it to the private repo and pass it as -BaselinePath."
     }
     exit 0
@@ -270,35 +274,57 @@ if ($map) {
 
 # ---------------------------------------------------------------- changes and attribution
 $attribution = @()
-if ($declared -and $declared.names.resourceGroupPrefix) {
+$groups = @()
+if ($declared -and $declared.source -eq 'baseline') {
+    $groups = @($declared.resourceGroups)
+    if ($groups.Count -eq 0) { Add-CouldNotCheck 'change-log' 'The baseline lists no resource groups, so no changes were read. Propose it again with -ProposeBaseline, or add resourceGroups.' }
+} elseif ($declared -and $declared.names.resourceGroupPrefix) {
     $prefix = $declared.names.resourceGroupPrefix
-    $groups = @($rows['microsoft.resources/subscriptions/resourcegroups'] | Where-Object { "$($_.name)".ToLowerInvariant().StartsWith($prefix) } | ForEach-Object { "$($_.name)" })
+    $groups = @($rows['microsoft.resources/subscriptions/resourcegroups'] | Where-Object { "$($_.name)".ToLowerInvariant().StartsWith($prefix) } | ForEach-Object { "$($_.name)".ToLowerInvariant() })
+}
+if ($declared -and $groups.Count -gt 0) {
     $from = $now.AddDays(-14)
     $last = $null
     if ($LastSuccess) { $last = [datetime]::Parse($LastSuccess, [System.Globalization.CultureInfo]::InvariantCulture, [System.Globalization.DateTimeStyles]::AdjustToUniversal -bor [System.Globalization.DateTimeStyles]::AssumeUniversal) }
     foreach ($f in (Get-DriftWindowGap -LastSuccess $last -Now $now)) { $findings.Add($f) }
     $activityFrom = $from
     if ($last -and $last -lt $from) { $activityFrom = $last; if ($activityFrom -lt $now.AddDays(-90)) { $activityFrom = $now.AddDays(-90) } }
-    Write-Step "Reading 14 days of the change log and $([int]($now - $activityFrom).TotalDays) days of the Activity Log for $($groups.Count) landing zone resource group(s) ..."
+    Write-Step "Reading 14 days of the change log and $([int]($now - $activityFrom).TotalDays) days of the Activity Log for $($groups.Count) resource group(s) ..."
     $changes = @()
-    $query = "resourcechanges | extend t = todatetime(properties.changeAttributes.timestamp), target = tolower(tostring(properties.targetResourceId)) | where t > ago(14d) | where target contains '/resourcegroups/$prefix' | order by t asc"
+    $inList = @($groups | ForEach-Object { "'$("$_" -replace "'", '')'" }) -join ','
+    $query = "resourcechanges | extend t = todatetime(properties.changeAttributes.timestamp), target = tolower(tostring(properties.targetResourceId)) | where t > ago(14d) | extend rg = tostring(split(target, '/')[4]) | where rg in~ ($inList) | order by t asc"
     try { $changes += @(Invoke-RebuildGraphQuery -Query $query -SubscriptionId $SubscriptionId -Invoker $graph | ForEach-Object { ConvertFrom-DriftResourceChange -Row $_ }) }
-    catch { Add-CouldNotCheck 'change-log' "The Resource Graph change log could not be read: $($_.Exception.Message)" }
+    catch { Add-CouldNotCheck 'change-log' "The Resource Graph change log could not be read: $(ConvertTo-DriftLiteral $_.Exception.Message)" }
+    # Older than the change log's 14 days, the Activity Log is the only record, so every type counts there.
+    $logStart = $from
+    $toEvent = {
+        param($ActivityEvent)
+        $c = ConvertFrom-DriftActivityEvent -ActivityEvent $ActivityEvent
+        if ($null -eq $c) { $c = ConvertFrom-DriftActivityEvent -ActivityEvent $ActivityEvent -AnyType; if ($null -ne $c -and -not ($c.timestamp -lt $logStart)) { $c = $null } }
+        $c
+    }.GetNewClosure()
     $select = 'eventTimestamp,operationName,status,caller,correlationId,resourceId,eventDataId'
-    foreach ($g in $groups) {
-        $filter = "eventTimestamp ge '$($activityFrom.ToString('yyyy-MM-ddTHH:mm:ssZ'))' and eventTimestamp le '$($now.ToString('yyyy-MM-ddTHH:mm:ssZ'))' and resourceGroupName eq '$g'"
-        $path = "$sub/providers/Microsoft.Insights/eventtypes/management/values?api-version=2015-04-01&`$filter=$([uri]::EscapeDataString($filter))&`$select=$select"
+    $window = "eventTimestamp ge '$($activityFrom.ToString('yyyy-MM-ddTHH:mm:ssZ'))' and eventTimestamp le '$($now.ToString('yyyy-MM-ddTHH:mm:ssZ'))'"
+    $reads = @(foreach ($g in $groups) { @{ Subject = 'one resource group'; Filter = "$window and resourceGroupName eq '$g'"; Keep = { $true } } })
+    # Role assignments, locks and policy at subscription scope sit in no resource group, but they change the estate too.
+    $reads += @{ Subject = 'subscription scope'; Filter = "$window and resourceProvider eq 'Microsoft.Authorization'"; Keep = { param($c) $c.resourceId -notmatch '/resourcegroups/' } }
+    foreach ($read in $reads) {
+        $path = "$sub/providers/Microsoft.Insights/eventtypes/management/values?api-version=2015-04-01&`$filter=$([uri]::EscapeDataString($read.Filter))&`$select=$select"
         $r = Invoke-RebuildRestRead -Path $path -Invoker $rest -MaxPages 200
-        if ($r.Status -eq 'failed') { Add-CouldNotCheck 'activity-log' "The Activity Log could not be read for one landing zone resource group: $($r.Error)"; continue }
-        $changes += @($r.Items | ForEach-Object { ConvertFrom-DriftActivityEvent -ActivityEvent $_ } | Where-Object { $null -ne $_ })
+        if ($r.Status -eq 'failed') { Add-CouldNotCheck 'activity-log' "The Activity Log could not be read for $($read.Subject): $(ConvertTo-DriftLiteral $r.Error)"; continue }
+        if ($r.Complete -eq $false) { Add-CouldNotCheck 'activity-log' "The Activity Log for $($read.Subject) stopped with pages left, so some changes were not read." }
+        $keep = $read.Keep
+        $changes += @($r.Items | ForEach-Object { & $toEvent $_ } | Where-Object { $null -ne $_ -and (& $keep $_) })
     }
-    $attribution = Get-DriftAttribution -Changes $changes -DeploymentCorrelationIds (Get-DriftLandingZoneCorrelationId -Deployments $deployments) `
+    # An estate the landing zone didn't deploy has no landing zone deployments to set aside.
+    $correlation = if ($declared.source -eq 'baseline') { @() } else { Get-DriftLandingZoneCorrelationId -Deployments $deployments -NamePrefix "$($declared.namePrefix)" -Environment "$($declared.environment)" }
+    $attribution = Get-DriftAttribution -Changes $changes -DeploymentCorrelationIds $correlation `
         -ExpectedActors $ruleSets['expected-actors.json'] -RuntimePaths $ruleSets['runtime-paths.json'] -Approval $approvalState
     foreach ($f in (Get-DriftChangeResult -Attribution $attribution)) { $findings.Add($f) }
     $by = @{}; foreach ($a in $attribution) { $by[$a.by] = 1 + $(if ($by.ContainsKey($a.by)) { $by[$a.by] } else { 0 }) }
     Write-Step "  $(@($attribution).Count) change(s): $(@($by.Keys | Sort-Object | ForEach-Object { "$($by[$_]) $_" }) -join ', ')."
 }
-foreach ($f in (Get-DriftSuppressionResult -Approval $approval)) { $findings.Add($f) }
+foreach ($f in (Get-DriftSuppressionResult -Approval $approval -Attribution $attribution)) { $findings.Add($f) }
 
 # ---------------------------------------------------------------- write
 $code = Get-DriftExitCode -Findings $findings

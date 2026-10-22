@@ -234,6 +234,11 @@ Built offline, as sections 3.1 to 3.6 describe, with these choices made while bu
 - **Private files** in the operator's repo, read from `-ConfigPath`: `drift-exceptions.json`, `drift-approvals.json` and `drift-values.json`, which resolves the rule files' placeholders (`<auto-shutdown-principal-id>`) so the digest covers the real values.
 - **Runtime paths are set aside first;** what's left of a change is then matched against the expected actors, so one change can be part run-time state and part automation.
 - **An unexpected error is exit 2,** never 1 or 0. In GitHub Actions the log prints counts, not names.
+- **One reader for the collector and the drift check** (`Get-RebuildEvidence` in `lib/AvdRebuild.psm1`). A REST read that stops with pages left is a couldn't-check, not a short list.
+- **Only this landing zone's deployments explain changes:** same `namePrefix` and `environmentName`, so a second landing zone in the subscription explains nothing here. A baseline estate has no deployments to set aside.
+- **A baseline lists the resource groups it watches** (`resourceGroups`; `-ProposeBaseline` fills in the host pool's and its session hosts'), and a proposal is not written when a read failed.
+- **Changes at subscription scope** (role assignments, locks, policy) come from one more Activity Log read, filtered to `Microsoft.Authorization`. Past the change log's 14 days, every Activity Log write counts, since it is the only record there.
+- **Renewals are appended:** the latest valid approval or exception wins. An unapproved rule is an open finding only once it would have hidden a change; a rule waiting for a private value hides nothing and stays closed.
 - **The what-if noise file stays in the landing zone;** `Get-DriftSuppressionApproval` and the digest rule are pure functions it can vendor with the checks module.
 
 To verify on the first read-only run (assumptions, not yet observed): whether a deployment record carries parameters left at their defaults (the compare skips any parameter the record doesn't carry); whether session host changes reach the change log or only the Activity Log; and which ID the change log and the Activity Log give for a managed identity (`expected-actors.json` matches `changedBy` exactly).
