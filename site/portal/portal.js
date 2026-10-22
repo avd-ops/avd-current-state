@@ -12,28 +12,69 @@
     const note = document.createElement('p');
     note.className = 'errors';
     note.textContent = `This copy's portal-config.js holds a value the page refused (${source.ignored.join(', ')}), so the commands use ${core.repoWebUrl()}.`;
-    document.querySelector('.top-intro').append(note);
+    document.querySelector('.wz-main').prepend(note);
   }
   const $ = (id) => document.getElementById(id);
-  const STAGES = ['collect', 'discover', 'analyze', 'review', 'plan'];
+  // The wizard's steps, in order, each in one of the five stages (the list's groups). Discover takes four screens.
+  const STEPS = [
+    { id: 'collect', stage: 'collect', label: 'Inventory' },
+    { id: 'regions', stage: 'discover', label: 'Regions' },
+    { id: 'network', stage: 'discover', label: 'Network and identity' },
+    { id: 'hours', stage: 'discover', label: 'Working hours' },
+    { id: 'people', stage: 'discover', label: 'Users and use cases' },
+    { id: 'analyze', stage: 'analyze', label: 'Validator' },
+    { id: 'review', stage: 'review', label: 'Findings' },
+    { id: 'plan', stage: 'plan', label: 'Remediation' }];
+  const IDS = STEPS.map((s) => s.id);
   const NAMES = { collect: 'Collect', discover: 'Discover', analyze: 'Analyze', review: 'Review', plan: 'Plan' };
   const KEY = 'avdcs-portal-v1';
 
   // Progress, settings, answers and notes stay in this browser. Pastes are never stored: only the parsed state
   // lines, which hold counts and the estate pseudonym.
-  let state = { stage: 'collect', settings: {}, collect: null, facts: null, analyze: null, answers: {}, notes: {}, intakeBuilt: false };
+  let state = { step: 'collect', settings: {}, collect: null, facts: null, analyze: null, answers: {}, notes: {}, intakeBuilt: false };
   try { const saved = JSON.parse(localStorage.getItem(KEY) || 'null'); if (saved && typeof saved === 'object') state = Object.assign(state, saved); } catch (e) { /* storage blocked: start fresh */ }
+  // Saved before the wizard, progress named a stage; Discover's first screen stands for the whole stage.
+  if (state.stage) { state.step = state.stage === 'discover' ? 'regions' : state.stage; delete state.stage; }
+  const stageOf = () => (STEPS.find((s) => s.id === state.step) || STEPS[0]).stage;
   const save = () => { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) { /* storage blocked: progress lasts this visit */ } };
 
   // ---- Settings ----
   const SETTINGS = ['subscriptions', 'validationSubscription', 'resourceGroup'];
-  function toggleSettings(open) {
-    $('settings-panel').classList.toggle('hidden', !open);
-    $('settings-link').setAttribute('aria-expanded', String(open));
-    if (open) $('subscriptions').focus();
+  // Settings and Report a problem open as sheets over the step, one at a time; Escape or the backdrop closes the
+  // open one and focus goes back to the control that opened it. The page behind an open sheet is inert, so Tab
+  // stays in the sheet.
+  let opener = null;
+  const SHEETS = { settings: ['settings-panel', 'settings-link'], report: ['report-panel', 'report-link'] };
+  const sheetOpen = () => Object.keys(SHEETS).find((k) => !$(SHEETS[k][0]).classList.contains('hidden'));
+  function showSheet(name, open) {
+    for (const k of Object.keys(SHEETS)) {
+      const on = open && k === name;
+      $(SHEETS[k][0]).classList.toggle('hidden', !on);
+      $(SHEETS[k][1]).setAttribute('aria-expanded', String(on));
+    }
+    $('sheet-backdrop').classList.toggle('hidden', !open);
+    for (const n of document.querySelectorAll('main.wz-layout, nav.wz-nav, .after')) n.inert = !!open;
   }
-  $('settings-link').addEventListener('click', () => toggleSettings($('settings-panel').classList.contains('hidden')));
-  $('settings-close').addEventListener('click', () => { toggleSettings(false); $('settings-link').focus(); });
+  function toggleSettings(open, focus) {
+    if (open && !sheetOpen()) opener = document.activeElement;
+    showSheet('settings', open);
+    if (open) (focus || $('subscriptions')).focus();
+  }
+  function closeSheet() {
+    const k = sheetOpen();
+    if (!k) return;
+    showSheet(k, false);
+    (opener && opener.isConnected ? opener : $(SHEETS[k][1])).focus();
+    opener = null;
+  }
+  $('settings-link').addEventListener('click', () => toggleSettings(sheetOpen() !== 'settings'));
+  $('settings-close').addEventListener('click', closeSheet);
+  $('sheet-backdrop').addEventListener('click', closeSheet);
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && sheetOpen()) closeSheet(); });
+  // "Change" on a command's Run in line opens Settings at the Run in choice.
+  document.addEventListener('click', (ev) => {
+    if (ev.target.closest('[data-runin-change]')) toggleSettings(true, document.querySelector('input[name="runin-where"]:checked'));
+  });
   for (const id of SETTINGS) {
     $(id).value = state.settings[id] || '';
     $(id).addEventListener('input', () => { state.settings[id] = $(id).value; save(); renderCommands(); });
@@ -56,7 +97,7 @@
     $('runin-note').textContent = [runIn.where === 'cloudshell' ? (runIn.shell === 'bash' ? 'These blocks need Cloud Shell\'s Bash prompt (you@Azure:~$). If it shows PS /home/you>, type bash first.' : 'These blocks need Cloud Shell\'s PowerShell prompt (PS /home/you>). If it shows you@Azure:~$, type pwsh first.') : '',
       runIn.where === 'windows' ? 'Windows runs the commands in PowerShell 7.' : '',
       runIn.where === 'cloudshell' ? '' : 'Each block signs in to Azure with a device code if this machine is not signed in yet.'].filter(Boolean).join(' ');
-    for (const l of document.querySelectorAll('.run-label')) l.textContent = `Run in ${core.PLACES[runIn.where]}`;
+    for (const l of document.querySelectorAll('.runin-where')) l.textContent = `${core.PLACES[runIn.where]}, ${runIn.shell === 'bash' ? 'Bash' : 'PowerShell'}`;
     for (const pre of document.querySelectorAll('pre[data-raw]')) paint(pre);
   }
   for (const i of document.querySelectorAll('input[name="runin-where"], input[name="runin-shell"]')) {
@@ -119,11 +160,15 @@
     $(stopId).classList.remove('good', 'ok', 'poor');
     if (!summary) return;
     $(stopId).classList.add(summary.result);
-    const line = document.createElement('div'); line.className = 'result-line';
-    const chip = document.createElement('span'); chip.className = `result ${summary.result}`; chip.textContent = WORD[summary.result];
-    const head = document.createElement('span'); head.textContent = summary.headline;
-    line.append(chip, head); box.append(line);
+    // The answer reads like a reply: the verdict first, the headline, then what was read behind "+ more".
+    const reply = document.createElement('div'); reply.className = 'reply';
+    const bl = document.createElement('p'); bl.className = `bl ${summary.result}`; bl.textContent = WORD[summary.result];
+    const head = document.createElement('p'); head.textContent = summary.headline;
+    reply.append(bl, head); box.append(reply);
     if (summary.rows.length) {
+      const more = document.createElement('details'); more.className = 'more';
+      const sum = document.createElement('summary'); sum.textContent = 'What it read';
+      more.append(sum); reply.append(more);
       const wrap = document.createElement('div'); wrap.className = 'table-wrap';
       const table = document.createElement('table'); table.className = 'kv';
       const body = document.createElement('tbody');
@@ -133,7 +178,7 @@
         const b = document.createElement('td'); b.textContent = String(v);
         tr.append(a, b); body.append(tr);
       }
-      table.append(body); wrap.append(table); box.append(wrap);
+      table.append(body); wrap.append(table); more.append(wrap);
     }
   }
   function renderCollect() {
@@ -168,7 +213,7 @@
   // ---- Report a problem (spec decision 5): redacted here by the engine's redact.js, then GitHub's form ----
   let reportEdited = false;
   function stageHeadline() {
-    const st = state.stage;
+    const st = stageOf();
     if (st === 'collect' && state.collect) return core.summarizeCollect(state.collect, state.facts).headline;
     if (st === 'analyze' && state.analyze) return core.summarizeAnalyze(state.analyze).headline;
     return '';
@@ -176,9 +221,9 @@
   function reportTerms() { return $('report-terms').value.split(',').map((t) => t.trim()).filter(Boolean); }
   function buildReport() {
     if (!engine.redact) { $('report-body').value = ''; $('report-summary').textContent = 'The redaction script did not load, so this page cannot build a report.'; return null; }
-    const output = $('report-output').checked ? (pasted[state.stage] || '') : '';
-    $('report-output').disabled = !pasted[state.stage];
-    return core.buildReport({ description: $('report-desc').value, stage: NAMES[state.stage], headline: stageHeadline(), output, settings: state.settings, extraTerms: reportTerms(), runIn }, engine.redact);
+    const output = $('report-output').checked ? (pasted[stageOf()] || '') : '';
+    $('report-output').disabled = !pasted[stageOf()];
+    return core.buildReport({ description: $('report-desc').value, stage: NAMES[stageOf()], headline: stageHeadline(), output, settings: state.settings, extraTerms: reportTerms(), runIn }, engine.redact);
   }
   function renderReport() {
     const r = buildReport();
@@ -195,12 +240,12 @@
     return { title: r.title, body };
   }
   function toggleReport(open) {
-    $('report-panel').classList.toggle('hidden', !open);
-    $('report-link').setAttribute('aria-expanded', String(open));
+    if (open && !sheetOpen()) opener = document.activeElement;
+    showSheet('report', open);
     if (open) { reportEdited = false; $('report-ok').checked = false; $('report-submit').disabled = true; renderReport(); $('report-desc').focus(); }
   }
-  $('report-link').addEventListener('click', () => toggleReport($('report-panel').classList.contains('hidden')));
-  $('report-close').addEventListener('click', () => { toggleReport(false); $('report-link').focus(); });
+  $('report-link').addEventListener('click', () => toggleReport(sheetOpen() !== 'report'));
+  $('report-close').addEventListener('click', closeSheet);
   for (const id of ['report-desc', 'report-terms']) $(id).addEventListener('input', renderReport);
   // Taking the output in or out rebuilds the report, so an edited copy can't keep output the box says is left out.
   $('report-output').addEventListener('change', () => {
@@ -253,10 +298,10 @@
     syncResidency();
   }
   function syncResidency() { $('residencyRegions').disabled = !$('residencyRequired').checked; }
-  $('stage-discover').addEventListener('input', () => {
-    state.answers = readAnswers(); state.notes = readNotes(); syncResidency(); save();
-  });
-  $('stage-discover').addEventListener('change', () => { state.answers = readAnswers(); syncResidency(); save(); });
+  for (const sec of document.querySelectorAll('.wz-stage.discover')) {
+    sec.addEventListener('input', () => { state.answers = readAnswers(); state.notes = readNotes(); syncResidency(); save(); });
+    sec.addEventListener('change', () => { state.answers = readAnswers(); syncResidency(); save(); });
+  }
 
   let urls = {};
   function blobLink(id, text, type) {
@@ -278,7 +323,9 @@
       const ul = document.createElement('ul');
       for (const e of errors) { const li = document.createElement('li'); li.textContent = e.message; ul.append(li); if ($(e.field)) $(e.field).setAttribute('aria-invalid', 'true'); }
       div.append(p, ul); box.append(div);
-      const first = errors.find((e) => $(e.field)); if (first) $(first.field).focus();
+      // The first answer missing may be on another Discover screen: go there, then to the field.
+      const first = errors.find((e) => $(e.field));
+      if (first) { go($(first.field).closest('.wz-stage').dataset.step, false); $(first.field).focus(); }
       state.intakeBuilt = false; save(); renderSteps();
       return;
     }
@@ -517,33 +564,54 @@
   });
 
   // ---- Stepper ----
+  // Every Discover screen is done once intake.json is built.
   const isDone = { collect: () => !!(state.collect && state.collect.status !== 'failed'), discover: () => !!state.intakeBuilt, analyze: () => !!(state.analyze && state.analyze.status !== 'failed'), review: () => !!(state.review && state.review.built), plan: () => !!(state.plan && state.plan.built && state.plan.key === planKey()) };
+  // The steps, grouped by stage, twice: as the list down the left on a wide screen (#steps) and as the progress
+  // bar over the step on a narrow one (#steps-bar), where each stage is as wide as its steps.
   function renderSteps() {
-    for (const li of document.querySelectorAll('#steps li')) {
-      const s = li.dataset.stage;
-      li.classList.toggle('current', s === state.stage);
-      li.classList.toggle('done', isDone[s]() && s !== state.stage);
-      li.querySelector('button').setAttribute('aria-current', s === state.stage ? 'step' : 'false');
-    }
-    const i = STAGES.indexOf(state.stage);
+    const list = $('steps'), bar = $('steps-bar');
+    list.replaceChildren(); bar.replaceChildren();
+    let phase = null, segs = null, group = '';
+    STEPS.forEach((s, i) => {
+      const current = s.id === state.step, done = !current && isDone[s.stage]();
+      if (s.stage !== group) {
+        group = s.stage;
+        const g = el('li', { className: 'group', textContent: NAMES[s.stage] }); g.setAttribute('aria-hidden', 'true'); list.append(g);
+        phase = el('li', { className: 'phase' }); phase.dataset.steps = '0';
+        segs = el('div', { className: 'segs' }); phase.append(el('span', { className: 'phase-name', textContent: NAMES[s.stage] }), segs); bar.append(phase);
+      }
+      phase.dataset.steps = String(Number(phase.dataset.steps) + 1);
+      if (current) phase.classList.add('now');
+      const label = `${i + 1}. ${s.label}${done ? ', done' : ''}`;
+      const mark = current ? ' current' : done ? ' done' : '';
+      const item = el('button', { className: `step${mark}` }, [el('span', { className: 'n', textContent: done ? '\u2713' : String(i + 1) }), el('span', { className: 'lbl', textContent: s.label })]);
+      const seg = el('button', { className: `seg${mark}`, title: `${i + 1}. ${s.label}` });
+      for (const b of [item, seg]) {
+        b.type = 'button';
+        b.setAttribute('aria-current', current ? 'step' : 'false');
+        b.setAttribute('aria-label', label);
+        b.addEventListener('click', () => go(s.id, true));
+      }
+      list.append(el('li', {}, [item])); segs.append(seg);
+    });
+    const i = IDS.indexOf(state.step);
     $('back').disabled = i === 0;
-    $('next').disabled = i === STAGES.length - 1;
-    $('next').textContent = i < STAGES.length - 1 ? `Next: ${NAMES[STAGES[i + 1]]}` : 'Next';
-    $('where').textContent = `${NAMES[state.stage]} \u00b7 stage ${i + 1} of ${STAGES.length}`;
+    $('next').disabled = i === IDS.length - 1;
+    $('next').textContent = i < IDS.length - 1 ? `Next: ${STEPS[i + 1].label} \u2192` : 'Next \u2192';
+    $('where').textContent = `${NAMES[stageOf()]} \u00b7 step ${i + 1} of ${IDS.length}`;
   }
-  function go(stage, focus) {
-    if (!STAGES.includes(stage)) stage = 'collect';
-    state.stage = stage; save();
-    for (const s of STAGES) $(`stage-${s}`).classList.toggle('hidden', s !== stage);
-    if (stage === 'plan') renderPlan();
+  function go(step, focus) {
+    if (!IDS.includes(step)) step = 'collect';
+    state.step = step; save();
+    for (const s of IDS) $(`stage-${s}`).classList.toggle('hidden', s !== step);
+    if (step === 'plan') renderPlan();
     renderSteps();
-    if (focus) { const h = $(`${stage}-title`); h.setAttribute('tabindex', '-1'); h.focus(); }
+    if (focus) { const h = $(`${step}-title`); h.setAttribute('tabindex', '-1'); h.focus(); }
   }
-  for (const li of document.querySelectorAll('#steps li')) li.querySelector('button').addEventListener('click', () => go(li.dataset.stage, true));
-  $('back').addEventListener('click', () => go(STAGES[Math.max(0, STAGES.indexOf(state.stage) - 1)], true));
-  $('next').addEventListener('click', () => go(STAGES[Math.min(STAGES.length - 1, STAGES.indexOf(state.stage) + 1)], true));
+  $('back').addEventListener('click', () => go(IDS[Math.max(0, IDS.indexOf(state.step) - 1)], true));
+  $('next').addEventListener('click', () => go(IDS[Math.min(IDS.length - 1, IDS.indexOf(state.step) + 1)], true));
 
   renderCommands(); syncRunIn(); fillDiscover(); renderCollect(); renderAnalyze();
   if (state.review && state.review.reviewedOn) $('reviewedOn').value = state.review.reviewedOn;
-  renderReview(); go(state.stage, false);
+  renderReview(); go(state.step, false);
 })();
