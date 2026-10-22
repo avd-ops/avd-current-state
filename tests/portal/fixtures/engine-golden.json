@@ -1,0 +1,1032 @@
+{
+ "commands": {
+  "collect-0": [
+   {
+    "runIn": {
+     "where": "cloudshell",
+     "shell": "pwsh"
+    },
+    "support": {
+     "status": "untested",
+     "requires": [],
+     "blockedBy": [],
+     "place": "Cloud Shell",
+     "shell": "pwsh"
+    },
+    "text": "$repo = Join-Path $HOME 'avd-current-state'\nif (Test-Path (Join-Path $repo '.git')) { git -C $repo pull --ff-only --quiet } else { git clone --quiet https://github.com/avd-ops/avd-current-state.git $repo }\nSet-Location $repo\n$out = if (Test-Path (Join-Path $HOME 'clouddrive')) { Join-Path $HOME 'clouddrive/avd-assessment' } else { Join-Path $HOME 'avd-assessment' }\nNew-Item -ItemType Directory -Force -Path $out | Out-Null\nif (-not (Get-AzContext)) { Connect-AzAccount -UseDeviceAuthentication }\n./avd_current_state_collector.ps1 -OutputPath $out\n$key = Join-Path $out 'estate.key'\n./avd_current_state_facts.ps1 -PackagePath $out -KeyPath $key -NewKey:(-not (Test-Path $key)) -OutputPath $out"
+   },
+   {
+    "runIn": {
+     "where": "cloudshell",
+     "shell": "bash"
+    },
+    "support": {
+     "status": "untested",
+     "requires": [],
+     "blockedBy": [],
+     "place": "Cloud Shell",
+     "shell": "bash"
+    },
+    "text": "f=\"$(mktemp -d)/step.ps1\"\ncat > \"$f\" <<'AVD_PS'\n$repo = Join-Path $HOME 'avd-current-state'\nif (Test-Path (Join-Path $repo '.git')) { git -C $repo pull --ff-only --quiet } else { git clone --quiet https://github.com/avd-ops/avd-current-state.git $repo }\nSet-Location $repo\n$out = if (Test-Path (Join-Path $HOME 'clouddrive')) { Join-Path $HOME 'clouddrive/avd-assessment' } else { Join-Path $HOME 'avd-assessment' }\nNew-Item -ItemType Directory -Force -Path $out | Out-Null\nif (-not (Get-AzContext)) { Connect-AzAccount -UseDeviceAuthentication }\n./avd_current_state_collector.ps1 -OutputPath $out\n$key = Join-Path $out 'estate.key'\n./avd_current_state_facts.ps1 -PackagePath $out -KeyPath $key -NewKey:(-not (Test-Path $key)) -OutputPath $out\nAVD_PS\npwsh -NoLogo -File \"$f\""
+   },
+   {
+    "runIn": {
+     "where": "windows",
+     "shell": "pwsh"
+    },
+    "support": {
+     "status": "untested",
+     "requires": [
+      "PowerShell 7.2 or later",
+      "the Az modules",
+      "PowerShell 7.2 or later (offline: no Az modules",
+      "no sign-in)"
+     ],
+     "blockedBy": [],
+     "place": "Windows",
+     "shell": "pwsh"
+    },
+    "text": "$repo = Join-Path $HOME 'avd-current-state'\nif (Test-Path (Join-Path $repo '.git')) { git -C $repo pull --ff-only --quiet } else { git clone --quiet https://github.com/avd-ops/avd-current-state.git $repo }\nSet-Location $repo\n$out = if (Test-Path (Join-Path $HOME 'clouddrive')) { Join-Path $HOME 'clouddrive/avd-assessment' } else { Join-Path $HOME 'avd-assessment' }\nNew-Item -ItemType Directory -Force -Path $out | Out-Null\nif (-not (Get-AzContext)) { Connect-AzAccount -UseDeviceAuthentication }\n./avd_current_state_collector.ps1 -OutputPath $out\n$key = Join-Path $out 'estate.key'\n./avd_current_state_facts.ps1 -PackagePath $out -KeyPath $key -NewKey:(-not (Test-Path $key)) -OutputPath $out"
+   },
+   {
+    "runIn": {
+     "where": "macos",
+     "shell": "pwsh"
+    },
+    "support": {
+     "status": "untested",
+     "requires": [
+      "PowerShell 7.2 or later",
+      "the Az modules",
+      "PowerShell 7.2 or later (offline: no Az modules",
+      "no sign-in)"
+     ],
+     "blockedBy": [],
+     "place": "macOS",
+     "shell": "pwsh"
+    },
+    "text": "$repo = Join-Path $HOME 'avd-current-state'\nif (Test-Path (Join-Path $repo '.git')) { git -C $repo pull --ff-only --quiet } else { git clone --quiet https://github.com/avd-ops/avd-current-state.git $repo }\nSet-Location $repo\n$out = if (Test-Path (Join-Path $HOME 'clouddrive')) { Join-Path $HOME 'clouddrive/avd-assessment' } else { Join-Path $HOME 'avd-assessment' }\nNew-Item -ItemType Directory -Force -Path $out | Out-Null\nif (-not (Get-AzContext)) { Connect-AzAccount -UseDeviceAuthentication }\n./avd_current_state_collector.ps1 -OutputPath $out\n$key = Join-Path $out 'estate.key'\n./avd_current_state_facts.ps1 -PackagePath $out -KeyPath $key -NewKey:(-not (Test-Path $key)) -OutputPath $out"
+   },
+   {
+    "runIn": {
+     "where": "macos",
+     "shell": "bash"
+    },
+    "support": {
+     "status": "untested",
+     "requires": [
+      "PowerShell 7.2 or later",
+      "the Az modules",
+      "PowerShell 7.2 or later (offline: no Az modules",
+      "no sign-in)"
+     ],
+     "blockedBy": [],
+     "place": "macOS",
+     "shell": "bash"
+    },
+    "text": "f=\"$(mktemp -d)/step.ps1\"\ncat > \"$f\" <<'AVD_PS'\n$repo = Join-Path $HOME 'avd-current-state'\nif (Test-Path (Join-Path $repo '.git')) { git -C $repo pull --ff-only --quiet } else { git clone --quiet https://github.com/avd-ops/avd-current-state.git $repo }\nSet-Location $repo\n$out = if (Test-Path (Join-Path $HOME 'clouddrive')) { Join-Path $HOME 'clouddrive/avd-assessment' } else { Join-Path $HOME 'avd-assessment' }\nNew-Item -ItemType Directory -Force -Path $out | Out-Null\nif (-not (Get-AzContext)) { Connect-AzAccount -UseDeviceAuthentication }\n./avd_current_state_collector.ps1 -OutputPath $out\n$key = Join-Path $out 'estate.key'\n./avd_current_state_facts.ps1 -PackagePath $out -KeyPath $key -NewKey:(-not (Test-Path $key)) -OutputPath $out\nAVD_PS\npwsh -NoLogo -File \"$f\""
+   }
+  ],
+  "analyze-0": [
+   {
+    "runIn": {
+     "where": "cloudshell",
+     "shell": "pwsh"
+    },
+    "support": {
+     "status": "untested",
+     "requires": [],
+     "blockedBy": [],
+     "place": "Cloud Shell",
+     "shell": "pwsh"
+    },
+    "text": "$repo = Join-Path $HOME 'avd-current-state'\nif (Test-Path (Join-Path $repo '.git')) { git -C $repo pull --ff-only --quiet } else { git clone --quiet https://github.com/avd-ops/avd-current-state.git $repo }\nSet-Location $repo\n$out = if (Test-Path (Join-Path $HOME 'clouddrive')) { Join-Path $HOME 'clouddrive/avd-assessment' } else { Join-Path $HOME 'avd-assessment' }\nNew-Item -ItemType Directory -Force -Path $out | Out-Null\nif (-not (Get-AzContext)) { Connect-AzAccount -UseDeviceAuthentication }\n./avd_deployment_validator.ps1 -Mode PostDeployment -OutputPath $out"
+   },
+   {
+    "runIn": {
+     "where": "cloudshell",
+     "shell": "bash"
+    },
+    "support": {
+     "status": "untested",
+     "requires": [],
+     "blockedBy": [],
+     "place": "Cloud Shell",
+     "shell": "bash"
+    },
+    "text": "f=\"$(mktemp -d)/step.ps1\"\ncat > \"$f\" <<'AVD_PS'\n$repo = Join-Path $HOME 'avd-current-state'\nif (Test-Path (Join-Path $repo '.git')) { git -C $repo pull --ff-only --quiet } else { git clone --quiet https://github.com/avd-ops/avd-current-state.git $repo }\nSet-Location $repo\n$out = if (Test-Path (Join-Path $HOME 'clouddrive')) { Join-Path $HOME 'clouddrive/avd-assessment' } else { Join-Path $HOME 'avd-assessment' }\nNew-Item -ItemType Directory -Force -Path $out | Out-Null\nif (-not (Get-AzContext)) { Connect-AzAccount -UseDeviceAuthentication }\n./avd_deployment_validator.ps1 -Mode PostDeployment -OutputPath $out\nAVD_PS\npwsh -NoLogo -File \"$f\""
+   },
+   {
+    "runIn": {
+     "where": "windows",
+     "shell": "pwsh"
+    },
+    "support": {
+     "status": "untested",
+     "requires": [
+      "PowerShell 7.2 or later",
+      "the Az modules"
+     ],
+     "blockedBy": [],
+     "place": "Windows",
+     "shell": "pwsh"
+    },
+    "text": "$repo = Join-Path $HOME 'avd-current-state'\nif (Test-Path (Join-Path $repo '.git')) { git -C $repo pull --ff-only --quiet } else { git clone --quiet https://github.com/avd-ops/avd-current-state.git $repo }\nSet-Location $repo\n$out = if (Test-Path (Join-Path $HOME 'clouddrive')) { Join-Path $HOME 'clouddrive/avd-assessment' } else { Join-Path $HOME 'avd-assessment' }\nNew-Item -ItemType Directory -Force -Path $out | Out-Null\nif (-not (Get-AzContext)) { Connect-AzAccount -UseDeviceAuthentication }\n./avd_deployment_validator.ps1 -Mode PostDeployment -OutputPath $out"
+   },
+   {
+    "runIn": {
+     "where": "macos",
+     "shell": "pwsh"
+    },
+    "support": {
+     "status": "untested",
+     "requires": [
+      "PowerShell 7.2 or later",
+      "the Az modules"
+     ],
+     "blockedBy": [],
+     "place": "macOS",
+     "shell": "pwsh"
+    },
+    "text": "$repo = Join-Path $HOME 'avd-current-state'\nif (Test-Path (Join-Path $repo '.git')) { git -C $repo pull --ff-only --quiet } else { git clone --quiet https://github.com/avd-ops/avd-current-state.git $repo }\nSet-Location $repo\n$out = if (Test-Path (Join-Path $HOME 'clouddrive')) { Join-Path $HOME 'clouddrive/avd-assessment' } else { Join-Path $HOME 'avd-assessment' }\nNew-Item -ItemType Directory -Force -Path $out | Out-Null\nif (-not (Get-AzContext)) { Connect-AzAccount -UseDeviceAuthentication }\n./avd_deployment_validator.ps1 -Mode PostDeployment -OutputPath $out"
+   },
+   {
+    "runIn": {
+     "where": "macos",
+     "shell": "bash"
+    },
+    "support": {
+     "status": "untested",
+     "requires": [
+      "PowerShell 7.2 or later",
+      "the Az modules"
+     ],
+     "blockedBy": [],
+     "place": "macOS",
+     "shell": "bash"
+    },
+    "text": "f=\"$(mktemp -d)/step.ps1\"\ncat > \"$f\" <<'AVD_PS'\n$repo = Join-Path $HOME 'avd-current-state'\nif (Test-Path (Join-Path $repo '.git')) { git -C $repo pull --ff-only --quiet } else { git clone --quiet https://github.com/avd-ops/avd-current-state.git $repo }\nSet-Location $repo\n$out = if (Test-Path (Join-Path $HOME 'clouddrive')) { Join-Path $HOME 'clouddrive/avd-assessment' } else { Join-Path $HOME 'avd-assessment' }\nNew-Item -ItemType Directory -Force -Path $out | Out-Null\nif (-not (Get-AzContext)) { Connect-AzAccount -UseDeviceAuthentication }\n./avd_deployment_validator.ps1 -Mode PostDeployment -OutputPath $out\nAVD_PS\npwsh -NoLogo -File \"$f\""
+   }
+  ],
+  "collect-1": [
+   {
+    "runIn": {
+     "where": "cloudshell",
+     "shell": "pwsh"
+    },
+    "support": {
+     "status": "untested",
+     "requires": [],
+     "blockedBy": [],
+     "place": "Cloud Shell",
+     "shell": "pwsh"
+    },
+    "text": "$repo = Join-Path $HOME 'avd-current-state'\nif (Test-Path (Join-Path $repo '.git')) { git -C $repo pull --ff-only --quiet } else { git clone --quiet https://github.com/avd-ops/avd-current-state.git $repo }\nSet-Location $repo\n$out = if (Test-Path (Join-Path $HOME 'clouddrive')) { Join-Path $HOME 'clouddrive/avd-assessment' } else { Join-Path $HOME 'avd-assessment' }\nNew-Item -ItemType Directory -Force -Path $out | Out-Null\nif (-not (Get-AzContext)) { Connect-AzAccount -UseDeviceAuthentication }\n./avd_current_state_collector.ps1 -SubscriptionNames 'Contoso Prod','O''Brien Dev' -OutputPath $out\n$key = Join-Path $out 'estate.key'\n./avd_current_state_facts.ps1 -PackagePath $out -KeyPath $key -NewKey:(-not (Test-Path $key)) -OutputPath $out"
+   },
+   {
+    "runIn": {
+     "where": "cloudshell",
+     "shell": "bash"
+    },
+    "support": {
+     "status": "untested",
+     "requires": [],
+     "blockedBy": [],
+     "place": "Cloud Shell",
+     "shell": "bash"
+    },
+    "text": "f=\"$(mktemp -d)/step.ps1\"\ncat > \"$f\" <<'AVD_PS'\n$repo = Join-Path $HOME 'avd-current-state'\nif (Test-Path (Join-Path $repo '.git')) { git -C $repo pull --ff-only --quiet } else { git clone --quiet https://github.com/avd-ops/avd-current-state.git $repo }\nSet-Location $repo\n$out = if (Test-Path (Join-Path $HOME 'clouddrive')) { Join-Path $HOME 'clouddrive/avd-assessment' } else { Join-Path $HOME 'avd-assessment' }\nNew-Item -ItemType Directory -Force -Path $out | Out-Null\nif (-not (Get-AzContext)) { Connect-AzAccount -UseDeviceAuthentication }\n./avd_current_state_collector.ps1 -SubscriptionNames 'Contoso Prod','O''Brien Dev' -OutputPath $out\n$key = Join-Path $out 'estate.key'\n./avd_current_state_facts.ps1 -PackagePath $out -KeyPath $key -NewKey:(-not (Test-Path $key)) -OutputPath $out\nAVD_PS\npwsh -NoLogo -File \"$f\""
+   },
+   {
+    "runIn": {
+     "where": "windows",
+     "shell": "pwsh"
+    },
+    "support": {
+     "status": "untested",
+     "requires": [
+      "PowerShell 7.2 or later",
+      "the Az modules",
+      "PowerShell 7.2 or later (offline: no Az modules",
+      "no sign-in)"
+     ],
+     "blockedBy": [],
+     "place": "Windows",
+     "shell": "pwsh"
+    },
+    "text": "$repo = Join-Path $HOME 'avd-current-state'\nif (Test-Path (Join-Path $repo '.git')) { git -C $repo pull --ff-only --quiet } else { git clone --quiet https://github.com/avd-ops/avd-current-state.git $repo }\nSet-Location $repo\n$out = if (Test-Path (Join-Path $HOME 'clouddrive')) { Join-Path $HOME 'clouddrive/avd-assessment' } else { Join-Path $HOME 'avd-assessment' }\nNew-Item -ItemType Directory -Force -Path $out | Out-Null\nif (-not (Get-AzContext)) { Connect-AzAccount -UseDeviceAuthentication }\n./avd_current_state_collector.ps1 -SubscriptionNames 'Contoso Prod','O''Brien Dev' -OutputPath $out\n$key = Join-Path $out 'estate.key'\n./avd_current_state_facts.ps1 -PackagePath $out -KeyPath $key -NewKey:(-not (Test-Path $key)) -OutputPath $out"
+   },
+   {
+    "runIn": {
+     "where": "macos",
+     "shell": "pwsh"
+    },
+    "support": {
+     "status": "untested",
+     "requires": [
+      "PowerShell 7.2 or later",
+      "the Az modules",
+      "PowerShell 7.2 or later (offline: no Az modules",
+      "no sign-in)"
+     ],
+     "blockedBy": [],
+     "place": "macOS",
+     "shell": "pwsh"
+    },
+    "text": "$repo = Join-Path $HOME 'avd-current-state'\nif (Test-Path (Join-Path $repo '.git')) { git -C $repo pull --ff-only --quiet } else { git clone --quiet https://github.com/avd-ops/avd-current-state.git $repo }\nSet-Location $repo\n$out = if (Test-Path (Join-Path $HOME 'clouddrive')) { Join-Path $HOME 'clouddrive/avd-assessment' } else { Join-Path $HOME 'avd-assessment' }\nNew-Item -ItemType Directory -Force -Path $out | Out-Null\nif (-not (Get-AzContext)) { Connect-AzAccount -UseDeviceAuthentication }\n./avd_current_state_collector.ps1 -SubscriptionNames 'Contoso Prod','O''Brien Dev' -OutputPath $out\n$key = Join-Path $out 'estate.key'\n./avd_current_state_facts.ps1 -PackagePath $out -KeyPath $key -NewKey:(-not (Test-Path $key)) -OutputPath $out"
+   },
+   {
+    "runIn": {
+     "where": "macos",
+     "shell": "bash"
+    },
+    "support": {
+     "status": "untested",
+     "requires": [
+      "PowerShell 7.2 or later",
+      "the Az modules",
+      "PowerShell 7.2 or later (offline: no Az modules",
+      "no sign-in)"
+     ],
+     "blockedBy": [],
+     "place": "macOS",
+     "shell": "bash"
+    },
+    "text": "f=\"$(mktemp -d)/step.ps1\"\ncat > \"$f\" <<'AVD_PS'\n$repo = Join-Path $HOME 'avd-current-state'\nif (Test-Path (Join-Path $repo '.git')) { git -C $repo pull --ff-only --quiet } else { git clone --quiet https://github.com/avd-ops/avd-current-state.git $repo }\nSet-Location $repo\n$out = if (Test-Path (Join-Path $HOME 'clouddrive')) { Join-Path $HOME 'clouddrive/avd-assessment' } else { Join-Path $HOME 'avd-assessment' }\nNew-Item -ItemType Directory -Force -Path $out | Out-Null\nif (-not (Get-AzContext)) { Connect-AzAccount -UseDeviceAuthentication }\n./avd_current_state_collector.ps1 -SubscriptionNames 'Contoso Prod','O''Brien Dev' -OutputPath $out\n$key = Join-Path $out 'estate.key'\n./avd_current_state_facts.ps1 -PackagePath $out -KeyPath $key -NewKey:(-not (Test-Path $key)) -OutputPath $out\nAVD_PS\npwsh -NoLogo -File \"$f\""
+   }
+  ],
+  "analyze-1": [
+   {
+    "runIn": {
+     "where": "cloudshell",
+     "shell": "pwsh"
+    },
+    "support": {
+     "status": "untested",
+     "requires": [],
+     "blockedBy": [],
+     "place": "Cloud Shell",
+     "shell": "pwsh"
+    },
+    "text": "$repo = Join-Path $HOME 'avd-current-state'\nif (Test-Path (Join-Path $repo '.git')) { git -C $repo pull --ff-only --quiet } else { git clone --quiet https://github.com/avd-ops/avd-current-state.git $repo }\nSet-Location $repo\n$out = if (Test-Path (Join-Path $HOME 'clouddrive')) { Join-Path $HOME 'clouddrive/avd-assessment' } else { Join-Path $HOME 'avd-assessment' }\nNew-Item -ItemType Directory -Force -Path $out | Out-Null\nif (-not (Get-AzContext)) { Connect-AzAccount -UseDeviceAuthentication }\n./avd_deployment_validator.ps1 -Mode PostDeployment -SubscriptionName 'Contoso Prod' -ResourceGroupName 'rg-avd' -OutputPath $out"
+   },
+   {
+    "runIn": {
+     "where": "cloudshell",
+     "shell": "bash"
+    },
+    "support": {
+     "status": "untested",
+     "requires": [],
+     "blockedBy": [],
+     "place": "Cloud Shell",
+     "shell": "bash"
+    },
+    "text": "f=\"$(mktemp -d)/step.ps1\"\ncat > \"$f\" <<'AVD_PS'\n$repo = Join-Path $HOME 'avd-current-state'\nif (Test-Path (Join-Path $repo '.git')) { git -C $repo pull --ff-only --quiet } else { git clone --quiet https://github.com/avd-ops/avd-current-state.git $repo }\nSet-Location $repo\n$out = if (Test-Path (Join-Path $HOME 'clouddrive')) { Join-Path $HOME 'clouddrive/avd-assessment' } else { Join-Path $HOME 'avd-assessment' }\nNew-Item -ItemType Directory -Force -Path $out | Out-Null\nif (-not (Get-AzContext)) { Connect-AzAccount -UseDeviceAuthentication }\n./avd_deployment_validator.ps1 -Mode PostDeployment -SubscriptionName 'Contoso Prod' -ResourceGroupName 'rg-avd' -OutputPath $out\nAVD_PS\npwsh -NoLogo -File \"$f\""
+   },
+   {
+    "runIn": {
+     "where": "windows",
+     "shell": "pwsh"
+    },
+    "support": {
+     "status": "untested",
+     "requires": [
+      "PowerShell 7.2 or later",
+      "the Az modules"
+     ],
+     "blockedBy": [],
+     "place": "Windows",
+     "shell": "pwsh"
+    },
+    "text": "$repo = Join-Path $HOME 'avd-current-state'\nif (Test-Path (Join-Path $repo '.git')) { git -C $repo pull --ff-only --quiet } else { git clone --quiet https://github.com/avd-ops/avd-current-state.git $repo }\nSet-Location $repo\n$out = if (Test-Path (Join-Path $HOME 'clouddrive')) { Join-Path $HOME 'clouddrive/avd-assessment' } else { Join-Path $HOME 'avd-assessment' }\nNew-Item -ItemType Directory -Force -Path $out | Out-Null\nif (-not (Get-AzContext)) { Connect-AzAccount -UseDeviceAuthentication }\n./avd_deployment_validator.ps1 -Mode PostDeployment -SubscriptionName 'Contoso Prod' -ResourceGroupName 'rg-avd' -OutputPath $out"
+   },
+   {
+    "runIn": {
+     "where": "macos",
+     "shell": "pwsh"
+    },
+    "support": {
+     "status": "untested",
+     "requires": [
+      "PowerShell 7.2 or later",
+      "the Az modules"
+     ],
+     "blockedBy": [],
+     "place": "macOS",
+     "shell": "pwsh"
+    },
+    "text": "$repo = Join-Path $HOME 'avd-current-state'\nif (Test-Path (Join-Path $repo '.git')) { git -C $repo pull --ff-only --quiet } else { git clone --quiet https://github.com/avd-ops/avd-current-state.git $repo }\nSet-Location $repo\n$out = if (Test-Path (Join-Path $HOME 'clouddrive')) { Join-Path $HOME 'clouddrive/avd-assessment' } else { Join-Path $HOME 'avd-assessment' }\nNew-Item -ItemType Directory -Force -Path $out | Out-Null\nif (-not (Get-AzContext)) { Connect-AzAccount -UseDeviceAuthentication }\n./avd_deployment_validator.ps1 -Mode PostDeployment -SubscriptionName 'Contoso Prod' -ResourceGroupName 'rg-avd' -OutputPath $out"
+   },
+   {
+    "runIn": {
+     "where": "macos",
+     "shell": "bash"
+    },
+    "support": {
+     "status": "untested",
+     "requires": [
+      "PowerShell 7.2 or later",
+      "the Az modules"
+     ],
+     "blockedBy": [],
+     "place": "macOS",
+     "shell": "bash"
+    },
+    "text": "f=\"$(mktemp -d)/step.ps1\"\ncat > \"$f\" <<'AVD_PS'\n$repo = Join-Path $HOME 'avd-current-state'\nif (Test-Path (Join-Path $repo '.git')) { git -C $repo pull --ff-only --quiet } else { git clone --quiet https://github.com/avd-ops/avd-current-state.git $repo }\nSet-Location $repo\n$out = if (Test-Path (Join-Path $HOME 'clouddrive')) { Join-Path $HOME 'clouddrive/avd-assessment' } else { Join-Path $HOME 'avd-assessment' }\nNew-Item -ItemType Directory -Force -Path $out | Out-Null\nif (-not (Get-AzContext)) { Connect-AzAccount -UseDeviceAuthentication }\n./avd_deployment_validator.ps1 -Mode PostDeployment -SubscriptionName 'Contoso Prod' -ResourceGroupName 'rg-avd' -OutputPath $out\nAVD_PS\npwsh -NoLogo -File \"$f\""
+   }
+  ],
+  "collect-2": [
+   {
+    "runIn": {
+     "where": "cloudshell",
+     "shell": "pwsh"
+    },
+    "support": {
+     "status": "untested",
+     "requires": [],
+     "blockedBy": [],
+     "place": "Cloud Shell",
+     "shell": "pwsh"
+    },
+    "text": "$repo = Join-Path $HOME 'avd-current-state'\nif (Test-Path (Join-Path $repo '.git')) { git -C $repo pull --ff-only --quiet } else { git clone --quiet https://github.com/avd-ops/avd-current-state.git $repo }\nSet-Location $repo\n$out = if (Test-Path (Join-Path $HOME 'clouddrive')) { Join-Path $HOME 'clouddrive/avd-assessment' } else { Join-Path $HOME 'avd-assessment' }\nNew-Item -ItemType Directory -Force -Path $out | Out-Null\nif (-not (Get-AzContext)) { Connect-AzAccount -UseDeviceAuthentication }\n./avd_current_state_collector.ps1 -SubscriptionNames 'Sub A','Sub B' -OutputPath $out\n$key = Join-Path $out 'estate.key'\n./avd_current_state_facts.ps1 -PackagePath $out -KeyPath $key -NewKey:(-not (Test-Path $key)) -OutputPath $out"
+   },
+   {
+    "runIn": {
+     "where": "cloudshell",
+     "shell": "bash"
+    },
+    "support": {
+     "status": "untested",
+     "requires": [],
+     "blockedBy": [],
+     "place": "Cloud Shell",
+     "shell": "bash"
+    },
+    "text": "f=\"$(mktemp -d)/step.ps1\"\ncat > \"$f\" <<'AVD_PS'\n$repo = Join-Path $HOME 'avd-current-state'\nif (Test-Path (Join-Path $repo '.git')) { git -C $repo pull --ff-only --quiet } else { git clone --quiet https://github.com/avd-ops/avd-current-state.git $repo }\nSet-Location $repo\n$out = if (Test-Path (Join-Path $HOME 'clouddrive')) { Join-Path $HOME 'clouddrive/avd-assessment' } else { Join-Path $HOME 'avd-assessment' }\nNew-Item -ItemType Directory -Force -Path $out | Out-Null\nif (-not (Get-AzContext)) { Connect-AzAccount -UseDeviceAuthentication }\n./avd_current_state_collector.ps1 -SubscriptionNames 'Sub A','Sub B' -OutputPath $out\n$key = Join-Path $out 'estate.key'\n./avd_current_state_facts.ps1 -PackagePath $out -KeyPath $key -NewKey:(-not (Test-Path $key)) -OutputPath $out\nAVD_PS\npwsh -NoLogo -File \"$f\""
+   },
+   {
+    "runIn": {
+     "where": "windows",
+     "shell": "pwsh"
+    },
+    "support": {
+     "status": "untested",
+     "requires": [
+      "PowerShell 7.2 or later",
+      "the Az modules",
+      "PowerShell 7.2 or later (offline: no Az modules",
+      "no sign-in)"
+     ],
+     "blockedBy": [],
+     "place": "Windows",
+     "shell": "pwsh"
+    },
+    "text": "$repo = Join-Path $HOME 'avd-current-state'\nif (Test-Path (Join-Path $repo '.git')) { git -C $repo pull --ff-only --quiet } else { git clone --quiet https://github.com/avd-ops/avd-current-state.git $repo }\nSet-Location $repo\n$out = if (Test-Path (Join-Path $HOME 'clouddrive')) { Join-Path $HOME 'clouddrive/avd-assessment' } else { Join-Path $HOME 'avd-assessment' }\nNew-Item -ItemType Directory -Force -Path $out | Out-Null\nif (-not (Get-AzContext)) { Connect-AzAccount -UseDeviceAuthentication }\n./avd_current_state_collector.ps1 -SubscriptionNames 'Sub A','Sub B' -OutputPath $out\n$key = Join-Path $out 'estate.key'\n./avd_current_state_facts.ps1 -PackagePath $out -KeyPath $key -NewKey:(-not (Test-Path $key)) -OutputPath $out"
+   },
+   {
+    "runIn": {
+     "where": "macos",
+     "shell": "pwsh"
+    },
+    "support": {
+     "status": "untested",
+     "requires": [
+      "PowerShell 7.2 or later",
+      "the Az modules",
+      "PowerShell 7.2 or later (offline: no Az modules",
+      "no sign-in)"
+     ],
+     "blockedBy": [],
+     "place": "macOS",
+     "shell": "pwsh"
+    },
+    "text": "$repo = Join-Path $HOME 'avd-current-state'\nif (Test-Path (Join-Path $repo '.git')) { git -C $repo pull --ff-only --quiet } else { git clone --quiet https://github.com/avd-ops/avd-current-state.git $repo }\nSet-Location $repo\n$out = if (Test-Path (Join-Path $HOME 'clouddrive')) { Join-Path $HOME 'clouddrive/avd-assessment' } else { Join-Path $HOME 'avd-assessment' }\nNew-Item -ItemType Directory -Force -Path $out | Out-Null\nif (-not (Get-AzContext)) { Connect-AzAccount -UseDeviceAuthentication }\n./avd_current_state_collector.ps1 -SubscriptionNames 'Sub A','Sub B' -OutputPath $out\n$key = Join-Path $out 'estate.key'\n./avd_current_state_facts.ps1 -PackagePath $out -KeyPath $key -NewKey:(-not (Test-Path $key)) -OutputPath $out"
+   },
+   {
+    "runIn": {
+     "where": "macos",
+     "shell": "bash"
+    },
+    "support": {
+     "status": "untested",
+     "requires": [
+      "PowerShell 7.2 or later",
+      "the Az modules",
+      "PowerShell 7.2 or later (offline: no Az modules",
+      "no sign-in)"
+     ],
+     "blockedBy": [],
+     "place": "macOS",
+     "shell": "bash"
+    },
+    "text": "f=\"$(mktemp -d)/step.ps1\"\ncat > \"$f\" <<'AVD_PS'\n$repo = Join-Path $HOME 'avd-current-state'\nif (Test-Path (Join-Path $repo '.git')) { git -C $repo pull --ff-only --quiet } else { git clone --quiet https://github.com/avd-ops/avd-current-state.git $repo }\nSet-Location $repo\n$out = if (Test-Path (Join-Path $HOME 'clouddrive')) { Join-Path $HOME 'clouddrive/avd-assessment' } else { Join-Path $HOME 'avd-assessment' }\nNew-Item -ItemType Directory -Force -Path $out | Out-Null\nif (-not (Get-AzContext)) { Connect-AzAccount -UseDeviceAuthentication }\n./avd_current_state_collector.ps1 -SubscriptionNames 'Sub A','Sub B' -OutputPath $out\n$key = Join-Path $out 'estate.key'\n./avd_current_state_facts.ps1 -PackagePath $out -KeyPath $key -NewKey:(-not (Test-Path $key)) -OutputPath $out\nAVD_PS\npwsh -NoLogo -File \"$f\""
+   }
+  ],
+  "analyze-2": [
+   {
+    "runIn": {
+     "where": "cloudshell",
+     "shell": "pwsh"
+    },
+    "support": {
+     "status": "untested",
+     "requires": [],
+     "blockedBy": [],
+     "place": "Cloud Shell",
+     "shell": "pwsh"
+    },
+    "text": "$repo = Join-Path $HOME 'avd-current-state'\nif (Test-Path (Join-Path $repo '.git')) { git -C $repo pull --ff-only --quiet } else { git clone --quiet https://github.com/avd-ops/avd-current-state.git $repo }\nSet-Location $repo\n$out = if (Test-Path (Join-Path $HOME 'clouddrive')) { Join-Path $HOME 'clouddrive/avd-assessment' } else { Join-Path $HOME 'avd-assessment' }\nNew-Item -ItemType Directory -Force -Path $out | Out-Null\nif (-not (Get-AzContext)) { Connect-AzAccount -UseDeviceAuthentication }\n./avd_deployment_validator.ps1 -Mode PostDeployment -SubscriptionName 'Sub B' -OutputPath $out"
+   },
+   {
+    "runIn": {
+     "where": "cloudshell",
+     "shell": "bash"
+    },
+    "support": {
+     "status": "untested",
+     "requires": [],
+     "blockedBy": [],
+     "place": "Cloud Shell",
+     "shell": "bash"
+    },
+    "text": "f=\"$(mktemp -d)/step.ps1\"\ncat > \"$f\" <<'AVD_PS'\n$repo = Join-Path $HOME 'avd-current-state'\nif (Test-Path (Join-Path $repo '.git')) { git -C $repo pull --ff-only --quiet } else { git clone --quiet https://github.com/avd-ops/avd-current-state.git $repo }\nSet-Location $repo\n$out = if (Test-Path (Join-Path $HOME 'clouddrive')) { Join-Path $HOME 'clouddrive/avd-assessment' } else { Join-Path $HOME 'avd-assessment' }\nNew-Item -ItemType Directory -Force -Path $out | Out-Null\nif (-not (Get-AzContext)) { Connect-AzAccount -UseDeviceAuthentication }\n./avd_deployment_validator.ps1 -Mode PostDeployment -SubscriptionName 'Sub B' -OutputPath $out\nAVD_PS\npwsh -NoLogo -File \"$f\""
+   },
+   {
+    "runIn": {
+     "where": "windows",
+     "shell": "pwsh"
+    },
+    "support": {
+     "status": "untested",
+     "requires": [
+      "PowerShell 7.2 or later",
+      "the Az modules"
+     ],
+     "blockedBy": [],
+     "place": "Windows",
+     "shell": "pwsh"
+    },
+    "text": "$repo = Join-Path $HOME 'avd-current-state'\nif (Test-Path (Join-Path $repo '.git')) { git -C $repo pull --ff-only --quiet } else { git clone --quiet https://github.com/avd-ops/avd-current-state.git $repo }\nSet-Location $repo\n$out = if (Test-Path (Join-Path $HOME 'clouddrive')) { Join-Path $HOME 'clouddrive/avd-assessment' } else { Join-Path $HOME 'avd-assessment' }\nNew-Item -ItemType Directory -Force -Path $out | Out-Null\nif (-not (Get-AzContext)) { Connect-AzAccount -UseDeviceAuthentication }\n./avd_deployment_validator.ps1 -Mode PostDeployment -SubscriptionName 'Sub B' -OutputPath $out"
+   },
+   {
+    "runIn": {
+     "where": "macos",
+     "shell": "pwsh"
+    },
+    "support": {
+     "status": "untested",
+     "requires": [
+      "PowerShell 7.2 or later",
+      "the Az modules"
+     ],
+     "blockedBy": [],
+     "place": "macOS",
+     "shell": "pwsh"
+    },
+    "text": "$repo = Join-Path $HOME 'avd-current-state'\nif (Test-Path (Join-Path $repo '.git')) { git -C $repo pull --ff-only --quiet } else { git clone --quiet https://github.com/avd-ops/avd-current-state.git $repo }\nSet-Location $repo\n$out = if (Test-Path (Join-Path $HOME 'clouddrive')) { Join-Path $HOME 'clouddrive/avd-assessment' } else { Join-Path $HOME 'avd-assessment' }\nNew-Item -ItemType Directory -Force -Path $out | Out-Null\nif (-not (Get-AzContext)) { Connect-AzAccount -UseDeviceAuthentication }\n./avd_deployment_validator.ps1 -Mode PostDeployment -SubscriptionName 'Sub B' -OutputPath $out"
+   },
+   {
+    "runIn": {
+     "where": "macos",
+     "shell": "bash"
+    },
+    "support": {
+     "status": "untested",
+     "requires": [
+      "PowerShell 7.2 or later",
+      "the Az modules"
+     ],
+     "blockedBy": [],
+     "place": "macOS",
+     "shell": "bash"
+    },
+    "text": "f=\"$(mktemp -d)/step.ps1\"\ncat > \"$f\" <<'AVD_PS'\n$repo = Join-Path $HOME 'avd-current-state'\nif (Test-Path (Join-Path $repo '.git')) { git -C $repo pull --ff-only --quiet } else { git clone --quiet https://github.com/avd-ops/avd-current-state.git $repo }\nSet-Location $repo\n$out = if (Test-Path (Join-Path $HOME 'clouddrive')) { Join-Path $HOME 'clouddrive/avd-assessment' } else { Join-Path $HOME 'avd-assessment' }\nNew-Item -ItemType Directory -Force -Path $out | Out-Null\nif (-not (Get-AzContext)) { Connect-AzAccount -UseDeviceAuthentication }\n./avd_deployment_validator.ps1 -Mode PostDeployment -SubscriptionName 'Sub B' -OutputPath $out\nAVD_PS\npwsh -NoLogo -File \"$f\""
+   }
+  ],
+  "reader": [
+   {
+    "runIn": {
+     "where": "cloudshell",
+     "shell": "pwsh"
+    },
+    "support": {
+     "status": "untested",
+     "requires": [],
+     "blockedBy": [],
+     "place": "Cloud Shell",
+     "shell": "pwsh"
+    },
+    "text": "$repo = Join-Path $HOME 'avd-current-state'\nif (Test-Path (Join-Path $repo '.git')) { git -C $repo pull --ff-only --quiet } else { git clone --quiet https://github.com/avd-ops/avd-current-state.git $repo }\nSet-Location $repo\n$out = if (Test-Path (Join-Path $HOME 'clouddrive')) { Join-Path $HOME 'clouddrive/avd-assessment' } else { Join-Path $HOME 'avd-assessment' }\nNew-Item -ItemType Directory -Force -Path $out | Out-Null\nif (-not (Get-AzContext)) { Connect-AzAccount -UseDeviceAuthentication }\nif (-not $env:AVD_READER_CLIENT_ID) { $env:AVD_READER_CLIENT_ID = Read-Host 'The reader''s client ID (not a secret)' }\n./avd_ops_reader.ps1 -Mode Test"
+   },
+   {
+    "runIn": {
+     "where": "cloudshell",
+     "shell": "bash"
+    },
+    "support": {
+     "status": "untested",
+     "requires": [],
+     "blockedBy": [],
+     "place": "Cloud Shell",
+     "shell": "bash"
+    },
+    "text": "f=\"$(mktemp -d)/step.ps1\"\ncat > \"$f\" <<'AVD_PS'\n$repo = Join-Path $HOME 'avd-current-state'\nif (Test-Path (Join-Path $repo '.git')) { git -C $repo pull --ff-only --quiet } else { git clone --quiet https://github.com/avd-ops/avd-current-state.git $repo }\nSet-Location $repo\n$out = if (Test-Path (Join-Path $HOME 'clouddrive')) { Join-Path $HOME 'clouddrive/avd-assessment' } else { Join-Path $HOME 'avd-assessment' }\nNew-Item -ItemType Directory -Force -Path $out | Out-Null\nif (-not (Get-AzContext)) { Connect-AzAccount -UseDeviceAuthentication }\nif (-not $env:AVD_READER_CLIENT_ID) { $env:AVD_READER_CLIENT_ID = Read-Host 'The reader''s client ID (not a secret)' }\n./avd_ops_reader.ps1 -Mode Test\nAVD_PS\npwsh -NoLogo -File \"$f\""
+   },
+   {
+    "runIn": {
+     "where": "windows",
+     "shell": "pwsh"
+    },
+    "support": {
+     "status": "untested",
+     "requires": [
+      "PowerShell 7.2 or later",
+      "Az.Accounts"
+     ],
+     "blockedBy": [],
+     "place": "Windows",
+     "shell": "pwsh"
+    },
+    "text": "$repo = Join-Path $HOME 'avd-current-state'\nif (Test-Path (Join-Path $repo '.git')) { git -C $repo pull --ff-only --quiet } else { git clone --quiet https://github.com/avd-ops/avd-current-state.git $repo }\nSet-Location $repo\n$out = if (Test-Path (Join-Path $HOME 'clouddrive')) { Join-Path $HOME 'clouddrive/avd-assessment' } else { Join-Path $HOME 'avd-assessment' }\nNew-Item -ItemType Directory -Force -Path $out | Out-Null\nif (-not (Get-AzContext)) { Connect-AzAccount -UseDeviceAuthentication }\nif (-not $env:AVD_READER_CLIENT_ID) { $env:AVD_READER_CLIENT_ID = Read-Host 'The reader''s client ID (not a secret)' }\n./avd_ops_reader.ps1 -Mode Test"
+   },
+   {
+    "runIn": {
+     "where": "macos",
+     "shell": "pwsh"
+    },
+    "support": {
+     "status": "untested",
+     "requires": [
+      "PowerShell 7.2 or later",
+      "Az.Accounts"
+     ],
+     "blockedBy": [],
+     "place": "macOS",
+     "shell": "pwsh"
+    },
+    "text": "$repo = Join-Path $HOME 'avd-current-state'\nif (Test-Path (Join-Path $repo '.git')) { git -C $repo pull --ff-only --quiet } else { git clone --quiet https://github.com/avd-ops/avd-current-state.git $repo }\nSet-Location $repo\n$out = if (Test-Path (Join-Path $HOME 'clouddrive')) { Join-Path $HOME 'clouddrive/avd-assessment' } else { Join-Path $HOME 'avd-assessment' }\nNew-Item -ItemType Directory -Force -Path $out | Out-Null\nif (-not (Get-AzContext)) { Connect-AzAccount -UseDeviceAuthentication }\nif (-not $env:AVD_READER_CLIENT_ID) { $env:AVD_READER_CLIENT_ID = Read-Host 'The reader''s client ID (not a secret)' }\n./avd_ops_reader.ps1 -Mode Test"
+   },
+   {
+    "runIn": {
+     "where": "macos",
+     "shell": "bash"
+    },
+    "support": {
+     "status": "untested",
+     "requires": [
+      "PowerShell 7.2 or later",
+      "Az.Accounts"
+     ],
+     "blockedBy": [],
+     "place": "macOS",
+     "shell": "bash"
+    },
+    "text": "f=\"$(mktemp -d)/step.ps1\"\ncat > \"$f\" <<'AVD_PS'\n$repo = Join-Path $HOME 'avd-current-state'\nif (Test-Path (Join-Path $repo '.git')) { git -C $repo pull --ff-only --quiet } else { git clone --quiet https://github.com/avd-ops/avd-current-state.git $repo }\nSet-Location $repo\n$out = if (Test-Path (Join-Path $HOME 'clouddrive')) { Join-Path $HOME 'clouddrive/avd-assessment' } else { Join-Path $HOME 'avd-assessment' }\nNew-Item -ItemType Directory -Force -Path $out | Out-Null\nif (-not (Get-AzContext)) { Connect-AzAccount -UseDeviceAuthentication }\nif (-not $env:AVD_READER_CLIENT_ID) { $env:AVD_READER_CLIENT_ID = Read-Host 'The reader''s client ID (not a secret)' }\n./avd_ops_reader.ps1 -Mode Test\nAVD_PS\npwsh -NoLogo -File \"$f\""
+   }
+  ],
+  "intake": [
+   {
+    "runIn": {
+     "where": "cloudshell",
+     "shell": "pwsh"
+    },
+    "support": {
+     "status": "tested",
+     "requires": [],
+     "blockedBy": [],
+     "place": "Cloud Shell",
+     "shell": "pwsh"
+    },
+    "text": "$repo = Join-Path $HOME 'avd-current-state'\nif (Test-Path (Join-Path $repo '.git')) { git -C $repo pull --ff-only --quiet } else { git clone --quiet https://github.com/avd-ops/avd-current-state.git $repo }\nSet-Location $repo\n$out = if (Test-Path (Join-Path $HOME 'clouddrive')) { Join-Path $HOME 'clouddrive/avd-assessment' } else { Join-Path $HOME 'avd-assessment' }\nNew-Item -ItemType Directory -Force -Path $out | Out-Null\n$file = Join-Path $out 'intake.json'\n$text = @'\n{\n  \"schema\": \"avd-intake/v1\",\n  \"estate\": \"est-0a1b2c3d\",\n  \"answeredOn\": \"2026-10-20\",\n  \"residency\": {\n    \"required\": true,\n    \"regions\": [\n      \"eastus2\",\n      \"centralus\"\n    ]\n  },\n  \"preferredRegions\": [\n    \"eastus2\",\n    \"centralus\"\n  ],\n  \"existingHub\": \"azure-hub\",\n  \"identityConstraints\": \"entra-only\",\n  \"workingHours\": {\n    \"start\": \"07:00\",\n    \"end\": \"19:00\",\n    \"days\": [\n      \"Mon\",\n      \"Tue\",\n      \"Wed\",\n      \"Thu\",\n      \"Fri\"\n    ],\n    \"timeZone\": \"America/Chicago\"\n  }\n}\n'@\n[System.IO.File]::WriteAllText($file, ($text -replace \"`r`n\", \"`n\") + \"`n\", [System.Text.UTF8Encoding]::new($false))\nGet-Content $file"
+   },
+   {
+    "runIn": {
+     "where": "cloudshell",
+     "shell": "bash"
+    },
+    "support": {
+     "status": "untested",
+     "requires": [],
+     "blockedBy": [],
+     "place": "Cloud Shell",
+     "shell": "bash"
+    },
+    "text": "f=\"$(mktemp -d)/step.ps1\"\ncat > \"$f\" <<'AVD_PS'\n$repo = Join-Path $HOME 'avd-current-state'\nif (Test-Path (Join-Path $repo '.git')) { git -C $repo pull --ff-only --quiet } else { git clone --quiet https://github.com/avd-ops/avd-current-state.git $repo }\nSet-Location $repo\n$out = if (Test-Path (Join-Path $HOME 'clouddrive')) { Join-Path $HOME 'clouddrive/avd-assessment' } else { Join-Path $HOME 'avd-assessment' }\nNew-Item -ItemType Directory -Force -Path $out | Out-Null\n$file = Join-Path $out 'intake.json'\n$text = @'\n{\n  \"schema\": \"avd-intake/v1\",\n  \"estate\": \"est-0a1b2c3d\",\n  \"answeredOn\": \"2026-10-20\",\n  \"residency\": {\n    \"required\": true,\n    \"regions\": [\n      \"eastus2\",\n      \"centralus\"\n    ]\n  },\n  \"preferredRegions\": [\n    \"eastus2\",\n    \"centralus\"\n  ],\n  \"existingHub\": \"azure-hub\",\n  \"identityConstraints\": \"entra-only\",\n  \"workingHours\": {\n    \"start\": \"07:00\",\n    \"end\": \"19:00\",\n    \"days\": [\n      \"Mon\",\n      \"Tue\",\n      \"Wed\",\n      \"Thu\",\n      \"Fri\"\n    ],\n    \"timeZone\": \"America/Chicago\"\n  }\n}\n'@\n[System.IO.File]::WriteAllText($file, ($text -replace \"`r`n\", \"`n\") + \"`n\", [System.Text.UTF8Encoding]::new($false))\nGet-Content $file\nAVD_PS\npwsh -NoLogo -File \"$f\""
+   },
+   {
+    "runIn": {
+     "where": "windows",
+     "shell": "pwsh"
+    },
+    "support": {
+     "status": "untested",
+     "requires": [],
+     "blockedBy": [],
+     "place": "Windows",
+     "shell": "pwsh"
+    },
+    "text": "$repo = Join-Path $HOME 'avd-current-state'\nif (Test-Path (Join-Path $repo '.git')) { git -C $repo pull --ff-only --quiet } else { git clone --quiet https://github.com/avd-ops/avd-current-state.git $repo }\nSet-Location $repo\n$out = if (Test-Path (Join-Path $HOME 'clouddrive')) { Join-Path $HOME 'clouddrive/avd-assessment' } else { Join-Path $HOME 'avd-assessment' }\nNew-Item -ItemType Directory -Force -Path $out | Out-Null\n$file = Join-Path $out 'intake.json'\n$text = @'\n{\n  \"schema\": \"avd-intake/v1\",\n  \"estate\": \"est-0a1b2c3d\",\n  \"answeredOn\": \"2026-10-20\",\n  \"residency\": {\n    \"required\": true,\n    \"regions\": [\n      \"eastus2\",\n      \"centralus\"\n    ]\n  },\n  \"preferredRegions\": [\n    \"eastus2\",\n    \"centralus\"\n  ],\n  \"existingHub\": \"azure-hub\",\n  \"identityConstraints\": \"entra-only\",\n  \"workingHours\": {\n    \"start\": \"07:00\",\n    \"end\": \"19:00\",\n    \"days\": [\n      \"Mon\",\n      \"Tue\",\n      \"Wed\",\n      \"Thu\",\n      \"Fri\"\n    ],\n    \"timeZone\": \"America/Chicago\"\n  }\n}\n'@\n[System.IO.File]::WriteAllText($file, ($text -replace \"`r`n\", \"`n\") + \"`n\", [System.Text.UTF8Encoding]::new($false))\nGet-Content $file"
+   },
+   {
+    "runIn": {
+     "where": "macos",
+     "shell": "pwsh"
+    },
+    "support": {
+     "status": "untested",
+     "requires": [],
+     "blockedBy": [],
+     "place": "macOS",
+     "shell": "pwsh"
+    },
+    "text": "$repo = Join-Path $HOME 'avd-current-state'\nif (Test-Path (Join-Path $repo '.git')) { git -C $repo pull --ff-only --quiet } else { git clone --quiet https://github.com/avd-ops/avd-current-state.git $repo }\nSet-Location $repo\n$out = if (Test-Path (Join-Path $HOME 'clouddrive')) { Join-Path $HOME 'clouddrive/avd-assessment' } else { Join-Path $HOME 'avd-assessment' }\nNew-Item -ItemType Directory -Force -Path $out | Out-Null\n$file = Join-Path $out 'intake.json'\n$text = @'\n{\n  \"schema\": \"avd-intake/v1\",\n  \"estate\": \"est-0a1b2c3d\",\n  \"answeredOn\": \"2026-10-20\",\n  \"residency\": {\n    \"required\": true,\n    \"regions\": [\n      \"eastus2\",\n      \"centralus\"\n    ]\n  },\n  \"preferredRegions\": [\n    \"eastus2\",\n    \"centralus\"\n  ],\n  \"existingHub\": \"azure-hub\",\n  \"identityConstraints\": \"entra-only\",\n  \"workingHours\": {\n    \"start\": \"07:00\",\n    \"end\": \"19:00\",\n    \"days\": [\n      \"Mon\",\n      \"Tue\",\n      \"Wed\",\n      \"Thu\",\n      \"Fri\"\n    ],\n    \"timeZone\": \"America/Chicago\"\n  }\n}\n'@\n[System.IO.File]::WriteAllText($file, ($text -replace \"`r`n\", \"`n\") + \"`n\", [System.Text.UTF8Encoding]::new($false))\nGet-Content $file"
+   },
+   {
+    "runIn": {
+     "where": "macos",
+     "shell": "bash"
+    },
+    "support": {
+     "status": "untested",
+     "requires": [],
+     "blockedBy": [],
+     "place": "macOS",
+     "shell": "bash"
+    },
+    "text": "f=\"$(mktemp -d)/step.ps1\"\ncat > \"$f\" <<'AVD_PS'\n$repo = Join-Path $HOME 'avd-current-state'\nif (Test-Path (Join-Path $repo '.git')) { git -C $repo pull --ff-only --quiet } else { git clone --quiet https://github.com/avd-ops/avd-current-state.git $repo }\nSet-Location $repo\n$out = if (Test-Path (Join-Path $HOME 'clouddrive')) { Join-Path $HOME 'clouddrive/avd-assessment' } else { Join-Path $HOME 'avd-assessment' }\nNew-Item -ItemType Directory -Force -Path $out | Out-Null\n$file = Join-Path $out 'intake.json'\n$text = @'\n{\n  \"schema\": \"avd-intake/v1\",\n  \"estate\": \"est-0a1b2c3d\",\n  \"answeredOn\": \"2026-10-20\",\n  \"residency\": {\n    \"required\": true,\n    \"regions\": [\n      \"eastus2\",\n      \"centralus\"\n    ]\n  },\n  \"preferredRegions\": [\n    \"eastus2\",\n    \"centralus\"\n  ],\n  \"existingHub\": \"azure-hub\",\n  \"identityConstraints\": \"entra-only\",\n  \"workingHours\": {\n    \"start\": \"07:00\",\n    \"end\": \"19:00\",\n    \"days\": [\n      \"Mon\",\n      \"Tue\",\n      \"Wed\",\n      \"Thu\",\n      \"Fri\"\n    ],\n    \"timeZone\": \"America/Chicago\"\n  }\n}\n'@\n[System.IO.File]::WriteAllText($file, ($text -replace \"`r`n\", \"`n\") + \"`n\", [System.Text.UTF8Encoding]::new($false))\nGet-Content $file\nAVD_PS\npwsh -NoLogo -File \"$f\""
+   }
+  ],
+  "review": [
+   {
+    "runIn": {
+     "where": "cloudshell",
+     "shell": "pwsh"
+    },
+    "support": {
+     "status": "tested",
+     "requires": [],
+     "blockedBy": [],
+     "place": "Cloud Shell",
+     "shell": "pwsh"
+    },
+    "text": "$repo = Join-Path $HOME 'avd-current-state'\nif (Test-Path (Join-Path $repo '.git')) { git -C $repo pull --ff-only --quiet } else { git clone --quiet https://github.com/avd-ops/avd-current-state.git $repo }\nSet-Location $repo\n$out = if (Test-Path (Join-Path $HOME 'clouddrive')) { Join-Path $HOME 'clouddrive/avd-assessment' } else { Join-Path $HOME 'avd-assessment' }\nNew-Item -ItemType Directory -Force -Path $out | Out-Null\n$file = Join-Path $out 'review.json'\n$text = @'\n{\n  \"schema\": \"avd-assessment-review/v1\",\n  \"estate\": \"est-0a1b2c3d\",\n  \"reviewedOn\": \"2026-10-21\",\n  \"assessment\": {\n    \"sha256\": \"5eacd525c2021d5aa501bbbc6adb75e77c476f31a0deed95bd313898f8b8399a\",\n    \"generatedUtc\": \"2026-10-20T10:00:00Z\"\n  },\n  \"decisions\": [\n    {\n      \"check\": \"asm-personal-start-vm-on-connect\",\n      \"outcome\": \"warn\",\n      \"disposition\": \"fix\",\n      \"reason\": \"fix-planned\"\n    },\n    {\n      \"check\": \"asm-profile-storage-private-endpoint\",\n      \"outcome\": \"pass\",\n      \"disposition\": \"accept\",\n      \"reason\": \"not-applicable\"\n    }\n  ]\n}\n'@\n[System.IO.File]::WriteAllText($file, ($text -replace \"`r`n\", \"`n\") + \"`n\", [System.Text.UTF8Encoding]::new($false))\nGet-Content $file"
+   },
+   {
+    "runIn": {
+     "where": "cloudshell",
+     "shell": "bash"
+    },
+    "support": {
+     "status": "untested",
+     "requires": [],
+     "blockedBy": [],
+     "place": "Cloud Shell",
+     "shell": "bash"
+    },
+    "text": "f=\"$(mktemp -d)/step.ps1\"\ncat > \"$f\" <<'AVD_PS'\n$repo = Join-Path $HOME 'avd-current-state'\nif (Test-Path (Join-Path $repo '.git')) { git -C $repo pull --ff-only --quiet } else { git clone --quiet https://github.com/avd-ops/avd-current-state.git $repo }\nSet-Location $repo\n$out = if (Test-Path (Join-Path $HOME 'clouddrive')) { Join-Path $HOME 'clouddrive/avd-assessment' } else { Join-Path $HOME 'avd-assessment' }\nNew-Item -ItemType Directory -Force -Path $out | Out-Null\n$file = Join-Path $out 'review.json'\n$text = @'\n{\n  \"schema\": \"avd-assessment-review/v1\",\n  \"estate\": \"est-0a1b2c3d\",\n  \"reviewedOn\": \"2026-10-21\",\n  \"assessment\": {\n    \"sha256\": \"5eacd525c2021d5aa501bbbc6adb75e77c476f31a0deed95bd313898f8b8399a\",\n    \"generatedUtc\": \"2026-10-20T10:00:00Z\"\n  },\n  \"decisions\": [\n    {\n      \"check\": \"asm-personal-start-vm-on-connect\",\n      \"outcome\": \"warn\",\n      \"disposition\": \"fix\",\n      \"reason\": \"fix-planned\"\n    },\n    {\n      \"check\": \"asm-profile-storage-private-endpoint\",\n      \"outcome\": \"pass\",\n      \"disposition\": \"accept\",\n      \"reason\": \"not-applicable\"\n    }\n  ]\n}\n'@\n[System.IO.File]::WriteAllText($file, ($text -replace \"`r`n\", \"`n\") + \"`n\", [System.Text.UTF8Encoding]::new($false))\nGet-Content $file\nAVD_PS\npwsh -NoLogo -File \"$f\""
+   },
+   {
+    "runIn": {
+     "where": "windows",
+     "shell": "pwsh"
+    },
+    "support": {
+     "status": "untested",
+     "requires": [],
+     "blockedBy": [],
+     "place": "Windows",
+     "shell": "pwsh"
+    },
+    "text": "$repo = Join-Path $HOME 'avd-current-state'\nif (Test-Path (Join-Path $repo '.git')) { git -C $repo pull --ff-only --quiet } else { git clone --quiet https://github.com/avd-ops/avd-current-state.git $repo }\nSet-Location $repo\n$out = if (Test-Path (Join-Path $HOME 'clouddrive')) { Join-Path $HOME 'clouddrive/avd-assessment' } else { Join-Path $HOME 'avd-assessment' }\nNew-Item -ItemType Directory -Force -Path $out | Out-Null\n$file = Join-Path $out 'review.json'\n$text = @'\n{\n  \"schema\": \"avd-assessment-review/v1\",\n  \"estate\": \"est-0a1b2c3d\",\n  \"reviewedOn\": \"2026-10-21\",\n  \"assessment\": {\n    \"sha256\": \"5eacd525c2021d5aa501bbbc6adb75e77c476f31a0deed95bd313898f8b8399a\",\n    \"generatedUtc\": \"2026-10-20T10:00:00Z\"\n  },\n  \"decisions\": [\n    {\n      \"check\": \"asm-personal-start-vm-on-connect\",\n      \"outcome\": \"warn\",\n      \"disposition\": \"fix\",\n      \"reason\": \"fix-planned\"\n    },\n    {\n      \"check\": \"asm-profile-storage-private-endpoint\",\n      \"outcome\": \"pass\",\n      \"disposition\": \"accept\",\n      \"reason\": \"not-applicable\"\n    }\n  ]\n}\n'@\n[System.IO.File]::WriteAllText($file, ($text -replace \"`r`n\", \"`n\") + \"`n\", [System.Text.UTF8Encoding]::new($false))\nGet-Content $file"
+   },
+   {
+    "runIn": {
+     "where": "macos",
+     "shell": "pwsh"
+    },
+    "support": {
+     "status": "untested",
+     "requires": [],
+     "blockedBy": [],
+     "place": "macOS",
+     "shell": "pwsh"
+    },
+    "text": "$repo = Join-Path $HOME 'avd-current-state'\nif (Test-Path (Join-Path $repo '.git')) { git -C $repo pull --ff-only --quiet } else { git clone --quiet https://github.com/avd-ops/avd-current-state.git $repo }\nSet-Location $repo\n$out = if (Test-Path (Join-Path $HOME 'clouddrive')) { Join-Path $HOME 'clouddrive/avd-assessment' } else { Join-Path $HOME 'avd-assessment' }\nNew-Item -ItemType Directory -Force -Path $out | Out-Null\n$file = Join-Path $out 'review.json'\n$text = @'\n{\n  \"schema\": \"avd-assessment-review/v1\",\n  \"estate\": \"est-0a1b2c3d\",\n  \"reviewedOn\": \"2026-10-21\",\n  \"assessment\": {\n    \"sha256\": \"5eacd525c2021d5aa501bbbc6adb75e77c476f31a0deed95bd313898f8b8399a\",\n    \"generatedUtc\": \"2026-10-20T10:00:00Z\"\n  },\n  \"decisions\": [\n    {\n      \"check\": \"asm-personal-start-vm-on-connect\",\n      \"outcome\": \"warn\",\n      \"disposition\": \"fix\",\n      \"reason\": \"fix-planned\"\n    },\n    {\n      \"check\": \"asm-profile-storage-private-endpoint\",\n      \"outcome\": \"pass\",\n      \"disposition\": \"accept\",\n      \"reason\": \"not-applicable\"\n    }\n  ]\n}\n'@\n[System.IO.File]::WriteAllText($file, ($text -replace \"`r`n\", \"`n\") + \"`n\", [System.Text.UTF8Encoding]::new($false))\nGet-Content $file"
+   },
+   {
+    "runIn": {
+     "where": "macos",
+     "shell": "bash"
+    },
+    "support": {
+     "status": "untested",
+     "requires": [],
+     "blockedBy": [],
+     "place": "macOS",
+     "shell": "bash"
+    },
+    "text": "f=\"$(mktemp -d)/step.ps1\"\ncat > \"$f\" <<'AVD_PS'\n$repo = Join-Path $HOME 'avd-current-state'\nif (Test-Path (Join-Path $repo '.git')) { git -C $repo pull --ff-only --quiet } else { git clone --quiet https://github.com/avd-ops/avd-current-state.git $repo }\nSet-Location $repo\n$out = if (Test-Path (Join-Path $HOME 'clouddrive')) { Join-Path $HOME 'clouddrive/avd-assessment' } else { Join-Path $HOME 'avd-assessment' }\nNew-Item -ItemType Directory -Force -Path $out | Out-Null\n$file = Join-Path $out 'review.json'\n$text = @'\n{\n  \"schema\": \"avd-assessment-review/v1\",\n  \"estate\": \"est-0a1b2c3d\",\n  \"reviewedOn\": \"2026-10-21\",\n  \"assessment\": {\n    \"sha256\": \"5eacd525c2021d5aa501bbbc6adb75e77c476f31a0deed95bd313898f8b8399a\",\n    \"generatedUtc\": \"2026-10-20T10:00:00Z\"\n  },\n  \"decisions\": [\n    {\n      \"check\": \"asm-personal-start-vm-on-connect\",\n      \"outcome\": \"warn\",\n      \"disposition\": \"fix\",\n      \"reason\": \"fix-planned\"\n    },\n    {\n      \"check\": \"asm-profile-storage-private-endpoint\",\n      \"outcome\": \"pass\",\n      \"disposition\": \"accept\",\n      \"reason\": \"not-applicable\"\n    }\n  ]\n}\n'@\n[System.IO.File]::WriteAllText($file, ($text -replace \"`r`n\", \"`n\") + \"`n\", [System.Text.UTF8Encoding]::new($false))\nGet-Content $file\nAVD_PS\npwsh -NoLogo -File \"$f\""
+   }
+  ],
+  "plan": [
+   {
+    "runIn": {
+     "where": "cloudshell",
+     "shell": "pwsh"
+    },
+    "support": {
+     "status": "tested",
+     "requires": [],
+     "blockedBy": [],
+     "place": "Cloud Shell",
+     "shell": "pwsh"
+    },
+    "text": "$repo = Join-Path $HOME 'avd-current-state'\nif (Test-Path (Join-Path $repo '.git')) { git -C $repo pull --ff-only --quiet } else { git clone --quiet https://github.com/avd-ops/avd-current-state.git $repo }\nSet-Location $repo\n$out = if (Test-Path (Join-Path $HOME 'clouddrive')) { Join-Path $HOME 'clouddrive/avd-assessment' } else { Join-Path $HOME 'avd-assessment' }\nNew-Item -ItemType Directory -Force -Path $out | Out-Null\n$file = Join-Path $out 'plan.json'\n$text = @'\n{\n  \"schema\": \"avd-remediation-plan/v1\",\n  \"estate\": \"est-0a1b2c3d\",\n  \"plannedOn\": \"2026-10-22\",\n  \"basis\": {\n    \"assessment\": \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\n    \"review\": \"e6c6a1d9b36f01463c795a58fcaee53e69224e234372f891645101719b4925e6\",\n    \"method\": 3,\n    \"landingZoneCommit\": \"ae6e80b574cccde570d0053d4c62b519d31052a8\"\n  },\n  \"items\": [\n    {\n      \"order\": 1,\n      \"check\": \"asm-files-private-endpoint\",\n      \"outcome\": \"gap\",\n      \"pillar\": \"security\",\n      \"severity\": \"medium\",\n      \"claims\": [\n        \"ref:review-checklists-avd#F01.10\"\n      ],\n      \"source\": \"unreviewed\",\n      \"change\": {\n        \"kind\": \"lz-setting\",\n        \"name\": \"profile-storage-private-endpoint\"\n      }\n    },\n    {\n      \"order\": 2,\n      \"check\": \"asm-files-zone-redundant\",\n      \"outcome\": \"warn\",\n      \"pillar\": \"reliability\",\n      \"severity\": \"high\",\n      \"claims\": [\n        \"ref:review-checklists-avd#A03.05\",\n        \"ref:psrule-azure#AZR-000195\"\n      ],\n      \"source\": \"review-fix\",\n      \"change\": {\n        \"kind\": \"lz-parameter\",\n        \"name\": \"profileStorageSku\",\n        \"to\": \"Premium_ZRS\"\n      }\n    },\n    {\n      \"order\": 3,\n      \"check\": \"asm-pooled-host-redundancy\",\n      \"outcome\": \"warn\",\n      \"pillar\": \"reliability\",\n      \"severity\": \"medium\",\n      \"claims\": [\n        \"ref:waf-reliability-checklist#RE:05\"\n      ],\n      \"source\": \"unreviewed\",\n      \"change\": {\n        \"kind\": \"lz-parameter\",\n        \"name\": \"sessionHostCount\",\n        \"to\": 2\n      }\n    },\n    {\n      \"order\": 4,\n      \"check\": \"asm-personal-start-vm-on-connect\",\n      \"outcome\": \"warn\",\n      \"pillar\": \"cost\",\n      \"severity\": \"low\",\n      \"claims\": [\n        \"ref:review-checklists-avd#E01.05\"\n      ],\n      \"source\": \"unreviewed\",\n      \"change\": {\n        \"kind\": \"lz-parameter\",\n        \"name\": \"startVmOnConnect\",\n        \"to\": true\n      }\n    },\n    {\n      \"order\": 5,\n      \"check\": \"asm-defender-servers\",\n      \"outcome\": \"unknown\",\n      \"pillar\": \"security\",\n      \"severity\": \"medium\",\n      \"claims\": [\n        \"ref:review-checklists-avd#G03.04\",\n        \"ref:avd-security-guide#defender-for-cloud\"\n      ],\n      \"source\": \"unreviewed\",\n      \"change\": {\n        \"kind\": \"manual\",\n        \"code\": \"collect-evidence\"\n      }\n    }\n  ]\n}\n'@\n[System.IO.File]::WriteAllText($file, ($text -replace \"`r`n\", \"`n\") + \"`n\", [System.Text.UTF8Encoding]::new($false))\nGet-Content $file"
+   },
+   {
+    "runIn": {
+     "where": "cloudshell",
+     "shell": "bash"
+    },
+    "support": {
+     "status": "untested",
+     "requires": [],
+     "blockedBy": [],
+     "place": "Cloud Shell",
+     "shell": "bash"
+    },
+    "text": "f=\"$(mktemp -d)/step.ps1\"\ncat > \"$f\" <<'AVD_PS'\n$repo = Join-Path $HOME 'avd-current-state'\nif (Test-Path (Join-Path $repo '.git')) { git -C $repo pull --ff-only --quiet } else { git clone --quiet https://github.com/avd-ops/avd-current-state.git $repo }\nSet-Location $repo\n$out = if (Test-Path (Join-Path $HOME 'clouddrive')) { Join-Path $HOME 'clouddrive/avd-assessment' } else { Join-Path $HOME 'avd-assessment' }\nNew-Item -ItemType Directory -Force -Path $out | Out-Null\n$file = Join-Path $out 'plan.json'\n$text = @'\n{\n  \"schema\": \"avd-remediation-plan/v1\",\n  \"estate\": \"est-0a1b2c3d\",\n  \"plannedOn\": \"2026-10-22\",\n  \"basis\": {\n    \"assessment\": \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\n    \"review\": \"e6c6a1d9b36f01463c795a58fcaee53e69224e234372f891645101719b4925e6\",\n    \"method\": 3,\n    \"landingZoneCommit\": \"ae6e80b574cccde570d0053d4c62b519d31052a8\"\n  },\n  \"items\": [\n    {\n      \"order\": 1,\n      \"check\": \"asm-files-private-endpoint\",\n      \"outcome\": \"gap\",\n      \"pillar\": \"security\",\n      \"severity\": \"medium\",\n      \"claims\": [\n        \"ref:review-checklists-avd#F01.10\"\n      ],\n      \"source\": \"unreviewed\",\n      \"change\": {\n        \"kind\": \"lz-setting\",\n        \"name\": \"profile-storage-private-endpoint\"\n      }\n    },\n    {\n      \"order\": 2,\n      \"check\": \"asm-files-zone-redundant\",\n      \"outcome\": \"warn\",\n      \"pillar\": \"reliability\",\n      \"severity\": \"high\",\n      \"claims\": [\n        \"ref:review-checklists-avd#A03.05\",\n        \"ref:psrule-azure#AZR-000195\"\n      ],\n      \"source\": \"review-fix\",\n      \"change\": {\n        \"kind\": \"lz-parameter\",\n        \"name\": \"profileStorageSku\",\n        \"to\": \"Premium_ZRS\"\n      }\n    },\n    {\n      \"order\": 3,\n      \"check\": \"asm-pooled-host-redundancy\",\n      \"outcome\": \"warn\",\n      \"pillar\": \"reliability\",\n      \"severity\": \"medium\",\n      \"claims\": [\n        \"ref:waf-reliability-checklist#RE:05\"\n      ],\n      \"source\": \"unreviewed\",\n      \"change\": {\n        \"kind\": \"lz-parameter\",\n        \"name\": \"sessionHostCount\",\n        \"to\": 2\n      }\n    },\n    {\n      \"order\": 4,\n      \"check\": \"asm-personal-start-vm-on-connect\",\n      \"outcome\": \"warn\",\n      \"pillar\": \"cost\",\n      \"severity\": \"low\",\n      \"claims\": [\n        \"ref:review-checklists-avd#E01.05\"\n      ],\n      \"source\": \"unreviewed\",\n      \"change\": {\n        \"kind\": \"lz-parameter\",\n        \"name\": \"startVmOnConnect\",\n        \"to\": true\n      }\n    },\n    {\n      \"order\": 5,\n      \"check\": \"asm-defender-servers\",\n      \"outcome\": \"unknown\",\n      \"pillar\": \"security\",\n      \"severity\": \"medium\",\n      \"claims\": [\n        \"ref:review-checklists-avd#G03.04\",\n        \"ref:avd-security-guide#defender-for-cloud\"\n      ],\n      \"source\": \"unreviewed\",\n      \"change\": {\n        \"kind\": \"manual\",\n        \"code\": \"collect-evidence\"\n      }\n    }\n  ]\n}\n'@\n[System.IO.File]::WriteAllText($file, ($text -replace \"`r`n\", \"`n\") + \"`n\", [System.Text.UTF8Encoding]::new($false))\nGet-Content $file\nAVD_PS\npwsh -NoLogo -File \"$f\""
+   },
+   {
+    "runIn": {
+     "where": "windows",
+     "shell": "pwsh"
+    },
+    "support": {
+     "status": "untested",
+     "requires": [],
+     "blockedBy": [],
+     "place": "Windows",
+     "shell": "pwsh"
+    },
+    "text": "$repo = Join-Path $HOME 'avd-current-state'\nif (Test-Path (Join-Path $repo '.git')) { git -C $repo pull --ff-only --quiet } else { git clone --quiet https://github.com/avd-ops/avd-current-state.git $repo }\nSet-Location $repo\n$out = if (Test-Path (Join-Path $HOME 'clouddrive')) { Join-Path $HOME 'clouddrive/avd-assessment' } else { Join-Path $HOME 'avd-assessment' }\nNew-Item -ItemType Directory -Force -Path $out | Out-Null\n$file = Join-Path $out 'plan.json'\n$text = @'\n{\n  \"schema\": \"avd-remediation-plan/v1\",\n  \"estate\": \"est-0a1b2c3d\",\n  \"plannedOn\": \"2026-10-22\",\n  \"basis\": {\n    \"assessment\": \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\n    \"review\": \"e6c6a1d9b36f01463c795a58fcaee53e69224e234372f891645101719b4925e6\",\n    \"method\": 3,\n    \"landingZoneCommit\": \"ae6e80b574cccde570d0053d4c62b519d31052a8\"\n  },\n  \"items\": [\n    {\n      \"order\": 1,\n      \"check\": \"asm-files-private-endpoint\",\n      \"outcome\": \"gap\",\n      \"pillar\": \"security\",\n      \"severity\": \"medium\",\n      \"claims\": [\n        \"ref:review-checklists-avd#F01.10\"\n      ],\n      \"source\": \"unreviewed\",\n      \"change\": {\n        \"kind\": \"lz-setting\",\n        \"name\": \"profile-storage-private-endpoint\"\n      }\n    },\n    {\n      \"order\": 2,\n      \"check\": \"asm-files-zone-redundant\",\n      \"outcome\": \"warn\",\n      \"pillar\": \"reliability\",\n      \"severity\": \"high\",\n      \"claims\": [\n        \"ref:review-checklists-avd#A03.05\",\n        \"ref:psrule-azure#AZR-000195\"\n      ],\n      \"source\": \"review-fix\",\n      \"change\": {\n        \"kind\": \"lz-parameter\",\n        \"name\": \"profileStorageSku\",\n        \"to\": \"Premium_ZRS\"\n      }\n    },\n    {\n      \"order\": 3,\n      \"check\": \"asm-pooled-host-redundancy\",\n      \"outcome\": \"warn\",\n      \"pillar\": \"reliability\",\n      \"severity\": \"medium\",\n      \"claims\": [\n        \"ref:waf-reliability-checklist#RE:05\"\n      ],\n      \"source\": \"unreviewed\",\n      \"change\": {\n        \"kind\": \"lz-parameter\",\n        \"name\": \"sessionHostCount\",\n        \"to\": 2\n      }\n    },\n    {\n      \"order\": 4,\n      \"check\": \"asm-personal-start-vm-on-connect\",\n      \"outcome\": \"warn\",\n      \"pillar\": \"cost\",\n      \"severity\": \"low\",\n      \"claims\": [\n        \"ref:review-checklists-avd#E01.05\"\n      ],\n      \"source\": \"unreviewed\",\n      \"change\": {\n        \"kind\": \"lz-parameter\",\n        \"name\": \"startVmOnConnect\",\n        \"to\": true\n      }\n    },\n    {\n      \"order\": 5,\n      \"check\": \"asm-defender-servers\",\n      \"outcome\": \"unknown\",\n      \"pillar\": \"security\",\n      \"severity\": \"medium\",\n      \"claims\": [\n        \"ref:review-checklists-avd#G03.04\",\n        \"ref:avd-security-guide#defender-for-cloud\"\n      ],\n      \"source\": \"unreviewed\",\n      \"change\": {\n        \"kind\": \"manual\",\n        \"code\": \"collect-evidence\"\n      }\n    }\n  ]\n}\n'@\n[System.IO.File]::WriteAllText($file, ($text -replace \"`r`n\", \"`n\") + \"`n\", [System.Text.UTF8Encoding]::new($false))\nGet-Content $file"
+   },
+   {
+    "runIn": {
+     "where": "macos",
+     "shell": "pwsh"
+    },
+    "support": {
+     "status": "untested",
+     "requires": [],
+     "blockedBy": [],
+     "place": "macOS",
+     "shell": "pwsh"
+    },
+    "text": "$repo = Join-Path $HOME 'avd-current-state'\nif (Test-Path (Join-Path $repo '.git')) { git -C $repo pull --ff-only --quiet } else { git clone --quiet https://github.com/avd-ops/avd-current-state.git $repo }\nSet-Location $repo\n$out = if (Test-Path (Join-Path $HOME 'clouddrive')) { Join-Path $HOME 'clouddrive/avd-assessment' } else { Join-Path $HOME 'avd-assessment' }\nNew-Item -ItemType Directory -Force -Path $out | Out-Null\n$file = Join-Path $out 'plan.json'\n$text = @'\n{\n  \"schema\": \"avd-remediation-plan/v1\",\n  \"estate\": \"est-0a1b2c3d\",\n  \"plannedOn\": \"2026-10-22\",\n  \"basis\": {\n    \"assessment\": \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\n    \"review\": \"e6c6a1d9b36f01463c795a58fcaee53e69224e234372f891645101719b4925e6\",\n    \"method\": 3,\n    \"landingZoneCommit\": \"ae6e80b574cccde570d0053d4c62b519d31052a8\"\n  },\n  \"items\": [\n    {\n      \"order\": 1,\n      \"check\": \"asm-files-private-endpoint\",\n      \"outcome\": \"gap\",\n      \"pillar\": \"security\",\n      \"severity\": \"medium\",\n      \"claims\": [\n        \"ref:review-checklists-avd#F01.10\"\n      ],\n      \"source\": \"unreviewed\",\n      \"change\": {\n        \"kind\": \"lz-setting\",\n        \"name\": \"profile-storage-private-endpoint\"\n      }\n    },\n    {\n      \"order\": 2,\n      \"check\": \"asm-files-zone-redundant\",\n      \"outcome\": \"warn\",\n      \"pillar\": \"reliability\",\n      \"severity\": \"high\",\n      \"claims\": [\n        \"ref:review-checklists-avd#A03.05\",\n        \"ref:psrule-azure#AZR-000195\"\n      ],\n      \"source\": \"review-fix\",\n      \"change\": {\n        \"kind\": \"lz-parameter\",\n        \"name\": \"profileStorageSku\",\n        \"to\": \"Premium_ZRS\"\n      }\n    },\n    {\n      \"order\": 3,\n      \"check\": \"asm-pooled-host-redundancy\",\n      \"outcome\": \"warn\",\n      \"pillar\": \"reliability\",\n      \"severity\": \"medium\",\n      \"claims\": [\n        \"ref:waf-reliability-checklist#RE:05\"\n      ],\n      \"source\": \"unreviewed\",\n      \"change\": {\n        \"kind\": \"lz-parameter\",\n        \"name\": \"sessionHostCount\",\n        \"to\": 2\n      }\n    },\n    {\n      \"order\": 4,\n      \"check\": \"asm-personal-start-vm-on-connect\",\n      \"outcome\": \"warn\",\n      \"pillar\": \"cost\",\n      \"severity\": \"low\",\n      \"claims\": [\n        \"ref:review-checklists-avd#E01.05\"\n      ],\n      \"source\": \"unreviewed\",\n      \"change\": {\n        \"kind\": \"lz-parameter\",\n        \"name\": \"startVmOnConnect\",\n        \"to\": true\n      }\n    },\n    {\n      \"order\": 5,\n      \"check\": \"asm-defender-servers\",\n      \"outcome\": \"unknown\",\n      \"pillar\": \"security\",\n      \"severity\": \"medium\",\n      \"claims\": [\n        \"ref:review-checklists-avd#G03.04\",\n        \"ref:avd-security-guide#defender-for-cloud\"\n      ],\n      \"source\": \"unreviewed\",\n      \"change\": {\n        \"kind\": \"manual\",\n        \"code\": \"collect-evidence\"\n      }\n    }\n  ]\n}\n'@\n[System.IO.File]::WriteAllText($file, ($text -replace \"`r`n\", \"`n\") + \"`n\", [System.Text.UTF8Encoding]::new($false))\nGet-Content $file"
+   },
+   {
+    "runIn": {
+     "where": "macos",
+     "shell": "bash"
+    },
+    "support": {
+     "status": "untested",
+     "requires": [],
+     "blockedBy": [],
+     "place": "macOS",
+     "shell": "bash"
+    },
+    "text": "f=\"$(mktemp -d)/step.ps1\"\ncat > \"$f\" <<'AVD_PS'\n$repo = Join-Path $HOME 'avd-current-state'\nif (Test-Path (Join-Path $repo '.git')) { git -C $repo pull --ff-only --quiet } else { git clone --quiet https://github.com/avd-ops/avd-current-state.git $repo }\nSet-Location $repo\n$out = if (Test-Path (Join-Path $HOME 'clouddrive')) { Join-Path $HOME 'clouddrive/avd-assessment' } else { Join-Path $HOME 'avd-assessment' }\nNew-Item -ItemType Directory -Force -Path $out | Out-Null\n$file = Join-Path $out 'plan.json'\n$text = @'\n{\n  \"schema\": \"avd-remediation-plan/v1\",\n  \"estate\": \"est-0a1b2c3d\",\n  \"plannedOn\": \"2026-10-22\",\n  \"basis\": {\n    \"assessment\": \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\n    \"review\": \"e6c6a1d9b36f01463c795a58fcaee53e69224e234372f891645101719b4925e6\",\n    \"method\": 3,\n    \"landingZoneCommit\": \"ae6e80b574cccde570d0053d4c62b519d31052a8\"\n  },\n  \"items\": [\n    {\n      \"order\": 1,\n      \"check\": \"asm-files-private-endpoint\",\n      \"outcome\": \"gap\",\n      \"pillar\": \"security\",\n      \"severity\": \"medium\",\n      \"claims\": [\n        \"ref:review-checklists-avd#F01.10\"\n      ],\n      \"source\": \"unreviewed\",\n      \"change\": {\n        \"kind\": \"lz-setting\",\n        \"name\": \"profile-storage-private-endpoint\"\n      }\n    },\n    {\n      \"order\": 2,\n      \"check\": \"asm-files-zone-redundant\",\n      \"outcome\": \"warn\",\n      \"pillar\": \"reliability\",\n      \"severity\": \"high\",\n      \"claims\": [\n        \"ref:review-checklists-avd#A03.05\",\n        \"ref:psrule-azure#AZR-000195\"\n      ],\n      \"source\": \"review-fix\",\n      \"change\": {\n        \"kind\": \"lz-parameter\",\n        \"name\": \"profileStorageSku\",\n        \"to\": \"Premium_ZRS\"\n      }\n    },\n    {\n      \"order\": 3,\n      \"check\": \"asm-pooled-host-redundancy\",\n      \"outcome\": \"warn\",\n      \"pillar\": \"reliability\",\n      \"severity\": \"medium\",\n      \"claims\": [\n        \"ref:waf-reliability-checklist#RE:05\"\n      ],\n      \"source\": \"unreviewed\",\n      \"change\": {\n        \"kind\": \"lz-parameter\",\n        \"name\": \"sessionHostCount\",\n        \"to\": 2\n      }\n    },\n    {\n      \"order\": 4,\n      \"check\": \"asm-personal-start-vm-on-connect\",\n      \"outcome\": \"warn\",\n      \"pillar\": \"cost\",\n      \"severity\": \"low\",\n      \"claims\": [\n        \"ref:review-checklists-avd#E01.05\"\n      ],\n      \"source\": \"unreviewed\",\n      \"change\": {\n        \"kind\": \"lz-parameter\",\n        \"name\": \"startVmOnConnect\",\n        \"to\": true\n      }\n    },\n    {\n      \"order\": 5,\n      \"check\": \"asm-defender-servers\",\n      \"outcome\": \"unknown\",\n      \"pillar\": \"security\",\n      \"severity\": \"medium\",\n      \"claims\": [\n        \"ref:review-checklists-avd#G03.04\",\n        \"ref:avd-security-guide#defender-for-cloud\"\n      ],\n      \"source\": \"unreviewed\",\n      \"change\": {\n        \"kind\": \"manual\",\n        \"code\": \"collect-evidence\"\n      }\n    }\n  ]\n}\n'@\n[System.IO.File]::WriteAllText($file, ($text -replace \"`r`n\", \"`n\") + \"`n\", [System.Text.UTF8Encoding]::new($false))\nGet-Content $file\nAVD_PS\npwsh -NoLogo -File \"$f\""
+   }
+  ]
+ },
+ "states": {
+  "collect": {
+   "lines": [
+    {
+     "stage": "collect",
+     "status": "partial",
+     "context": {
+      "package": "avd-current-state-20261021T090000"
+     },
+     "counts": {
+      "datasets": 14,
+      "hostPools": 3,
+      "rows": 230,
+      "sessionHosts": 12,
+      "skipped": 1,
+      "subscriptions": 1,
+      "warnings": 1
+     },
+     "coverage": {
+      "found": 40,
+      "secret": 3,
+      "unknown": 2
+     }
+    },
+    {
+     "stage": "facts",
+     "status": "done",
+     "context": {
+      "estate": "est-0a1b2c3d",
+      "snapshot": "avd-current-state-facts-20261021T090500.json"
+     },
+     "counts": {
+      "hostPools": 3,
+      "redacted": 4,
+      "subscriptions": 1,
+      "validations": 0
+     },
+     "coverage": {}
+    }
+   ],
+   "latest": {
+    "collect": {
+     "stage": "collect",
+     "status": "partial",
+     "context": {
+      "package": "avd-current-state-20261021T090000"
+     },
+     "counts": {
+      "datasets": 14,
+      "hostPools": 3,
+      "rows": 230,
+      "sessionHosts": 12,
+      "skipped": 1,
+      "subscriptions": 1,
+      "warnings": 1
+     },
+     "coverage": {
+      "found": 40,
+      "secret": 3,
+      "unknown": 2
+     }
+    },
+    "facts": {
+     "stage": "facts",
+     "status": "done",
+     "context": {
+      "estate": "est-0a1b2c3d",
+      "snapshot": "avd-current-state-facts-20261021T090500.json"
+     },
+     "counts": {
+      "hostPools": 3,
+      "redacted": 4,
+      "subscriptions": 1,
+      "validations": 0
+     },
+     "coverage": {}
+    }
+   }
+  },
+  "analyze": {
+   "lines": [
+    {
+     "stage": "analyze",
+     "status": "done",
+     "context": {
+      "mode": "PostDeployment",
+      "package": "avd-validation-20261021T091000",
+      "verdict": "READY WITH WARNINGS"
+     },
+     "counts": {
+      "fail": 0,
+      "info": 4,
+      "pass": 21,
+      "skip": 2,
+      "warn": 3
+     },
+     "coverage": {}
+    }
+   ],
+   "latest": {
+    "analyze": {
+     "stage": "analyze",
+     "status": "done",
+     "context": {
+      "mode": "PostDeployment",
+      "package": "avd-validation-20261021T091000",
+      "verdict": "READY WITH WARNINGS"
+     },
+     "counts": {
+      "fail": 0,
+      "info": 4,
+      "pass": 21,
+      "skip": 2,
+      "warn": 3
+     },
+     "coverage": {}
+    }
+   }
+  },
+  "wrapped": {
+   "lines": [
+    {
+     "stage": "analyze",
+     "status": "done",
+     "context": {
+      "mode": "PostDeployment",
+      "package": "avd-validation-20261021T091000",
+      "verdict": "READY WITH WARNINGS"
+     },
+     "counts": {
+      "fail": 0,
+      "info": 4,
+      "pass": 21,
+      "skip": 2,
+      "warn": 3
+     },
+     "coverage": {}
+    }
+   ],
+   "latest": {
+    "analyze": {
+     "stage": "analyze",
+     "status": "done",
+     "context": {
+      "mode": "PostDeployment",
+      "package": "avd-validation-20261021T091000",
+      "verdict": "READY WITH WARNINGS"
+     },
+     "counts": {
+      "fail": 0,
+      "info": 4,
+      "pass": 21,
+      "skip": 2,
+      "warn": 3
+     },
+     "coverage": {}
+    }
+   }
+  },
+  "wrappedCrlf": {
+   "lines": [
+    {
+     "stage": "analyze",
+     "status": "done",
+     "context": {
+      "mode": "PostDeployment",
+      "package": "avd-validation-20261021T091000",
+      "verdict": "READY WITH WARNINGS"
+     },
+     "counts": {
+      "fail": 0,
+      "info": 4,
+      "pass": 21,
+      "skip": 2,
+      "warn": 3
+     },
+     "coverage": {}
+    }
+   ],
+   "latest": {
+    "analyze": {
+     "stage": "analyze",
+     "status": "done",
+     "context": {
+      "mode": "PostDeployment",
+      "package": "avd-validation-20261021T091000",
+      "verdict": "READY WITH WARNINGS"
+     },
+     "counts": {
+      "fail": 0,
+      "info": 4,
+      "pass": 21,
+      "skip": 2,
+      "warn": 3
+     },
+     "coverage": {}
+    }
+   }
+  },
+  "loneCr": {
+   "lines": [],
+   "latest": {}
+  },
+  "unparsable": {
+   "lines": [],
+   "latest": {}
+  },
+  "unknownVersion": {
+   "lines": [],
+   "latest": {}
+  },
+  "otherMarker": {
+   "lines": [],
+   "latest": {}
+  },
+  "empty": {
+   "lines": [],
+   "latest": {}
+  }
+ },
+ "quoting": [
+  "'plain'",
+  "'O''Brien'",
+  "''''''",
+  "'a b'",
+  "'x;y'"
+ ]
+}
