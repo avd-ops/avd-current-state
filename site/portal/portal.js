@@ -336,7 +336,7 @@
   $('notes-download-2').addEventListener('click', () => {
     blobLink('notes-download-2', core.notesMarkdown(readAnswers(), readNotes(), today(), rv().notes), 'text/markdown');
   });
-  $('review-build').addEventListener('click', () => {
+  $('review-build').addEventListener('click', async () => {
     const r = rv();
     const { review, errors } = core.buildReview(r.assessment, r.sha256, r.rows, $('reviewedOn').value.trim());
     const box = $('review-errors'); box.replaceChildren();
@@ -348,13 +348,97 @@
       return;
     }
     showCommand('review-cmd', core.reviewCommand(review));
-    blobLink('review-download', JSON.stringify(review, null, 2) + '\n', 'application/json');
-    r.built = true; r.reviewedOn = review.reviewedOn; save();
+    blobLink('review-download', core.reviewText(review), 'application/json');
+    r.built = true; r.reviewedOn = review.reviewedOn; r.reviewSha = await core.sha256Hex(core.reviewText(review)); save();
     $('review-out').classList.remove('hidden'); renderSteps();
   });
 
+  // ---- Plan ----
+  // Built from the report summary and the decisions already in this browser, and the pinned method in
+  // assess-catalog.js. The review only counts once review.json is built; its hash is taken from the same bytes
+  // the download and the block write.
+  const catalog = window.AssessCatalog;
+  const pl = () => (state.plan = state.plan || { built: false, plannedOn: '', key: '' });
+  const CHANGE_WORD = { 'lz-parameter': 'Parameter', 'lz-setting': 'Setting', manual: 'Manual' };
+  // What a built plan depends on: the report, the built review and the date. A change to any of them makes it stale.
+  const planKey = () => { const r = rv(); return JSON.stringify([r.sha256, !!r.built, r.reviewSha || '', r.built ? r.reviewedOn : '', r.built ? r.rows : [], pl().plannedOn]); };
+  async function currentPlan() {
+    const r = rv();
+    let review = null;
+    if (r.built && r.assessment) {
+      review = core.buildReview(r.assessment, r.sha256, r.rows, r.reviewedOn || '').review;
+      if (!review) return { plan: null, skipped: [], errors: ['The saved review can\'t be rebuilt: open Review and build review.json again.'] };
+      if (!r.reviewSha) { r.reviewSha = await core.sha256Hex(core.reviewText(review)); save(); }
+    }
+    return core.buildPlan(r.assessment, r.sha256, review, r.reviewSha || '', catalog, pl().plannedOn);
+  }
+  function changeCell(ch) {
+    if (ch.kind === 'manual') return el('span', { textContent: core.CODE_SHORT[ch.code] || ch.code });
+    return el('span', {}, [el('strong', { textContent: `${CHANGE_WORD[ch.kind]} ` }), el('code', { textContent: ch.to !== undefined ? `${ch.name} = ${JSON.stringify(ch.to)}` : ch.name })]);
+  }
+  function fillPlanOut(plan, skipped) {
+    showCommand('plan-cmd', core.planCommand(plan));
+    blobLink('plan-download', JSON.stringify(plan, null, 2) + '\n', 'application/json');
+    blobLink('plan-md-download', core.planMarkdown(plan, skipped, catalog), 'text/markdown');
+  }
+  let planRun = 0;
+  async function renderPlan() {
+    const r = rv(), p = pl(), run = ++planRun;
+    $('plan-empty').classList.toggle('hidden', !!r.assessment);
+    $('plan-body').classList.toggle('hidden', !r.assessment);
+    if (!r.assessment) return;
+    if (!p.plannedOn) { p.plannedOn = today(); save(); }
+    if ($('plannedOn').value.trim() !== p.plannedOn) $('plannedOn').value = p.plannedOn;
+    const { plan, skipped, errors } = await currentPlan();
+    if (run !== planRun) return; // a newer render started while this one waited
+    const undecided = r.rows.some((x) => x.disposition) && !r.built;
+    $('plan-review-note').textContent = r.built ? 'Uses your review: Fix rows are planned, Accept and Defer rows are left out, and findings you didn\'t decide are planned as not reviewed.'
+      : undecided ? 'You have decisions in Review that aren\'t built into review.json yet, so they don\'t count here. Build review.json to use them; until then every finding that isn\'t a pass is planned.'
+        : 'No review yet, so every finding that isn\'t a pass is planned, marked not reviewed.';
+    const body = $('plan-items'); body.replaceChildren(); $('plan-skipped').replaceChildren();
+    if (p.built && p.key !== planKey()) { p.built = false; save(); renderSteps(); }
+    $('plan-out').classList.toggle('hidden', !(p.built && plan));
+    if (!plan) { $('plan-summary').replaceChildren(el('span', { className: 'muted', textContent: errors.join(' ') })); return; }
+    if (p.built) fillPlanOut(plan, skipped);
+    $('plan-summary').replaceChildren(el('span', { className: 'muted', textContent: `${plan.estate}: ${plan.items.length} to change, ${skipped.length} left out, method version ${plan.basis.method}` }));
+    for (const it of plan.items) {
+      const title = core.titleOf(it.check, catalog);
+      const check = el('td', { className: 'check' }, [el('strong', { textContent: title }), el('code', { textContent: it.check })]);
+      if (it.source === 'unreviewed') check.append(el('span', { className: 'carried', textContent: 'Not reviewed' }));
+      const outcome = el('td', {}, [el('span', { className: `outcome o-${it.outcome}`, textContent: `${OUTCOME_WORD[it.outcome]}, ${it.severity}` })]); outcome.dataset.label = 'Outcome';
+      const change = el('td', {}, [changeCell(it.change)]); change.dataset.label = 'Change';
+      const why = el('td', {}, it.claims.map((c) => el('code', { textContent: c }))); why.dataset.label = 'Why';
+      const order = el('td', { textContent: String(it.order) }); order.dataset.label = 'Order';
+      body.append(el('tr', {}, [order, check, outcome, change, why]));
+    }
+    if (skipped.length) {
+      $('plan-skipped').append(el('p', { className: 'label', textContent: 'Left out' }), el('ul', {}, skipped.map((s) => el('li', { textContent: `${core.titleOf(s.check, catalog)} (${s.check}, ${OUTCOME_WORD[s.outcome]}): ${core.skippedWhy(s)}` }))));
+    }
+  }
+  let planTimer = 0;
+  $('plannedOn').addEventListener('input', () => {
+    pl().plannedOn = $('plannedOn').value.trim(); save();
+    clearTimeout(planTimer); planTimer = setTimeout(() => { renderPlan(); renderSteps(); }, 300);
+  });
+  $('plan-build').addEventListener('click', async () => {
+    const p = pl();
+    p.plannedOn = $('plannedOn').value.trim();
+    const { plan, skipped, errors } = await currentPlan();
+    const box = $('plan-errors'); box.replaceChildren();
+    if (!plan) {
+      p.built = false; $('plan-out').classList.add('hidden');
+      box.append(el('div', { className: 'errors' }, [el('strong', { textContent: 'plan.json needs a little more:' }), el('ul', {}, errors.map((e) => el('li', { textContent: e })))]));
+      box.firstChild.setAttribute('role', 'alert');
+      save(); renderSteps();
+      return;
+    }
+    fillPlanOut(plan, skipped);
+    p.built = true; p.key = planKey(); save();
+    $('plan-out').classList.remove('hidden'); renderSteps();
+  });
+
   // ---- Stepper ----
-  const isDone = { collect: () => !!(state.collect && state.collect.status !== 'failed'), discover: () => !!state.intakeBuilt, analyze: () => !!(state.analyze && state.analyze.status !== 'failed'), review: () => !!(state.review && state.review.built), plan: () => false };
+  const isDone = { collect: () => !!(state.collect && state.collect.status !== 'failed'), discover: () => !!state.intakeBuilt, analyze: () => !!(state.analyze && state.analyze.status !== 'failed'), review: () => !!(state.review && state.review.built), plan: () => !!(state.plan && state.plan.built && state.plan.key === planKey()) };
   function renderSteps() {
     for (const li of document.querySelectorAll('#steps li')) {
       const s = li.dataset.stage;
@@ -372,6 +456,7 @@
     if (!STAGES.includes(stage)) stage = 'collect';
     state.stage = stage; save();
     for (const s of STAGES) $(`stage-${s}`).classList.toggle('hidden', s !== stage);
+    if (stage === 'plan') renderPlan();
     renderSteps();
     if (focus) { const h = $(`${stage}-title`); h.setAttribute('tabindex', '-1'); h.focus(); }
   }

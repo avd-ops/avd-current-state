@@ -1,6 +1,6 @@
 # Spec: the assessment portal
 
-Status: accepted, 2026-10-20. Phase 1 built 2026-10-21 (Collect, Discover, Analyze); phase 2 built 2026-10-21 (Review). See section 7. No Azure, no spend.
+Status: accepted, 2026-10-20. Phase 1 built 2026-10-21 (Collect, Discover, Analyze); phase 2 built 2026-10-21 (Review); phase 3 built 2026-10-22 (Plan). See section 7. No Azure, no spend.
 
 The owner asked (2026-10-20) for one page that walks an operator through a whole assessment, the way the [avd-landing-zone deployment portal](https://github.com/avd-ops/avd-landing-zone/tree/master/site/portal) walks them through a deployment. It lives here, because avd-current-state is the signal engine: it collects what is there now and judges it against the standards in [avd-assess](https://github.com/avd-ops/avd-assess). The landing zone stays the deployment engine; the brain and avd-swarm stay optional layers on top.
 
@@ -116,11 +116,11 @@ All offline until the last.
 | 0 | This spec |
 | 1 | avd-ops: promote the portal components (design system 1.1.0), the landing zone re-vendors them. Here: `site/` with the vendored design system, the stepper shell, Settings, Collect and Analyze blocks, the state line in both scripts, Discover writing `intake.json` and the notes file, Pages workflow. **Built** 2026-10-21. Analyze runs the validator's post-deployment checks until its assess mode lands; `intake.json` is checked against avd-assess's C19 example and schema at a pinned commit in CI |
 | 2 | avd-assess: C23. Here: Review (findings table, dispositions, carry-forward), `review.json`. **Built** 2026-10-21. A finding's title comes from its check ID until the check catalog (C22) gives titles, pillars and claims; the engine's `review.json` fixture and the C21 example are checked against avd-assess's schemas at a pinned commit in CI |
-| 3 | avd-assess: C24. Here: Plan, `plan.json` and `plan.md`, using `rebuild/lz-parameters.json` and the check catalog's remediation hints |
+| 3 | avd-assess: C24. Here: Plan, `plan.json` and `plan.md`, using `rebuild/lz-parameters.json` and the check catalog's remediation hints. **Built** 2026-10-22: C24 and the hints came in avd-assess #22 (method version 3, `methods/remediation.md`); the page reads them from `site/portal/assess-catalog.js`, a copy of the pinned `assess/method.json` (a test keeps them equal and checks every `lz-parameter` hint against `rebuild/lz-parameters.json`). The engine's `plan.json` fixture is checked against avd-assess's C24 schema at a pinned commit in CI. Items carry no `from` yet: C21 doesn't report the current value |
 | 4 | Publish to the operator's own subscription (the landing zone's #74 pattern), and a Report a problem button that redacts in the browser (decision 5 below) |
 | 5 | One sandbox walk-through end to end, with a written cost estimate and the owner's go |
 
-Phase 3 waits on the check catalog (option A) for remediation hints; until then a plan item names the claim and says `manual`.
+A check the pinned method doesn't have is left out of the plan and listed as such, because the plan can't cite what good is for it.
 
 ## 8. Decisions
 

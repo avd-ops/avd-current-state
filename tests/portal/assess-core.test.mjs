@@ -85,7 +85,7 @@ test('intake refuses what the contract refuses', () => {
 
 test('the intake block carries the JSON in a here-string it cannot break out of', () => {
   const cmd = core.intakeCommand(core.buildIntake(answers).intake);
-  const body = cmd.split("\n@'\n")[1].split("\n'@ | Set-Content")[0];
+  const body = cmd.split("\n$text = @'\n")[1].split("\n'@\n")[0];
   assert.deepEqual(JSON.parse(body), JSON.parse(read('tests/portal/fixtures/intake.json')));
   assert.doesNotMatch(cmd, /Connect-AzAccount/, 'writing a local file needs no sign-in');
   // JSON escapes a line break, so no value can start a line with '@ and end the here-string early.
@@ -148,7 +148,7 @@ test('the decisions become review.json and the fixture, byte for byte', () => {
   assert.equal(JSON.stringify(review, null, 2) + '\n', read('tests/portal/fixtures/review.json'));
   const cmd = core.reviewCommand(review);
   assert.match(cmd, /\$file = Join-Path \$out 'review\.json'/);
-  assert.deepEqual(JSON.parse(cmd.split("\n@'\n")[1].split("\n'@ | Set-Content")[0]), review);
+  assert.deepEqual(JSON.parse(cmd.split("\n$text = @'\n")[1].split("\n'@\n")[0]), review);
 });
 
 test('review refuses a reason that does not fit, and an empty review', () => {
@@ -200,4 +200,99 @@ test('run in: untested is marked, and Cloud Shell needs nothing installed', () =
   assert.deepEqual(core.support(c, null).requires, []);
   assert.equal(core.support(core.intakeCommand({ schema: 'avd-intake/v1' }), null).status, 'tested', 'a block with no script is proven where it was written');
   assert.equal(core.support(core.intakeCommand({ schema: 'avd-intake/v1' }), { shell: 'bash' }).status, 'untested');
+});
+
+// ---- Plan (plan.json, C24; avd-assess methods/remediation.md) ----
+const catalog = createRequire(import.meta.url)('../../site/portal/assess-catalog.js');
+
+test('the catalog is the pinned method: titles, pillars, severities, claims and hints', () => {
+  const method = JSON.parse(read('assess/method.json'));
+  const pins = JSON.parse(read('assess/PINS.json'));
+  assert.equal(catalog.method, method.version);
+  assert.equal(catalog.assessCommit, pins.commit);
+  assert.equal(catalog.landingZoneCommit, method.landingZoneCommit || '');
+  const want = {};
+  for (const c of method.checks) want[c.id] = Object.assign({ title: c.title, pillar: c.pillar, severity: c.severity, claims: c.claims }, c.remediation ? { remediation: c.remediation } : {});
+  assert.deepEqual(catalog.checks, want, 'site/portal/assess-catalog.js matches assess/method.json');
+  const params = new Set(JSON.parse(read('rebuild/lz-parameters.json')).parameters.map((p) => p.name));
+  for (const [id, c] of Object.entries(catalog.checks)) {
+    if (c.remediation && c.remediation.kind === 'lz-parameter') assert.ok(params.has(c.remediation.name), `${id}: ${c.remediation.name} is not a landing zone parameter`);
+  }
+});
+
+function methodReview() {
+  const { assessment } = core.parseAssessment(read('tests/portal/fixtures/assessment-method.json'));
+  const rows = core.startReview(assessment, null);
+  const set = (check, disposition, reason) => Object.assign(rows.find((r) => r.check === check), { disposition, reason });
+  set('asm-files-zone-redundant', 'fix', 'fix-planned');
+  set('asm-files-smb-gcm', 'accept', 'cost');
+  set('asm-hosts-trusted-launch', 'defer', 'later-phase');
+  const sha = 'a'.repeat(64);
+  const { review } = core.buildReview(assessment, sha, rows, '2026-10-22');
+  return { assessment, sha, review };
+}
+
+test('the review becomes plan.json and the fixture, byte for byte, in rule order', async () => {
+  const { assessment, sha, review } = methodReview();
+  assert.equal(core.reviewText(review), read('tests/portal/fixtures/review-method.json'));
+  const reviewSha = await core.sha256Hex(core.reviewText(review));
+  const { plan, skipped, errors } = core.buildPlan(assessment, sha, review, reviewSha, catalog, '2026-10-22');
+  assert.deepEqual(errors, []);
+  assert.deepEqual(plan.items.map((i) => [i.order, i.check, i.source]), [
+    [1, 'asm-files-private-endpoint', 'unreviewed'],
+    [2, 'asm-files-zone-redundant', 'review-fix'],
+    [3, 'asm-pooled-host-redundancy', 'unreviewed'],
+    [4, 'asm-personal-start-vm-on-connect', 'unreviewed'],
+    [5, 'asm-defender-servers', 'unreviewed']
+  ]);
+  assert.deepEqual(plan.items[4].change, { kind: 'manual', code: 'collect-evidence' }, 'an unknown outcome plans evidence, never a change');
+  assert.deepEqual(plan.items[1].change, { kind: 'lz-parameter', name: 'profileStorageSku', to: 'Premium_ZRS' });
+  assert.deepEqual(skipped.map((s) => [s.check, s.why]), [['asm-files-smb-gcm', 'accept'], ['asm-hosts-trusted-launch', 'defer']]);
+  assert.equal(JSON.stringify(plan, null, 2) + '\n', read('tests/portal/fixtures/plan.json'));
+  const cmd = core.planCommand(plan);
+  assert.match(cmd, /\$file = Join-Path \$out 'plan\.json'/);
+  assert.deepEqual(JSON.parse(cmd.split("\n$text = @'\n")[1].split("\n'@\n")[0]), plan);
+});
+
+test('with no review, every non-pass check is planned, unreviewed; a decision on another outcome does not count', () => {
+  const { assessment, sha, review } = methodReview();
+  const none = core.buildPlan(assessment, sha, null, '', catalog, '2026-10-22').plan;
+  assert.equal(none.items.length, 7);
+  assert.ok(none.items.every((i) => i.source === 'unreviewed'));
+  assert.equal(none.basis.review, undefined);
+  assert.deepEqual(none.items.find((i) => i.check === 'asm-hosts-trusted-launch').change, { kind: 'manual', code: 'rebuild-hosts' });
+  const stale = JSON.parse(JSON.stringify(review));
+  stale.decisions.find((d) => d.check === 'asm-files-smb-gcm').outcome = 'gap';
+  const p = core.buildPlan(assessment, sha, stale, 'b'.repeat(64), catalog, '2026-10-22').plan;
+  assert.equal(p.items.find((i) => i.check === 'asm-files-smb-gcm').source, 'unreviewed', 'the outcome changed, so the accept no longer holds');
+});
+
+test('a check the pinned method lacks is left out with its reason, and plan.md says so', () => {
+  const wide = core.parseAssessment(read('tests/portal/fixtures/assessment-wide.json')).assessment;
+  const assessment = { ...wide, methodVersion: catalog.method };
+  const { plan, skipped } = core.buildPlan(assessment, 'c'.repeat(64), null, '', catalog, '2026-10-22');
+  assert.deepEqual(plan.items.map((i) => i.check), ['asm-personal-start-vm-on-connect']);
+  assert.deepEqual(skipped.map((s) => s.why), ['not-in-method', 'not-in-method', 'not-in-method']);
+  const md = core.planMarkdown(plan, skipped, catalog);
+  assert.match(md, /^# Remediation plan \(est-0a1b2c3d\)/);
+  assert.match(md, /## 1\. Personal host pools use Start VM on Connect/);
+  assert.match(md, /Landing zone parameter startVmOnConnect = true/);
+  assert.match(md, /## Not in the plan\n\n- .*\(`asm-host-pool-diagnostics`, gap\): not in the pinned method/);
+  assert.doesNotMatch(md, /[^\x00-\x7e]/, 'ASCII');
+});
+
+test('plan refuses a missing report, hash, date or review hash', () => {
+  const { assessment, review } = methodReview();
+  assert.match(core.buildPlan(null, '', null, '', catalog, '2026-10-22').errors.join(), /Load assessment\.json/);
+  assert.match(core.buildPlan(assessment, 'a'.repeat(64), null, '', catalog, 'today').errors.join(), /date/);
+  assert.match(core.buildPlan(assessment, 'a'.repeat(64), review, '', catalog, '2026-10-22').errors.join(), /review's hash/);
+  assert.match(core.buildPlan(assessment, 'a'.repeat(64), null, '', null, '2026-10-22').errors.join(), /pinned method/);
+  assert.match(core.buildPlan(assessment, 'b'.repeat(64), review, 'c'.repeat(64), catalog, '2026-10-22').errors.join(), /another report/, 'a review pins its report by hash');
+  assert.match(core.buildPlan({ ...assessment, methodVersion: 1 }, 'a'.repeat(64), null, '', catalog, '2026-10-22').errors.join(), /method version 1/);
+});
+
+test('the block writes exactly the bytes the download has, whatever the platform', () => {
+  const cmd = core.reviewCommand({ schema: 'avd-assessment-review/v1' });
+  assert.match(cmd, /\[System\.IO\.File\]::WriteAllText\(\$file, \(\$text -replace "`r`n", "`n"\) \+ "`n", \[System\.Text\.UTF8Encoding\]::new\(\$false\)\)/);
+  assert.doesNotMatch(cmd, /Set-Content/);
 });
