@@ -203,7 +203,8 @@ function Invoke-RebuildRestRead {
     <#
     .SYNOPSIS
         GET one REST path and follow nextLink. $Invoker takes a path and returns @{ StatusCode; Content }.
-        Returns @{ Status; Items; Error }: 'ok', 'none' (404, the parent has no such child) or 'failed'.
+        Returns @{ Status; Items; Error; Complete }: 'ok', 'none' (404, the parent has no such child) or
+        'failed'; Complete is false when it stopped with pages left.
     #>
     param(
         [Parameter(Mandatory)] [string]$Path,
@@ -212,13 +213,14 @@ function Invoke-RebuildRestRead {
     )
     $items = [System.Collections.Generic.List[object]]::new()
     $next = $Path
+    $stoppedEarly = $false
     for ($page = 0; $page -lt $MaxPages -and $next; $page++) {
         $response = & $Invoker $next
         $code = if ($response) { [int]$response.StatusCode } else { 0 }
-        if ($code -eq 404 -and $page -eq 0) { return @{ Status = 'none'; Items = @(); Error = '' } }
+        if ($code -eq 404 -and $page -eq 0) { return @{ Status = 'none'; Items = @(); Error = ''; Complete = $true } }
         if ($code -ne 200) {
             $content = if ($response) { $response.Content } else { '' }
-            return @{ Status = 'failed'; Items = $items.ToArray(); Error = "HTTP ${code}: $content" }
+            return @{ Status = 'failed'; Items = $items.ToArray(); Error = "HTTP ${code}: $content"; Complete = $false }
         }
         $result = $response.Content | ConvertFrom-Json
         $value = Get-RebuildValue $result 'value'
@@ -227,13 +229,75 @@ function Invoke-RebuildRestRead {
             foreach ($i in $pageItems) { $items.Add($i) }
             $next = Get-RebuildValue $result 'nextLink'
             if ($next -and $next -match '^https://[^/]+(/.*)$') { $next = $Matches[1] }
-            if ($pageItems.Count -eq 0) { $next = $null }
+            # An empty page ends the loop (avd-landing-zone lesson 0008); a next link it still carried means
+            # the read may be incomplete, which Complete says.
+            if ($pageItems.Count -eq 0) { if ($next) { $stoppedEarly = $true }; $next = $null }
         } else {
             $items.Add($result)
             $next = $null
         }
     }
-    return @{ Status = 'ok'; Items = $items.ToArray(); Error = '' }
+    # Complete is false when the loop stopped at MaxPages with pages left, or at an empty page with a next link.
+    return @{ Status = 'ok'; Items = $items.ToArray(); Error = ''; Complete = (-not $stoppedEarly -and -not $next) }
+}
+
+function Get-RebuildEvidence {
+    <#
+    .SYNOPSIS
+        Reads every Resource Graph type and REST read in the scope (rebuild/scope.json) for one
+        subscription through the two invokers, and returns @{ Rows (type -> rows); Rest (read name ->
+        @{ parentId; status; error; complete; items }); Reads (one status row per read) }. Nothing is
+        scrubbed or written: the collector writes files, the drift check keeps them in memory. $Log takes
+        a message and a level (INFO or WARN) and prints a line before each slow read.
+    #>
+    param(
+        [Parameter(Mandatory)] $Scope,
+        [Parameter(Mandatory)] [string]$SubscriptionId,
+        [Parameter(Mandatory)] [scriptblock]$GraphInvoker,
+        [Parameter(Mandatory)] [scriptblock]$RestInvoker,
+        [scriptblock]$Log = { param($Message, $Level) $null = $Message, $Level }
+    )
+    $rows = @{}
+    $rest = @{}
+    $reads = [System.Collections.Generic.List[object]]::new()
+    foreach ($t in @($Scope.resourceGraph)) {
+        & $Log "  Reading $($t.type) through Resource Graph ..." 'INFO'
+        $status = 'ok'; $err = ''
+        try {
+            $found = @(Invoke-RebuildGraphQuery -Query (Get-RebuildQuery -Table $t.table -Type $t.type) -SubscriptionId $SubscriptionId -Invoker $GraphInvoker)
+        } catch {
+            $found = @(); $status = 'failed'; $err = $_.Exception.Message
+            & $Log "  $($t.type) read failed: $err" 'WARN'
+        }
+        $rows[$t.type] = $found
+        $reads.Add([pscustomobject]@{ Read = $t.type; Source = $t.table; Items = $found.Count; Status = $status; Error = $err })
+    }
+    $sessionHostVms = @{}
+    foreach ($sh in @($rows['microsoft.desktopvirtualization/hostpools/sessionhosts'])) {
+        $vmId = "$(Get-RebuildValue $sh 'properties.resourceId' '')".ToLowerInvariant()
+        if ($vmId) { $sessionHostVms[$vmId] = $true }
+    }
+    foreach ($read in @($Scope.rest)) {
+        $parents = @()
+        foreach ($p in @($read.parentTypes)) {
+            if ($p -eq 'subscription') { $parents += "/subscriptions/$SubscriptionId" }
+            else { $parents += @($rows[$p] | ForEach-Object { $_.id }) }
+        }
+        # Run Commands are read only on session hosts: that's where the landing zone keeps FSLogix's.
+        if ($read.name -eq 'run-commands') { $parents = @($parents | Where-Object { $sessionHostVms.ContainsKey("$_".ToLowerInvariant()) }) }
+        if ($parents.Count -eq 0) { continue }
+        & $Log "  Reading $($read.name) for $($parents.Count) resource(s) ..." 'INFO'
+        $results = @(foreach ($parentId in $parents) {
+                $r = Invoke-RebuildRestRead -Path (Get-RebuildRestPath -Read $read -ParentId $parentId) -Invoker $RestInvoker
+                if ($r.Status -eq 'failed') { & $Log "  $($read.name) failed for ${parentId}: $($r.Error)" 'WARN' }
+                if ($r.Status -ne 'failed' -and $r.Complete -eq $false) { & $Log "  $($read.name) stopped with pages left for ${parentId}." 'WARN' }
+                [pscustomobject][ordered]@{ parentId = $parentId; status = $r.Status; error = $r.Error; complete = ($r.Complete -ne $false); items = @($r.Items) }
+            })
+        $rest[$read.name] = $results
+        $failed = @($results | Where-Object { $_.status -eq 'failed' -or -not $_.complete }).Count
+        $reads.Add([pscustomobject]@{ Read = $read.name; Source = 'rest'; Items = $results.Count; Status = $(if ($failed) { "failed for $failed" } else { 'ok' }); Error = '' })
+    }
+    return @{ Rows = $rows; Rest = $rest; Reads = $reads.ToArray() }
 }
 
 function Get-RebuildIdPart {
@@ -563,4 +627,4 @@ function Get-RebuildDataset {
 }
 
 Export-ModuleMember -Function Get-RebuildValue, Get-RebuildScope, Get-RebuildFileName, Get-RebuildQuery, Get-RebuildRestPath,
-    ConvertTo-RebuildSafeObject, Get-RebuildSecretFinding, Invoke-RebuildGraphQuery, Invoke-RebuildRestRead, Get-RebuildDataset
+    ConvertTo-RebuildSafeObject, Get-RebuildSecretFinding, Invoke-RebuildGraphQuery, Invoke-RebuildRestRead, Get-RebuildEvidence, Get-RebuildDataset

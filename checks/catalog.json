@@ -1,0 +1,165 @@
+{
+  "$schema": "./check-catalog.schema.json",
+  "schema": "avd-check-catalog/v1",
+  "version": 1,
+  "checks": [
+    {
+      "id": "drift-couldnt-check",
+      "title": "The drift check couldn't read everything it needs, so the run isn't a clean result",
+      "phase": [
+        "drift"
+      ],
+      "gate": "block",
+      "pillar": "operations",
+      "severity": "high",
+      "reads": [
+        "deployment-record",
+        "resource-graph",
+        "change-log",
+        "activity-log"
+      ],
+      "claims": [
+        "gap:governance-scope"
+      ],
+      "impl": "Get-DriftExitCode",
+      "remediation": {
+        "kind": "manual",
+        "code": "collect-evidence"
+      }
+    },
+    {
+      "id": "drift-param",
+      "title": "A landing zone parameter no longer matches what was deployed",
+      "phase": [
+        "drift"
+      ],
+      "gate": "advise",
+      "pillar": "operations",
+      "severity": "medium",
+      "reads": [
+        "deployment-record",
+        "resource-graph",
+        "arm"
+      ],
+      "claims": [
+        "gap:governance-scope"
+      ],
+      "impl": "Get-DriftParameterResult",
+      "remediation": {
+        "kind": "lz-setting",
+        "name": "redeploy"
+      }
+    },
+    {
+      "id": "drift-unexplained-change",
+      "title": "A landing zone resource changed outside a deployment and its own automation",
+      "phase": [
+        "drift"
+      ],
+      "gate": "advise",
+      "pillar": "operations",
+      "severity": "medium",
+      "reads": [
+        "change-log",
+        "activity-log",
+        "deployment-record"
+      ],
+      "claims": [
+        "gap:governance-scope"
+      ],
+      "impl": "Get-DriftChangeResult",
+      "remediation": {
+        "kind": "manual",
+        "code": "process"
+      }
+    },
+    {
+      "id": "drift-exception-expired",
+      "title": "An accepted difference from the deployment has expired",
+      "phase": [
+        "drift"
+      ],
+      "gate": "advise",
+      "pillar": "operations",
+      "severity": "low",
+      "reads": [
+        "deployment-record",
+        "resource-graph"
+      ],
+      "claims": [
+        "gap:governance-scope"
+      ],
+      "impl": "Get-DriftParameterResult",
+      "remediation": {
+        "kind": "manual",
+        "code": "process"
+      }
+    },
+    {
+      "id": "drift-cant-tell",
+      "title": "A deployed parameter can't be read back from the estate",
+      "phase": [
+        "drift"
+      ],
+      "gate": "advise",
+      "pillar": "operations",
+      "severity": "low",
+      "reads": [
+        "resource-graph",
+        "arm"
+      ],
+      "claims": [
+        "gap:governance-scope"
+      ],
+      "impl": "Get-DriftParameterResult",
+      "remediation": {
+        "kind": "manual",
+        "code": "collect-evidence"
+      }
+    },
+    {
+      "id": "drift-window-gap",
+      "title": "The last run is older than the change log keeps",
+      "phase": [
+        "drift"
+      ],
+      "gate": "advise",
+      "pillar": "operations",
+      "severity": "medium",
+      "reads": [
+        "change-log",
+        "activity-log"
+      ],
+      "claims": [
+        "gap:governance-scope"
+      ],
+      "impl": "Get-DriftWindowGap",
+      "remediation": {
+        "kind": "manual",
+        "code": "process"
+      }
+    },
+    {
+      "id": "drift-suppression-unapproved",
+      "title": "A rule that hides changes has no current approval",
+      "phase": [
+        "drift"
+      ],
+      "gate": "advise",
+      "pillar": "operations",
+      "severity": "medium",
+      "reads": [
+        "change-log",
+        "activity-log"
+      ],
+      "claims": [
+        "gap:governance-scope"
+      ],
+      "impl": "Get-DriftSuppressionResult",
+      "remediation": {
+        "kind": "manual",
+        "code": "process"
+      }
+    }
+  ]
+}

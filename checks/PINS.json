@@ -1,0 +1,8 @@
+{
+  "description": "Byte-identical copy of avd-assess's C22 schema (contracts/schemas/check-catalog.schema.json there). It must match the file at commit (tests/Drift.Tests.ps1 checks the hash); catalog.json must pass it. Update the file, commit and hash in one PR.",
+  "source": "https://github.com/avd-ops/avd-assess",
+  "commit": "918185764218a8cc235e0ecf5280adcc5ab60337",
+  "files": {
+    "check-catalog.schema.json": "b09c281483d1e3cba575bb84f092cfdc1fd780db1e68092f01adabf0eaf820e7"
+  }
+}
