@@ -1,0 +1,29 @@
+{
+  "schema": "avd-assessment-review/v1",
+  "estate": "est-0a1b2c3d",
+  "reviewedOn": "2026-10-22",
+  "assessment": {
+    "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "generatedUtc": "2026-10-20T10:00:00Z"
+  },
+  "decisions": [
+    {
+      "check": "asm-files-smb-gcm",
+      "outcome": "warn",
+      "disposition": "accept",
+      "reason": "cost"
+    },
+    {
+      "check": "asm-files-zone-redundant",
+      "outcome": "warn",
+      "disposition": "fix",
+      "reason": "fix-planned"
+    },
+    {
+      "check": "asm-hosts-trusted-launch",
+      "outcome": "warn",
+      "disposition": "defer",
+      "reason": "later-phase"
+    }
+  ]
+}

@@ -1,0 +1,205 @@
+{
+  "schema": "avd-assessment/v1",
+  "estate": "est-0a1b2c3d",
+  "generatedUtc": "2026-10-20T10:00:00Z",
+  "producer": {
+    "name": "avd_current_state_assess.ps1",
+    "version": "1.0.0"
+  },
+  "method": {
+    "version": 3,
+    "commit": "abababababababababababababababababababab",
+    "sha256": "027e59873233093e410679dea1cdbbe50650bbf81310dfd81b14b5776647079c",
+    "factRegister": 1
+  },
+  "inputs": {
+    "facts": {
+      "generatedUtc": "2026-10-18T09:00:00Z",
+      "sha256": "cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd"
+    },
+    "intake": {
+      "answeredOn": "2026-10-20",
+      "sha256": "efefefefefefefefefefefefefefefefefefefefefefefefefefefefefefefef"
+    }
+  },
+  "results": [
+    {
+      "check": "asm-defender-servers",
+      "outcome": "unknown",
+      "facts": [],
+      "subjects": []
+    },
+    {
+      "check": "asm-drive-usb-redirection-off",
+      "outcome": "pass",
+      "facts": [
+        "c11.hostPool.redirection.drives",
+        "c11.hostPool.redirection.usb"
+      ],
+      "subjects": [
+        {
+          "id": "hp-4d5e6f70",
+          "outcome": "pass"
+        }
+      ]
+    },
+    {
+      "check": "asm-files-private-endpoint",
+      "outcome": "gap",
+      "facts": [
+        "c11.storage.kind",
+        "c11.storage.privateEndpoint"
+      ],
+      "subjects": [
+        {
+          "id": "st-3c4d5e6f",
+          "outcome": "gap"
+        }
+      ]
+    },
+    {
+      "check": "asm-files-smb-gcm",
+      "outcome": "warn",
+      "facts": [
+        "c11.storage.kind",
+        "c11.storage.smbChannelEncryption"
+      ],
+      "subjects": [
+        {
+          "id": "st-3c4d5e6f",
+          "outcome": "warn"
+        }
+      ]
+    },
+    {
+      "check": "asm-files-zone-redundant",
+      "outcome": "warn",
+      "facts": [
+        "c11.storage.kind",
+        "c11.storage.sku"
+      ],
+      "subjects": [
+        {
+          "id": "st-3c4d5e6f",
+          "outcome": "warn"
+        }
+      ]
+    },
+    {
+      "check": "asm-hosts-trusted-launch",
+      "outcome": "warn",
+      "facts": [
+        "c11.hostPool.sessionHosts.notTrustedLaunch"
+      ],
+      "subjects": [
+        {
+          "id": "hp-4d5e6f70",
+          "outcome": "warn"
+        }
+      ]
+    },
+    {
+      "check": "asm-personal-start-vm-on-connect",
+      "outcome": "warn",
+      "facts": [
+        "c11.hostPool.type",
+        "c11.hostPool.startVmOnConnect"
+      ],
+      "subjects": [
+        {
+          "id": "hp-4d5e6f70",
+          "outcome": "warn"
+        }
+      ]
+    },
+    {
+      "check": "asm-pooled-host-redundancy",
+      "outcome": "warn",
+      "facts": [
+        "c11.hostPool.type",
+        "c11.hostPool.sessionHosts.total"
+      ],
+      "subjects": [
+        {
+          "id": "hp-5e6f7081",
+          "outcome": "warn"
+        }
+      ]
+    }
+  ],
+  "pillars": [
+    {
+      "pillar": "cost",
+      "checks": 1,
+      "assessed": 1,
+      "score": 0.5,
+      "coverage": 1
+    },
+    {
+      "pillar": "reliability",
+      "checks": 2,
+      "assessed": 2,
+      "score": 0.5,
+      "coverage": 1
+    },
+    {
+      "pillar": "security",
+      "checks": 5,
+      "assessed": 4,
+      "score": 0.4,
+      "coverage": 0.8
+    }
+  ],
+  "decisions": [
+    {
+      "decision": "identity",
+      "readiness": "decidable-with-intake",
+      "status": "supported"
+    },
+    {
+      "decision": "region",
+      "readiness": "decidable-with-intake",
+      "status": "supported"
+    },
+    {
+      "decision": "network",
+      "readiness": "decidable-with-intake",
+      "status": "supported"
+    },
+    {
+      "decision": "hostPool.type",
+      "readiness": "decidable",
+      "status": "supported"
+    },
+    {
+      "decision": "hostPool.appGroup",
+      "readiness": "decidable",
+      "status": "supported"
+    },
+    {
+      "decision": "hostPool.vmSize",
+      "readiness": "needs-measurement",
+      "status": "needs-measurement"
+    },
+    {
+      "decision": "hostPool.maxSessions",
+      "readiness": "needs-measurement",
+      "status": "needs-measurement"
+    },
+    {
+      "decision": "hostPool.hosts",
+      "readiness": "needs-measurement",
+      "status": "needs-measurement"
+    },
+    {
+      "decision": "hostPool.power",
+      "readiness": "decidable-with-intake",
+      "status": "supported"
+    },
+    {
+      "decision": "hostPool.profileQuotaGiB",
+      "readiness": "needs-measurement",
+      "status": "needs-measurement"
+    }
+  ]
+}
