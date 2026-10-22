@@ -7,7 +7,7 @@
     "version": "1.0.0"
   },
   "method": {
-    "version": 3,
+    "version": 4,
     "commit": "abababababababababababababababababababab",
     "sha256": "027e59873233093e410679dea1cdbbe50650bbf81310dfd81b14b5776647079c",
     "factRegister": 1

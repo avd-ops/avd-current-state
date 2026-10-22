@@ -9,8 +9,8 @@
 })(typeof self !== 'undefined' ? self : this, function () {
   'use strict';
   return {
-    "method": 3,
-    "assessCommit": "a5f4df1564178e84bc3c52fec123c0c3db59d395",
+    "method": 4,
+    "assessCommit": "052c6ea36250ecc8624d258de360fe4072729683",
     "landingZoneCommit": "ae6e80b574cccde570d0053d4c62b519d31052a8",
     "checks": {
       "asm-defender-servers": {
@@ -101,6 +101,32 @@
         "remediation": {
           "kind": "lz-parameter",
           "name": "startVmOnConnect",
+          "to": true
+        }
+      },
+      "asm-policy-enforced": {
+        "title": "No policy assignment in scope is left in DoNotEnforce mode",
+        "pillar": "operations",
+        "severity": "low",
+        "claims": [
+          "ref:policy-assignment-structure#do-not-enforce",
+          "ref:policy-assignment-structure#do-not-enforce-for-testing"
+        ],
+        "remediation": {
+          "kind": "manual",
+          "code": "process"
+        }
+      },
+      "asm-policy-guardrails-assigned": {
+        "title": "Subscriptions holding AVD have at least one Azure Policy assignment in scope",
+        "pillar": "operations",
+        "severity": "low",
+        "claims": [
+          "ref:mcsb-avd-baseline#AM-2"
+        ],
+        "remediation": {
+          "kind": "lz-parameter",
+          "name": "enablePolicyGuardrails",
           "to": true
         }
       },

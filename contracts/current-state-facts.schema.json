@@ -1,5 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://assess.avd-ops.dev/schemas/avd-current-state-facts/v1.json",
   "title": "avd-current-state-facts/v1: a redacted current-state snapshot of one estate",
   "description": "Contract C11. Produced offline by avd-current-state's avd_current_state_facts.ps1 from collector and validator packages; read by scripts/Import-CurrentStateFacts.ps1 into the estate's facts store, where the brain's agents read it and avd-swarm sees it only through the brain. No field holds a name, an ID, an IP address, a tag or free text: values are counts, booleans, public Azure values and keyed pseudonyms.",
   "type": "object",
