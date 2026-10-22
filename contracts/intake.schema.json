@@ -1,7 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://assess.avd-ops.dev/schemas/avd-intake/v1.json",
   "title": "avd-intake/v1: what telemetry can't know about an estate (intake.json)",
-  "description": "Contract C19. The operator answers these once per estate, in intake.json beside their landing zone parameters. It gives the fact register's intake.* facts their paths; hostSharing and avdMfa are optional. Every answer is an enum, a public Azure region or a clock time: the schema has no field for a name, a domain, an address, an ID or free text. Why each question matters is in avd-assess methods/collection.md and gaps/intake.md.",
+  "description": "Contract C19. The operator answers these once per estate, in intake.json beside their landing zone parameters. It gives the fact register's intake.* facts their paths; hostSharing, avdMfa, reportedSymptoms, appDelivery, appCompatibility, profileSolution, hostAgents, clientAgents and agentRdpBypass are optional. Every answer is an enum, a public Azure region or a clock time: the schema has no field for a name, a domain, an address, an ID or free text. Why each question matters is in avd-assess methods/collection.md and gaps/intake.md.",
   "type": "object",
   "required": ["schema", "estate", "answeredOn", "residency", "preferredRegions", "existingHub", "identityConstraints", "workingHours"],
   "additionalProperties": false,
@@ -61,6 +62,65 @@
     "avdMfa": {
       "description": "Fact intake.avdMfa (optional). Whether sign-in to AVD requires multifactor authentication, until a directory read can see it.",
       "enum": ["required", "not-required", "unknown"]
+    },
+    "reportedSymptoms": {
+      "description": "Fact intake.reportedSymptoms (optional). The problems the operator reports, each picking a triage flow (avd-assess methods/diagnostics.md); none or unknown stand alone.",
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "enum": ["no-resources", "sign-in-fails", "cannot-connect", "disconnects", "slow-logon", "slow-session", "profile-failed", "host-unhealthy", "none", "unknown"] },
+      "anyOf": [
+        { "maxItems": 1 },
+        { "items": { "not": { "enum": ["none", "unknown"] } } }
+      ]
+    },
+    "appDelivery": {
+      "description": "Fact intake.appDelivery (optional). Every way apps reach the session hosts. host-deployment is software distribution to running hosts; app-layering is a third-party app layering or streaming product, as a category (avd-assess gaps/app-delivery-scope.md).",
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {"enum": ["image", "app-attach", "host-deployment", "app-layering", "user-installed", "undecided"]},
+      "if": {"contains": {"const": "undecided"}},
+      "then": {"maxItems": 1}
+    },
+    "appCompatibility": {
+      "description": "Fact intake.appCompatibility (optional). Whether the estate's apps are known to run on multi-session hosts.",
+      "enum": ["all-tested", "some-untested", "known-blockers", "unknown"]
+    },
+    "profileSolution": {
+      "description": "Fact intake.profileSolution (optional). What carries the user profile between sessions; other-profile-product is a third-party profile management product, as a category.",
+      "enum": ["fslogix", "other-profile-product", "local-only", "undecided"]
+    },
+    "hostAgents": {
+      "description": "Fact intake.hostAgents (optional). The security agent categories on session hosts, never product names (avd-assess gaps/security-agents-scope.md); Microsoft's own antivirus and EDR are named because the published guidance is theirs. none or unknown stand alone.",
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {"enum": ["defender-antivirus", "defender-endpoint", "third-party-antivirus", "third-party-edr", "sse-ztna-client", "vpn-client", "web-proxy", "dlp-agent", "none", "unknown"]},
+      "anyOf": [
+        { "maxItems": 1 },
+        { "items": { "not": { "enum": ["none", "unknown"] } } }
+      ]
+    },
+    "clientAgents": {
+      "description": "Fact intake.clientAgents (optional). What sits in the path on the devices users connect from, as categories (avd-assess gaps/security-agents-scope.md); none or unknown stand alone.",
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {"enum": ["sse-ztna-client", "vpn-full-tunnel", "vpn-split-tunnel", "web-proxy", "tls-inspection", "none", "unknown"]},
+      "anyOf": [
+        { "maxItems": 1 },
+        { "items": { "not": { "enum": ["none", "unknown"] } } }
+      ]
+    },
+    "agentRdpBypass": {
+      "description": "Fact intake.agentRdpBypass (optional). Whether RDP traffic is split out of tunnels, proxies and inspection on the user devices, the session hosts, both or neither.",
+      "enum": ["both-sides", "client-only", "host-only", "neither", "no-agents", "unknown"]
+    },
+    "extensions": {
+      "type": "object",
+      "description": "Optional, for upper layers only, keyed by namespace (contracts/README.md rule 1). A foundation reader ignores it.",
+      "propertyNames": { "pattern": "^[a-z][a-z0-9-]{1,30}$" }
     }
   }
 }
