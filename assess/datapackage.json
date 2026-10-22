@@ -1,0 +1,912 @@
+{
+  "$schema": "https://datapackage.org/profiles/2.0/datapackage.json",
+  "name": "avd-assess",
+  "title": "avd-assess: the AVD assessment map",
+  "version": "1.0.0",
+  "created": "2026-10-21T19:36:39-05:00",
+  "homepage": "https://github.com/avd-ops/avd-assess",
+  "description": "Personal project, not for production, as is; not affiliated with the author's employer, Liquidware or Microsoft.",
+  "licenses": [
+    {
+      "name": "MIT",
+      "path": "LICENSE"
+    }
+  ],
+  "sources": [
+    {
+      "title": "Microsoft Learn and the other pinned references in index.json, linked, never copied",
+      "path": "NOTICE"
+    }
+  ],
+  "avdAssess": {
+    "commit": "052c6ea36250ecc8624d258de360fe4072729683",
+    "tag": "v1.0.0",
+    "profile": "avd-assess-bundle/v1"
+  },
+  "resources": [
+    {
+      "name": "license",
+      "path": "LICENSE",
+      "format": "txt",
+      "mediatype": "text/plain",
+      "bytes": 1070,
+      "hash": "sha256:b0f694e11f776f555dbddc0de5d67a31185590ddc7facac07c71e4a2739672ec"
+    },
+    {
+      "name": "notice",
+      "path": "NOTICE",
+      "format": "txt",
+      "mediatype": "text/plain",
+      "bytes": 1323,
+      "hash": "sha256:c077e3840eed8b8fb068fd51df85ad080d6da0b51524761c2dfa2dba1e63c7d7"
+    },
+    {
+      "name": "readme-md",
+      "path": "README.md",
+      "format": "md",
+      "mediatype": "text/markdown",
+      "bytes": 13078,
+      "hash": "sha256:694f4c20a1d0d9dee9fd1e1b96c24a3d6bb93343c8e4ab5929f9628897b93a6e"
+    },
+    {
+      "name": "contracts-readme-md",
+      "path": "contracts/README.md",
+      "format": "md",
+      "mediatype": "text/markdown",
+      "bytes": 5429,
+      "hash": "sha256:a8eb2ba91eb0693b1ee26d93984493f4eef82cf5e379eceea63b4a0548c621da"
+    },
+    {
+      "name": "example-assess-assessment",
+      "path": "contracts/examples/assess/assessment.example.json",
+      "format": "json",
+      "mediatype": "application/json",
+      "bytes": 2224,
+      "hash": "sha256:5eacd525c2021d5aa501bbbc6adb75e77c476f31a0deed95bd313898f8b8399a",
+      "schemaString": "avd-assessment/v1",
+      "jsonSchema": "contracts/schemas/assessment.schema.json"
+    },
+    {
+      "name": "example-assess-endpoints",
+      "path": "contracts/examples/assess/endpoints.example.json",
+      "format": "json",
+      "mediatype": "application/json",
+      "bytes": 4643,
+      "hash": "sha256:3990f1e522bd720d0db65c2ed2aff186dd16396a8e98b794f07e6e80040b83f9",
+      "schemaString": "avd-assess-endpoints/v1",
+      "jsonSchema": "contracts/schemas/assess-endpoints.schema.json"
+    },
+    {
+      "name": "example-assess-index",
+      "path": "contracts/examples/assess/index.example.json",
+      "format": "json",
+      "mediatype": "application/json",
+      "bytes": 5904,
+      "hash": "sha256:2aaa2c023f82b64f90f5161a40e09e220012a041f5f4daa82eaa347a285f59f5",
+      "schemaString": "avd-assess-index/v1",
+      "jsonSchema": "contracts/schemas/assess-index.schema.json"
+    },
+    {
+      "name": "example-assess-intake",
+      "path": "contracts/examples/assess/intake.example.json",
+      "format": "json",
+      "mediatype": "application/json",
+      "bytes": 526,
+      "hash": "sha256:ca9695d3b749a470a483667bb7469aeaa7afa0f948f74e668adbf458dc5da01b",
+      "schemaString": "avd-intake/v1",
+      "jsonSchema": "contracts/schemas/intake.schema.json"
+    },
+    {
+      "name": "example-assess-map",
+      "path": "contracts/examples/assess/map.example.json",
+      "format": "json",
+      "mediatype": "application/json",
+      "bytes": 3976,
+      "hash": "sha256:50a8616f5a2f8105e721afcb901685ecaadf8e092d2498b3eb6433726d99c593",
+      "schemaString": "avd-assess-map/v1",
+      "jsonSchema": "contracts/schemas/assess-map.schema.json"
+    },
+    {
+      "name": "example-assess-method",
+      "path": "contracts/examples/assess/method.example.json",
+      "format": "json",
+      "mediatype": "application/json",
+      "bytes": 3963,
+      "hash": "sha256:027e59873233093e410679dea1cdbbe50650bbf81310dfd81b14b5776647079c",
+      "schemaString": "avd-assess-method/v1",
+      "jsonSchema": "contracts/schemas/assess-method.schema.json"
+    },
+    {
+      "name": "example-assess-plan",
+      "path": "contracts/examples/assess/plan.example.json",
+      "format": "json",
+      "mediatype": "application/json",
+      "bytes": 1622,
+      "hash": "sha256:572c2aecdb516e30dd3c652f7114463b4f07651aa3c742dbcd1b461b9b076525",
+      "schemaString": "avd-remediation-plan/v1",
+      "jsonSchema": "contracts/schemas/remediation-plan.schema.json"
+    },
+    {
+      "name": "example-assess-review",
+      "path": "contracts/examples/assess/review.example.json",
+      "format": "json",
+      "mediatype": "application/json",
+      "bytes": 532,
+      "hash": "sha256:e8fa0dba9f45a9b2ff4dee4fc3092eb82829ae6859a437df4a075af2bc20bece",
+      "schemaString": "avd-assessment-review/v1",
+      "jsonSchema": "contracts/schemas/assessment-review.schema.json"
+    },
+    {
+      "name": "example-run-record-cost",
+      "path": "contracts/examples/run-record/cost.example.json",
+      "format": "json",
+      "mediatype": "application/json",
+      "bytes": 1174,
+      "hash": "sha256:a459dcea4ac71e982208e08c55a8bcd8331d5d1908fbf151d0ef24fec803c691",
+      "schemaString": "avd-run-cost/v1",
+      "jsonSchema": "contracts/schemas/run-cost.schema.json"
+    },
+    {
+      "name": "example-run-record-journal",
+      "path": "contracts/examples/run-record/journal.example.jsonl",
+      "format": "jsonl",
+      "mediatype": "application/jsonl",
+      "bytes": 1394,
+      "hash": "sha256:426c82a90e99d43235dd1c42bb14e9643d1772c0459b9388f0860fe050435902",
+      "jsonSchema": "contracts/schemas/run-journal.schema.json"
+    },
+    {
+      "name": "example-run-record-run",
+      "path": "contracts/examples/run-record/run.example.json",
+      "format": "json",
+      "mediatype": "application/json",
+      "bytes": 1798,
+      "hash": "sha256:8cf91d7332883a6733bcedcbab72b347e51bd0917402f86fe68bc7244244bebe",
+      "schemaString": "avd-run-record/v1",
+      "jsonSchema": "contracts/schemas/run-record.schema.json"
+    },
+    {
+      "name": "fact-register",
+      "path": "contracts/fact-register.json",
+      "format": "json",
+      "mediatype": "application/json",
+      "bytes": 62361,
+      "hash": "sha256:2ea4516b0d837d540f418bb85ceedfef34d0896849e9b6cd565788b7ebfade57",
+      "schemaString": "avd-fact-register/v1",
+      "jsonSchema": "contracts/schemas/fact-register.schema.json",
+      "idPaths": [
+        "/facts/*/id",
+        "/decisions/*/id"
+      ]
+    },
+    {
+      "name": "run-use-cases",
+      "path": "contracts/run-use-cases.json",
+      "format": "json",
+      "mediatype": "application/json",
+      "bytes": 1319,
+      "hash": "sha256:e9d981d5584df77d3d806dcb248b0a1159c250af8a349a081288ad0e29ac6714",
+      "schemaString": "avd-run-use-cases/v1",
+      "idPaths": [
+        "/useCases/*/id"
+      ]
+    },
+    {
+      "name": "schema-assess-bundle",
+      "path": "contracts/schemas/assess-bundle.schema.json",
+      "format": "json",
+      "mediatype": "application/json",
+      "bytes": 3546,
+      "hash": "sha256:cdf90863209b5ff29ba0127f1d1d1a2bb3b95a8cd3116158cf47d62b70b8eb86"
+    },
+    {
+      "name": "schema-assess-endpoints",
+      "path": "contracts/schemas/assess-endpoints.schema.json",
+      "format": "json",
+      "mediatype": "application/json",
+      "bytes": 8678,
+      "hash": "sha256:7de7b97fdf1bf0734dbf83929f40a2f60ae7861b5ca1eb4c71245a6e7d21170c"
+    },
+    {
+      "name": "schema-assess-index",
+      "path": "contracts/schemas/assess-index.schema.json",
+      "format": "json",
+      "mediatype": "application/json",
+      "bytes": 7561,
+      "hash": "sha256:4e5243ba2c9ae4751485fbcb99b64781d7284c08b1f280f47b3b70603da17912"
+    },
+    {
+      "name": "schema-assess-map",
+      "path": "contracts/schemas/assess-map.schema.json",
+      "format": "json",
+      "mediatype": "application/json",
+      "bytes": 5498,
+      "hash": "sha256:d85318e0fb68a0699b56a90baef3e4ba81a8681f77e4f4e71de68780b1f02166"
+    },
+    {
+      "name": "schema-assess-method",
+      "path": "contracts/schemas/assess-method.schema.json",
+      "format": "json",
+      "mediatype": "application/json",
+      "bytes": 9802,
+      "hash": "sha256:634ccfb59179e0b193c1c2bef036fd6d6959a89fd70d9adb912f3252039c973b"
+    },
+    {
+      "name": "schema-assess-security-review",
+      "path": "contracts/schemas/assess-security-review.schema.json",
+      "format": "json",
+      "mediatype": "application/json",
+      "bytes": 6813,
+      "hash": "sha256:af7ea452477904d7cab739806f3ae7bb1f5271ddcdb08f897e4c6c7ad4f6d654"
+    },
+    {
+      "name": "schema-assessment-review",
+      "path": "contracts/schemas/assessment-review.schema.json",
+      "format": "json",
+      "mediatype": "application/json",
+      "bytes": 3856,
+      "hash": "sha256:9a73626621afecff3fe95ac9f84158c4d912cbf744ea51e181e04c5cfac949de"
+    },
+    {
+      "name": "schema-assessment",
+      "path": "contracts/schemas/assessment.schema.json",
+      "format": "json",
+      "mediatype": "application/json",
+      "bytes": 5696,
+      "hash": "sha256:656912465d1608351ce9723c70525822b4c6c838e88c9411810cde214e90300f"
+    },
+    {
+      "name": "schema-current-state-facts",
+      "path": "contracts/schemas/current-state-facts.schema.json",
+      "format": "json",
+      "mediatype": "application/json",
+      "bytes": 14392,
+      "hash": "sha256:746fb4bc4d50673bacf9ef83e62fa3cce9fc0bb83fecfe693c82642cf08047d5"
+    },
+    {
+      "name": "schema-fact-register",
+      "path": "contracts/schemas/fact-register.schema.json",
+      "format": "json",
+      "mediatype": "application/json",
+      "bytes": 5424,
+      "hash": "sha256:9d1174812123da87439595bb5f3727758655a89d1cf2ad4d9553861c4b328eb5"
+    },
+    {
+      "name": "schema-intake",
+      "path": "contracts/schemas/intake.schema.json",
+      "format": "json",
+      "mediatype": "application/json",
+      "bytes": 7493,
+      "hash": "sha256:711a6b4aed23c45d39be5d22d4d4d3702679ff29d576f93f2e1606d0f9152f76"
+    },
+    {
+      "name": "schema-remediation-plan",
+      "path": "contracts/schemas/remediation-plan.schema.json",
+      "format": "json",
+      "mediatype": "application/json",
+      "bytes": 5638,
+      "hash": "sha256:60ad3d0dc2f20e98762ba4298957fa299f02d2d64cad91be5e35dc9dd070c50a"
+    },
+    {
+      "name": "schema-run-cost",
+      "path": "contracts/schemas/run-cost.schema.json",
+      "format": "json",
+      "mediatype": "application/json",
+      "bytes": 3998,
+      "hash": "sha256:0dcbc29ad6e91371fe203628f2768f88138a5f5d48a27c0c170850389cc69f7d"
+    },
+    {
+      "name": "schema-run-journal",
+      "path": "contracts/schemas/run-journal.schema.json",
+      "format": "json",
+      "mediatype": "application/json",
+      "bytes": 3308,
+      "hash": "sha256:08108ab95806e1cba0090d256dbd5e7128b0c68c4cd126f8553cfdd2221860b6"
+    },
+    {
+      "name": "schema-run-record",
+      "path": "contracts/schemas/run-record.schema.json",
+      "format": "json",
+      "mediatype": "application/json",
+      "bytes": 5016,
+      "hash": "sha256:8f9d0b26c4813c9db9c1dd420330c100ed087313e5d11d32a88181c884f2ffd9"
+    },
+    {
+      "name": "endpoints",
+      "path": "endpoints.json",
+      "format": "json",
+      "mediatype": "application/json",
+      "bytes": 28449,
+      "hash": "sha256:eb8a1aed7f3c285006c05164825bbfc061c2a3fc94a58f1a68d8c6098f699472",
+      "schemaString": "avd-assess-endpoints/v1",
+      "jsonSchema": "contracts/schemas/assess-endpoints.schema.json",
+      "idPaths": [
+        "/lists/*/id",
+        "/endpoints/*/id"
+      ]
+    },
+    {
+      "name": "schema-evidence",
+      "path": "evidence/schema.json",
+      "format": "json",
+      "mediatype": "application/json",
+      "bytes": 6050,
+      "hash": "sha256:e44e1f4c836cb1fa2df354f89700fea905ed18ecd51b17d0dd4982f70596c76a"
+    },
+    {
+      "name": "gap-readme",
+      "path": "gaps/README.md",
+      "format": "md",
+      "mediatype": "text/markdown",
+      "bytes": 5932,
+      "hash": "sha256:95a9b7ef08e21e462358f3f0b47b61bfb18f608baf85497848685539cde0fc92"
+    },
+    {
+      "name": "gap-app-delivery-scope",
+      "path": "gaps/app-delivery-scope.md",
+      "format": "md",
+      "mediatype": "text/markdown",
+      "bytes": 6142,
+      "hash": "sha256:c441ab3aee18b32ed7c15ae875f26161857bb4f1794f2c1f79fdc752eec3a1ee"
+    },
+    {
+      "name": "gap-baseline-profile",
+      "path": "gaps/baseline-profile.md",
+      "format": "md",
+      "mediatype": "text/markdown",
+      "bytes": 4236,
+      "hash": "sha256:d0dd3145da19c8b29916664c92027fca91e5e890b183bd0c4bcacbb39121d104"
+    },
+    {
+      "name": "gap-checklist-mapping",
+      "path": "gaps/checklist-mapping.md",
+      "format": "md",
+      "mediatype": "text/markdown",
+      "bytes": 9330,
+      "hash": "sha256:a0cd6096f1fb17d7aaea2052b0dd295ee672ed81096789572b0bd790a72b4f9b"
+    },
+    {
+      "name": "gap-client-network",
+      "path": "gaps/client-network.md",
+      "format": "md",
+      "mediatype": "text/markdown",
+      "bytes": 3022,
+      "hash": "sha256:f785f7b5171831c55439cd98ee4633a5ef12278afe1488c413f7601d6cc6db11"
+    },
+    {
+      "name": "gap-collection-map",
+      "path": "gaps/collection-map.md",
+      "format": "md",
+      "mediatype": "text/markdown",
+      "bytes": 4207,
+      "hash": "sha256:4971b7c78162178cc22d8ca0385ddf26274c4664d52854b1a68cf2c1a4e28d1d"
+    },
+    {
+      "name": "gap-commitment-floor",
+      "path": "gaps/commitment-floor.md",
+      "format": "md",
+      "mediatype": "text/markdown",
+      "bytes": 2726,
+      "hash": "sha256:ebe1fecec4219062b79ccb6d1e032cefb5847a2126e24d992a7f2a5f61ffbf10"
+    },
+    {
+      "name": "gap-decision-readiness",
+      "path": "gaps/decision-readiness.md",
+      "format": "md",
+      "mediatype": "text/markdown",
+      "bytes": 1622,
+      "hash": "sha256:9b2d0f0971c3c49eaf944d72b64c174ab3ed5955ddb08c83fa68282e6f05b780"
+    },
+    {
+      "name": "gap-deployment-dimensions",
+      "path": "gaps/deployment-dimensions.md",
+      "format": "md",
+      "mediatype": "text/markdown",
+      "bytes": 3153,
+      "hash": "sha256:c8b93ee3a1f581db8948d4acf7104474775701d73097cbb1cb63ee98849bd7c2"
+    },
+    {
+      "name": "gap-diagnostics-scope",
+      "path": "gaps/diagnostics-scope.md",
+      "format": "md",
+      "mediatype": "text/markdown",
+      "bytes": 10314,
+      "hash": "sha256:cbb63ea10ee3207d57cf2bc0722f88d7cabf74d1b4c9532d9a6e59e0889424f2"
+    },
+    {
+      "name": "gap-discovery",
+      "path": "gaps/discovery.md",
+      "format": "md",
+      "mediatype": "text/markdown",
+      "bytes": 5391,
+      "hash": "sha256:4aea75fb1f0ba236b7d975f6d8bdc2850adabaffa042eeaec1b5bec2da572dd2"
+    },
+    {
+      "name": "gap-endpoint-map",
+      "path": "gaps/endpoint-map.md",
+      "format": "md",
+      "mediatype": "text/markdown",
+      "bytes": 5374,
+      "hash": "sha256:e910a8592a6e9ac57addf50b6172b01ac061b3d0e49dc56d3cc47b0e0b73f294"
+    },
+    {
+      "name": "gap-endpoints-scope",
+      "path": "gaps/endpoints-scope.md",
+      "format": "md",
+      "mediatype": "text/markdown",
+      "bytes": 6647,
+      "hash": "sha256:d086e679ca211eae519446395053916c70aac54d7226a88eec4cf2e2c650666a"
+    },
+    {
+      "name": "gap-error-code-map",
+      "path": "gaps/error-code-map.md",
+      "format": "md",
+      "mediatype": "text/markdown",
+      "bytes": 5571,
+      "hash": "sha256:ad4e76449ff4632bdceb6942e4ee81ca166c05e32e504faa494d003f7c605a54"
+    },
+    {
+      "name": "gap-evidence-intake",
+      "path": "gaps/evidence-intake.md",
+      "format": "md",
+      "mediatype": "text/markdown",
+      "bytes": 4078,
+      "hash": "sha256:e813881e0b7e124a398d4ca52ece0a1fce0345408a82d7a70d6d584c4f6e98de"
+    },
+    {
+      "name": "gap-finops-scope",
+      "path": "gaps/finops-scope.md",
+      "format": "md",
+      "mediatype": "text/markdown",
+      "bytes": 8058,
+      "hash": "sha256:2160b6dd53bee704e8e4cd3795d8a724ba3e9beb3fd64dbcb9dc1ec2d59f5430"
+    },
+    {
+      "name": "gap-gold-standards",
+      "path": "gaps/gold-standards.md",
+      "format": "md",
+      "mediatype": "text/markdown",
+      "bytes": 2494,
+      "hash": "sha256:3e5bf409b3a7ebfed789ac42e2db7ca397ed04132954a636ce4c0874c51269be"
+    },
+    {
+      "name": "gap-governance-scope",
+      "path": "gaps/governance-scope.md",
+      "format": "md",
+      "mediatype": "text/markdown",
+      "bytes": 6544,
+      "hash": "sha256:9c215e09f773bca41dd390c3f6a7e3dfb290744499bb3f3b8644b8934462e164"
+    },
+    {
+      "name": "gap-host-baseline-profile",
+      "path": "gaps/host-baseline-profile.md",
+      "format": "md",
+      "mediatype": "text/markdown",
+      "bytes": 1691,
+      "hash": "sha256:94721711ab1b19981e66da4ffc231bf881f8bd0912ec49f50c5022ecabfccef4"
+    },
+    {
+      "name": "gap-identity-scope",
+      "path": "gaps/identity-scope.md",
+      "format": "md",
+      "mediatype": "text/markdown",
+      "bytes": 5641,
+      "hash": "sha256:ef48341ee36a5d66ccdee7b032300f49363a607fb8aa704e585897c3c75543c5"
+    },
+    {
+      "name": "gap-insights-facts",
+      "path": "gaps/insights-facts.md",
+      "format": "md",
+      "mediatype": "text/markdown",
+      "bytes": 4477,
+      "hash": "sha256:72c7ab0bfca5ff3e5ae470e28a63f1ce5e214fa633ed2f0b4438702fa0a2a14a"
+    },
+    {
+      "name": "gap-intake",
+      "path": "gaps/intake.md",
+      "format": "md",
+      "mediatype": "text/markdown",
+      "bytes": 9452,
+      "hash": "sha256:4f7ca725c98dc10e82cbba8fb0d56ba48b91f12e0dde761c4422638eb2aa0fda"
+    },
+    {
+      "name": "gap-intune-scope",
+      "path": "gaps/intune-scope.md",
+      "format": "md",
+      "mediatype": "text/markdown",
+      "bytes": 10009,
+      "hash": "sha256:99ff1622b1c60fe52e15d2646acd89e8a48a79732d47fe8197f9b7aaaf8cf620"
+    },
+    {
+      "name": "gap-logon-target",
+      "path": "gaps/logon-target.md",
+      "format": "md",
+      "mediatype": "text/markdown",
+      "bytes": 876,
+      "hash": "sha256:3f4c47803d5d96bc53825b40cd1d1fa753175f86c6dd61a38a1274589f0e9ff6"
+    },
+    {
+      "name": "gap-monitoring-scope",
+      "path": "gaps/monitoring-scope.md",
+      "format": "md",
+      "mediatype": "text/markdown",
+      "bytes": 11984,
+      "hash": "sha256:791179bd47268a4fd35c85fa89fb13acc3e06bdbbf8c78f4778d4c2bd6abd46d"
+    },
+    {
+      "name": "gap-network-scope",
+      "path": "gaps/network-scope.md",
+      "format": "md",
+      "mediatype": "text/markdown",
+      "bytes": 6475,
+      "hash": "sha256:a22d4f83816ee958d464e4d5fd79231e7b9ac2f0e2657a2e893fa8f89ab6ae7b"
+    },
+    {
+      "name": "gap-reliability-scope",
+      "path": "gaps/reliability-scope.md",
+      "format": "md",
+      "mediatype": "text/markdown",
+      "bytes": 9003,
+      "hash": "sha256:8cc10ff4b20100dfda549eecaeb1329d1668f0cd564985e907012e426c740472"
+    },
+    {
+      "name": "gap-remediation-plan",
+      "path": "gaps/remediation-plan.md",
+      "format": "md",
+      "mediatype": "text/markdown",
+      "bytes": 6475,
+      "hash": "sha256:a0579d13066c9274d92abd419df0d7c50b6d6f870d744f947ce2ac66bfdf7838"
+    },
+    {
+      "name": "gap-remote-protocols-scope",
+      "path": "gaps/remote-protocols-scope.md",
+      "format": "md",
+      "mediatype": "text/markdown",
+      "bytes": 4735,
+      "hash": "sha256:e6e5cbb43f23bb3a4ce451c41546ef53e378368ded56d22225daa53df65bcd4e"
+    },
+    {
+      "name": "gap-sample-check",
+      "path": "gaps/sample-check.md",
+      "format": "md",
+      "mediatype": "text/markdown",
+      "bytes": 3586,
+      "hash": "sha256:a86696b67a7a34c966f754a23f9c3d4015909de65cf376692b2c029d412d1e66"
+    },
+    {
+      "name": "gap-scoring",
+      "path": "gaps/scoring.md",
+      "format": "md",
+      "mediatype": "text/markdown",
+      "bytes": 1142,
+      "hash": "sha256:9bddb676d7aede8c50d83d169096f1a0a76851f941d929fbce24a000b34e0b9f"
+    },
+    {
+      "name": "gap-security-agents-scope",
+      "path": "gaps/security-agents-scope.md",
+      "format": "md",
+      "mediatype": "text/markdown",
+      "bytes": 7648,
+      "hash": "sha256:2da3b7c29d12d20ad5fa223c853b46cff605cbf4bea8f26fae00706e3b1e7fa7"
+    },
+    {
+      "name": "gap-security-scope",
+      "path": "gaps/security-scope.md",
+      "format": "md",
+      "mediatype": "text/markdown",
+      "bytes": 3097,
+      "hash": "sha256:894bb125931a330ec78cb505dd4ac03ecf6823e50ffdc1733c79c7060f74e6e9"
+    },
+    {
+      "name": "gap-transport-classification",
+      "path": "gaps/transport-classification.md",
+      "format": "md",
+      "mediatype": "text/markdown",
+      "bytes": 3351,
+      "hash": "sha256:4f736bf09ef6728d1aa43fde3a65de343458ddf63c7bce66668335842c4cdd7d"
+    },
+    {
+      "name": "gap-triage-cannot-connect",
+      "path": "gaps/triage-cannot-connect.md",
+      "format": "md",
+      "mediatype": "text/markdown",
+      "bytes": 3471,
+      "hash": "sha256:5b1106803d0aab2a3233e0b7965fc674f5c06a1dc8c98d5bf9136fb77cbb9339"
+    },
+    {
+      "name": "gap-triage-host-unhealthy",
+      "path": "gaps/triage-host-unhealthy.md",
+      "format": "md",
+      "mediatype": "text/markdown",
+      "bytes": 3215,
+      "hash": "sha256:541a7a2eee83d76cdc62952cd09138b6ed1291bd31b56bcb1f00eaaeac7388b1"
+    },
+    {
+      "name": "gap-triage-profile-failed",
+      "path": "gaps/triage-profile-failed.md",
+      "format": "md",
+      "mediatype": "text/markdown",
+      "bytes": 1959,
+      "hash": "sha256:862c3476e9a639b9b8f2bdf9ee6b13dd0c9a2ceeacec99aeaf3522745d50fc7f"
+    },
+    {
+      "name": "gap-triage-slow-logon",
+      "path": "gaps/triage-slow-logon.md",
+      "format": "md",
+      "mediatype": "text/markdown",
+      "bytes": 2248,
+      "hash": "sha256:1e1b3d2e84cff067fce3d758741bbdda33db3778ec4a459e61c70244735dac67"
+    },
+    {
+      "name": "gap-triage-slow-session",
+      "path": "gaps/triage-slow-session.md",
+      "format": "md",
+      "mediatype": "text/markdown",
+      "bytes": 2443,
+      "hash": "sha256:f440cf47fc99751b03c71d88e32a78ba390493fb662a50888fb897df9f3d8cc9"
+    },
+    {
+      "name": "gap-tune-loop",
+      "path": "gaps/tune-loop.md",
+      "format": "md",
+      "mediatype": "text/markdown",
+      "bytes": 7716,
+      "hash": "sha256:3a378071ada62e829f02c3ca9c907fd6adead84f9215c95fd3fe8f0d546757b3"
+    },
+    {
+      "name": "gap-use-case-library",
+      "path": "gaps/use-case-library.md",
+      "format": "md",
+      "mediatype": "text/markdown",
+      "bytes": 5875,
+      "hash": "sha256:3b1bb133b2e5082bbd54f5f195d43ddfac90bae420a8b3611ee999f61128ac86"
+    },
+    {
+      "name": "gap-use-cases",
+      "path": "gaps/use-cases.md",
+      "format": "md",
+      "mediatype": "text/markdown",
+      "bytes": 8133,
+      "hash": "sha256:c344e61cbf6f979fc9f7ce3b408d42d47d3895ef9268d9ba0fbcec96f9b25e8e"
+    },
+    {
+      "name": "gap-workload-benchmark",
+      "path": "gaps/workload-benchmark.md",
+      "format": "md",
+      "mediatype": "text/markdown",
+      "bytes": 3394,
+      "hash": "sha256:10d89825813637c52ea176eaa577b343f8cbb7d8c3ed9512b9214a629ad2fcaf"
+    },
+    {
+      "name": "index",
+      "path": "index.json",
+      "format": "json",
+      "mediatype": "application/json",
+      "bytes": 416653,
+      "hash": "sha256:c3f347094b25673b1a5379d7083a15c0dfcc220c6edb6fdbc0d3b1d545130c98",
+      "schemaString": "avd-assess-index/v1",
+      "jsonSchema": "contracts/schemas/assess-index.schema.json",
+      "idPaths": [
+        "/references/*/id",
+        "/references/*/claims/*/id",
+        "/observations/*/id",
+        "/gaps/*/id"
+      ]
+    },
+    {
+      "name": "map",
+      "path": "map.json",
+      "format": "json",
+      "mediatype": "application/json",
+      "bytes": 257996,
+      "hash": "sha256:0b1cd3b68afa25a338dfde75affe41c78a49b234b6762e2a0298c82bdbec9dcd",
+      "schemaString": "avd-assess-map/v1",
+      "jsonSchema": "contracts/schemas/assess-map.schema.json",
+      "idPaths": [
+        "/pillars/*/id",
+        "/dimensions/*/id",
+        "/baselines/window/*/id",
+        "/baselines/classes/*/id",
+        "/useCases/*/id"
+      ]
+    },
+    {
+      "name": "method",
+      "path": "method.json",
+      "format": "json",
+      "mediatype": "application/json",
+      "bytes": 26647,
+      "hash": "sha256:995318b0ce9907dc04f23abdbbaa83ada3ff94bb333f1744a269cb2cbb355d76",
+      "schemaString": "avd-assess-method/v1",
+      "jsonSchema": "contracts/schemas/assess-method.schema.json",
+      "idPaths": [
+        "/checks/*/id"
+      ]
+    },
+    {
+      "name": "method-assessment",
+      "path": "methods/assessment.md",
+      "format": "md",
+      "mediatype": "text/markdown",
+      "bytes": 3607,
+      "hash": "sha256:b773beb8f5e18b2c62d9fe4061f7534ac00b138f021b584a987b4538b5d1b7e9"
+    },
+    {
+      "name": "method-baseline-profile",
+      "path": "methods/baseline-profile.md",
+      "format": "md",
+      "mediatype": "text/markdown",
+      "bytes": 4090,
+      "hash": "sha256:1a094f67e91752d94deea1b7b3ebf5fede4652fb4f1999588914e7e984bbccfe"
+    },
+    {
+      "name": "method-collection",
+      "path": "methods/collection.md",
+      "format": "md",
+      "mediatype": "text/markdown",
+      "bytes": 3383,
+      "hash": "sha256:870686f9687e3f3c9a8bcd9bf51f2859d5e7bfa79d1dd136c7dbf14d9a69466f"
+    },
+    {
+      "name": "method-diagnostics",
+      "path": "methods/diagnostics.md",
+      "format": "md",
+      "mediatype": "text/markdown",
+      "bytes": 3943,
+      "hash": "sha256:34f3fdefa2c39b51b164c6f2a63ff3405e50ede0ae037bc2d34c4ba1cf60db5b"
+    },
+    {
+      "name": "method-finops",
+      "path": "methods/finops.md",
+      "format": "md",
+      "mediatype": "text/markdown",
+      "bytes": 5328,
+      "hash": "sha256:2343d45c918782eec403d26963f84365e58f61d71fa95dfc11e9e651faade45a"
+    },
+    {
+      "name": "method-intune",
+      "path": "methods/intune.md",
+      "format": "md",
+      "mediatype": "text/markdown",
+      "bytes": 5267,
+      "hash": "sha256:8d7a3a25af3bfc1376c1c11fcfccba0c32501c66883d237cfa3dc8d7859ce288"
+    },
+    {
+      "name": "method-network",
+      "path": "methods/network.md",
+      "format": "md",
+      "mediatype": "text/markdown",
+      "bytes": 7756,
+      "hash": "sha256:7c1f5d8551b57900c69137fe4c9bbddf343122375838bdd76b694816087a69fa"
+    },
+    {
+      "name": "method-reliability",
+      "path": "methods/reliability.md",
+      "format": "md",
+      "mediatype": "text/markdown",
+      "bytes": 7258,
+      "hash": "sha256:7c5a09bc127e02a81db8b953d84b29b01bdde4319a20f8fc78a9b5af8ee08df4"
+    },
+    {
+      "name": "method-remediation",
+      "path": "methods/remediation.md",
+      "format": "md",
+      "mediatype": "text/markdown",
+      "bytes": 3349,
+      "hash": "sha256:83aae3314a4fc115418ebbb2c4fce473334cf238c4bf541a0d6c5fa6a20f3ea6"
+    },
+    {
+      "name": "method-remote-protocols",
+      "path": "methods/remote-protocols.md",
+      "format": "md",
+      "mediatype": "text/markdown",
+      "bytes": 5995,
+      "hash": "sha256:2065586d869bd2994b98e0dbc2360b2c0fe6989a010e221971752aea87f6ed92"
+    },
+    {
+      "name": "method-sample-check",
+      "path": "methods/sample-check.md",
+      "format": "md",
+      "mediatype": "text/markdown",
+      "bytes": 2899,
+      "hash": "sha256:88c092001ad905b887b3b9b65396e5b9ff0a51cd2d14d3c67ab749c6f7983905"
+    },
+    {
+      "name": "method-scoring",
+      "path": "methods/scoring.md",
+      "format": "md",
+      "mediatype": "text/markdown",
+      "bytes": 1333,
+      "hash": "sha256:09590ca302fb0c3e37f203d9b2d902eae1e4d1fc57b87a9efbd97c4efcbb7577"
+    },
+    {
+      "name": "method-security",
+      "path": "methods/security.md",
+      "format": "md",
+      "mediatype": "text/markdown",
+      "bytes": 5537,
+      "hash": "sha256:678f9d75320ec6e8638726d8fd314f4361929d2214c9f09d5598e0e7be745029"
+    },
+    {
+      "name": "method-targets-benchmarks",
+      "path": "methods/targets-benchmarks.md",
+      "format": "md",
+      "mediatype": "text/markdown",
+      "bytes": 2791,
+      "hash": "sha256:fa7ba2223518eab75ce538bbd5b5d395267916d7d230d90d90e4d622283824cf"
+    },
+    {
+      "name": "method-tune-rightsize",
+      "path": "methods/tune-rightsize.md",
+      "format": "md",
+      "mediatype": "text/markdown",
+      "bytes": 4082,
+      "hash": "sha256:59050a05a974a7fa13d3a17ca184ec0bbcd9d2001df7feec32eacf926837ae07"
+    },
+    {
+      "name": "method-use-cases",
+      "path": "methods/use-cases.md",
+      "format": "md",
+      "mediatype": "text/markdown",
+      "bytes": 5098,
+      "hash": "sha256:5471933d810a933d5fccbf723c05b7480aaf50fbc30b3eb5fe475b567597d4f1"
+    },
+    {
+      "name": "security-review",
+      "path": "security-review.json",
+      "format": "json",
+      "mediatype": "application/json",
+      "bytes": 56428,
+      "hash": "sha256:5481d740eabb33078a028877aafc15d7cee3b4b6fc37f26ed65875a615a1e9a0",
+      "schemaString": "avd-assess-security-review/v1",
+      "jsonSchema": "contracts/schemas/assess-security-review.schema.json",
+      "idPaths": [
+        "/areas/*/id",
+        "/areas/*/claims/*/id",
+        "/operator/*/id",
+        "/checklist/*/id",
+        "/gaps/*/id"
+      ]
+    },
+    {
+      "name": "tests-public-ids-txt",
+      "path": "tests/public-ids.txt",
+      "format": "txt",
+      "mediatype": "text/plain",
+      "bytes": 397,
+      "hash": "sha256:9114de452f3c4bc58629ed2d41c6797d96d41050dad93f37a8d739965e32888e"
+    },
+    {
+      "name": "tests-public-ipv4-txt",
+      "path": "tests/public-ipv4.txt",
+      "format": "txt",
+      "mediatype": "text/plain",
+      "bytes": 202,
+      "hash": "sha256:862e88f7f00a2d76d7d838b721fe43cb9eae63c8c849152b78517208c23097cb"
+    },
+    {
+      "name": "tool-avdassessbundle-psm1",
+      "path": "tools/AvdAssessBundle.psm1",
+      "format": "psm1",
+      "mediatype": "text/plain",
+      "bytes": 16102,
+      "hash": "sha256:2e1b25892222dd9c5f55f7fcf4a2d0a541b2a61e1cb60f66f362b4431a7bfbf6"
+    },
+    {
+      "name": "tool-avd-assess-bundle-py",
+      "path": "tools/avd_assess_bundle.py",
+      "format": "py",
+      "mediatype": "text/x-python",
+      "bytes": 14451,
+      "hash": "sha256:6f6c0d46cf576298d8747d1b6c4aecc55c6353cf4ca30409fb30029e009d12f4"
+    },
+    {
+      "name": "tool-diff-bundle-py",
+      "path": "tools/diff_bundle.py",
+      "format": "py",
+      "mediatype": "text/x-python",
+      "bytes": 20055,
+      "hash": "sha256:e09587b9fab7a2e125712c6e6e387a07d8d94adf799bd7b081fcc1c42f1f813f"
+    }
+  ]
+}

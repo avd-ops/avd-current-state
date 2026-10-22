@@ -1,6 +1,6 @@
 {
   "schema": "avd-assess-method/v1",
-  "version": 3,
+  "version": 4,
   "factRegister": 1,
   "landingZoneCommit": "ae6e80b574cccde570d0053d4c62b519d31052a8",
   "collection": [
@@ -370,12 +370,90 @@
     },
     {
       "fact": "c11.policy.assignments",
-      "from": "resource-graph",
-      "table": "PolicyResources",
+      "from": "arm-rest",
       "type": "microsoft.authorization/policyassignments",
       "property": "id",
       "claims": [
-        "ref:resource-graph-tables#policy-table"
+        "ref:resource-graph-tables#policy-table",
+        "gap:collection-map"
+      ]
+    },
+    {
+      "fact": "c11.policy.doNotEnforce",
+      "from": "arm-rest",
+      "type": "microsoft.authorization/policyassignments",
+      "property": "properties.enforcementMode",
+      "claims": [
+        "ref:resource-graph-tables#policy-table",
+        "gap:collection-map",
+        "ref:policy-assignment-structure#do-not-enforce"
+      ]
+    },
+    {
+      "fact": "c11.roleAssignments.roles",
+      "from": "arm-rest",
+      "type": "microsoft.authorization/roleassignments",
+      "property": "properties.roleDefinitionId",
+      "claims": [
+        "ref:avd-rbac#scoped-roles",
+        "gap:collection-map"
+      ]
+    },
+    {
+      "fact": "c11.hostPool.sessionHosts.entraJoined",
+      "from": "resource-graph",
+      "table": "Resources",
+      "type": "microsoft.compute/virtualmachines/extensions",
+      "property": "properties.type",
+      "claims": [
+        "ref:avd-entra-joined-hosts#one-join-type-per-pool",
+        "gap:identity-scope",
+        "gap:collection-map"
+      ]
+    },
+    {
+      "fact": "c11.hostPool.sessionHosts.domainJoined",
+      "from": "resource-graph",
+      "table": "Resources",
+      "type": "microsoft.compute/virtualmachines/extensions",
+      "property": "properties.type",
+      "claims": [
+        "ref:avd-entra-joined-hosts#one-join-type-per-pool",
+        "gap:identity-scope",
+        "gap:collection-map"
+      ]
+    },
+    {
+      "fact": "c11.hostPool.entraSso",
+      "from": "resource-graph",
+      "table": "Resources",
+      "type": "microsoft.desktopvirtualization/hostpools",
+      "property": "properties.customRdpProperty",
+      "claims": [
+        "ref:avd-sso#host-pool-property",
+        "gap:collection-map"
+      ]
+    },
+    {
+      "fact": "c11.hostPool.directUserAssignments",
+      "from": "resource-graph",
+      "table": "AuthorizationResources",
+      "type": "microsoft.authorization/roleassignments",
+      "property": "properties.principalType",
+      "claims": [
+        "ref:avd-rbac#user-role",
+        "gap:identity-scope"
+      ]
+    },
+    {
+      "fact": "c11.subscription.privilegedAssignments",
+      "from": "resource-graph",
+      "table": "AuthorizationResources",
+      "type": "microsoft.authorization/roleassignments",
+      "property": "properties.roleDefinitionId",
+      "claims": [
+        "ref:avd-rbac#scoped-roles",
+        "gap:identity-scope"
       ]
     },
     {
@@ -427,6 +505,62 @@
       "claims": [
         "ref:review-checklists-avd#G04.01",
         "gap:intake"
+      ]
+    },
+    {
+      "fact": "intake.joinType",
+      "from": "intake",
+      "claims": [
+        "gap:intake",
+        "gap:identity-scope"
+      ]
+    },
+    {
+      "fact": "intake.userIdentitySource",
+      "from": "intake",
+      "claims": [
+        "gap:intake",
+        "gap:identity-scope"
+      ]
+    },
+    {
+      "fact": "intake.sso",
+      "from": "intake",
+      "claims": [
+        "gap:intake",
+        "gap:identity-scope"
+      ]
+    },
+    {
+      "fact": "intake.mfaScope",
+      "from": "intake",
+      "claims": [
+        "gap:intake",
+        "gap:identity-scope"
+      ]
+    },
+    {
+      "fact": "intake.clientDevices",
+      "from": "intake",
+      "claims": [
+        "gap:intake",
+        "gap:identity-scope"
+      ]
+    },
+    {
+      "fact": "intake.signInMethods",
+      "from": "intake",
+      "claims": [
+        "gap:intake",
+        "gap:identity-scope"
+      ]
+    },
+    {
+      "fact": "intake.externalUsers",
+      "from": "intake",
+      "claims": [
+        "gap:intake",
+        "gap:identity-scope"
       ]
     }
   ],
@@ -685,6 +819,60 @@
       "remediation": {
         "kind": "lz-setting",
         "name": "profile-storage-smb-gcm"
+      }
+    },
+    {
+      "id": "asm-policy-guardrails-assigned",
+      "title": "Subscriptions holding AVD have at least one Azure Policy assignment in scope",
+      "pillar": "operations",
+      "severity": "low",
+      "claims": [
+        "ref:mcsb-avd-baseline#AM-2"
+      ],
+      "facts": [
+        "c11.policy.assignments"
+      ],
+      "rule": {
+        "each": "/subscriptions/*",
+        "expect": {
+          "policy/assignments": {
+            "min": 1
+          }
+        },
+        "onFail": "warn"
+      },
+      "informs": [],
+      "remediation": {
+        "kind": "lz-parameter",
+        "name": "enablePolicyGuardrails",
+        "to": true
+      }
+    },
+    {
+      "id": "asm-policy-enforced",
+      "title": "No policy assignment in scope is left in DoNotEnforce mode",
+      "pillar": "operations",
+      "severity": "low",
+      "claims": [
+        "ref:policy-assignment-structure#do-not-enforce",
+        "ref:policy-assignment-structure#do-not-enforce-for-testing"
+      ],
+      "facts": [
+        "c11.policy.doNotEnforce"
+      ],
+      "rule": {
+        "each": "/subscriptions/*",
+        "expect": {
+          "policy/doNotEnforce": {
+            "max": 0
+          }
+        },
+        "onFail": "warn"
+      },
+      "informs": [],
+      "remediation": {
+        "kind": "manual",
+        "code": "process"
       }
     }
   ],

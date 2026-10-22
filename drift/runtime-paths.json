@@ -1,0 +1,32 @@
+{
+  "schema": "avd-current-state-drift-rules/v1",
+  "kind": "runtime-paths",
+  "description": "Properties that change at run time and are never drift (docs/drift-spec.md section 3.2 step 3). A changed property is set aside when a rule for its type covers it (the path or anything under it). A rule sets nothing aside until its exact digest is approved in the private drift-approvals.json.",
+  "rules": [
+    {
+      "id": "vm-power-state",
+      "why": "Start, stop and deallocate by autoscale, auto shutdown or Start VM on Connect.",
+      "types": ["microsoft.compute/virtualmachines"],
+      "properties": ["properties.extended.instanceView", "properties.instanceView"]
+    },
+    {
+      "id": "session-host-status",
+      "why": "Status, heartbeat, sessions, drain mode and agent versions the service updates on its own.",
+      "types": ["microsoft.desktopvirtualization/hostpools/sessionhosts"],
+      "properties": ["properties.status", "properties.lastHeartBeat", "properties.sessions", "properties.allowNewSession",
+        "properties.agentVersion", "properties.sxSStackVersion", "properties.updateState", "properties.updateErrorMessage",
+        "properties.lastUpdateTime", "properties.statusTimestamp", "properties.sessionHostHealthCheckResults"]
+    },
+    {
+      "id": "host-pool-registration",
+      "why": "The registration token is renewed when hosts are added; it is a secret and never compared.",
+      "types": ["microsoft.desktopvirtualization/hostpools"],
+      "properties": ["properties.registrationInfo"]
+    },
+    {
+      "id": "modified-stamps",
+      "why": "Last-modified stamps and ETags change with every write, including the platform's.",
+      "properties": ["systemData", "etag", "properties.lastModifiedTime", "properties.timeModified", "properties.provisioningState"]
+    }
+  ]
+}

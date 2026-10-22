@@ -4,7 +4,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { existsSync, readdirSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 
 const root = new URL('../../', import.meta.url).pathname;
@@ -45,7 +45,7 @@ test('no request to another site: every src and stylesheet is local, the scripts
       assert.ok(existsSync(join(root, dirname(f), url.split('#')[0])), `${f}: ${url} resolves`);
     }
   }
-  for (const f of scripts) {
+  for (const f of scripts.concat(readdirSync(join(root, 'site/assets/engine')).map((e) => `site/assets/engine/${e}`))) {
     const js = read(f);
     assert.doesNotMatch(js, /\bfetch\s*\(|XMLHttpRequest|WebSocket|EventSource|sendBeacon|importScripts|\beval\s*\(|new Function/, f);
     assert.doesNotMatch(js, /innerHTML|outerHTML|insertAdjacentHTML|document\.write/, `${f}: text goes in with textContent`);
@@ -94,28 +94,29 @@ test('the vendored files match the hashes in design-system.lock.json', () => {
   }
 });
 
-// engine.lock.json records the avd-ops portal engine files this page takes (avd-ops docs/portal-engine-spec.md,
-// section 6.5): each listed file matches its hash, every file a listed file needs is listed, no unlisted engine
-// file is present, the page loads core.js first, and no copy can make a request.
-test('the vendored portal engine matches engine.lock.json and makes no request', () => {
+// engine.lock.json records the avd-ops portal engine tag and commit the copy came from and each file's hash from
+// that commit's MANIFEST.json (avd-ops docs/portal-engine-spec.md, section 6.5). This portal makes no requests, so
+// it takes the pure files only: never probe.js.
+test('the portal engine copy matches engine.lock.json, needs nothing unlisted, and the page loads it first', () => {
   const lock = JSON.parse(read('site/assets/engine.lock.json'));
   assert.match(lock.tag, /^pe-v\d+\.\d+\.\d+$/);
   assert.match(lock.commit, /^[0-9a-f]{40}$/);
-  const dir = join(root, 'site/assets/engine');
-  const present = readdirSync(dir).filter((f) => f.endsWith('.js')).sort();
-  assert.deepEqual(present, Object.keys(lock.files).sort(), 'no engine file outside the lock');
-  assert.ok(lock.files['core.js'], 'core.js is always taken');
+  const present = readdirSync(join(root, 'site/assets/engine')).sort();
+  assert.deepEqual(present, Object.keys(lock.files).sort(), 'every engine file is listed and every listed file is present');
+  assert.ok(!present.includes('probe.js'), 'no network file');
+  const needs = [];
   for (const [f, sha] of Object.entries(lock.files)) {
-    const buf = readFileSync(join(dir, f)), text = buf.toString('utf8');
-    assert.equal(createHash('sha256').update(buf).digest('hex'), sha, f);
-    assert.ok(text.startsWith(`/* avd-ops portal engine v${lock.tag.slice(4)}: ${f}.`), `${f} is the locked version`);
-    for (const [, need] of text.matchAll(/require\('\.\/([\w-]+\.js)'\)/g)) assert.ok(lock.files[need], `${f} needs ${need}`);
-    const code = text.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:\\'"`])\/\/.*$/gm, '$1');
-    assert.doesNotMatch(code, /\bfetch\b|XMLHttpRequest|WebSocket|EventSource|sendBeacon|importScripts|\beval\b|new Function|innerHTML|document\./, `${f} stays pure`);
+    const text = readFileSync(join(root, 'site/assets/engine', f));
+    assert.equal(createHash('sha256').update(text).digest('hex'), sha, f);
+    assert.ok(text.toString().startsWith(`/* avd-ops portal engine ${lock.tag.slice(3)}: ${f}. `), `${f} is ${lock.tag}`);
+    for (const [, need] of text.toString().matchAll(/require\('\.\/([\w-]+\.js)'\)/g)) {
+      assert.ok(lock.files[need], `${f} needs ${need}`);
+      needs.push([f, need]);
+    }
   }
-  const srcs = [...read('site/portal/index.html').matchAll(/<script src="([^"]+)"/g)].map((m) => m[1]);
-  const engine = srcs.filter((s) => s.startsWith('../assets/engine/'));
-  assert.equal(engine[0], '../assets/engine/core.js', 'core.js loads first');
-  assert.deepEqual(engine.map((s) => s.slice('../assets/engine/'.length)).sort(), Object.keys(lock.files).sort(), 'the page loads every file it takes');
-  assert.ok(srcs.indexOf('portal.js') > srcs.indexOf(engine[engine.length - 1]), 'the engine loads before the page script');
+  const html = read('site/portal/index.html');
+  const at = (src) => html.indexOf(`<script src="${src}"></script>`);
+  assert.ok(at('../assets/engine/core.js') >= 0, 'core.js is loaded');
+  for (const [f, need] of needs) assert.ok(at(`../assets/engine/${need}`) >= 0 && at(`../assets/engine/${need}`) < at(`../assets/engine/${f}`), `${need} loads before ${f}`);
+  for (const f of Object.keys(lock.files)) assert.ok(at(`../assets/engine/${f}`) >= at('../assets/engine/core.js') && at(`../assets/engine/${f}`) < at('assess-core.js'), `${f} loads after core.js and before assess-core.js`);
 });

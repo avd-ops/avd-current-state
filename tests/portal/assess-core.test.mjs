@@ -303,6 +303,11 @@ test('reader: the page only offers the reader check, which reads; setup and remo
   assert.doesNotMatch(c, /Initialize|Remove/);
 });
 
+test('a typographic single quote is doubled too: PowerShell ends a string at it', () => {
+  assert.equal(core.psQuote('O’Brien'), "'O’’Brien'");
+  assert.match(core.collectCommand({ subscriptions: "x’; Remove-Item ~ -Recurse; ’" }), /-SubscriptionNames 'x’’; Remove-Item ~ -Recurse; ’’'/);
+});
+
 // ---- Where the commands come from (portal-config.js) and Report a problem (the engine's redact.js) ----
 const engineBlocks = createRequire(import.meta.url)('../../site/assets/engine/blocks.js');
 const redact = createRequire(import.meta.url)('../../site/assets/engine/redact.js');
@@ -334,11 +339,6 @@ test('a published copy pins its repo and ref; a refused value keeps the default'
     assert.deepEqual(core.setSource({ ref: 'v1' }, engineBlocks).ignored, ['ref'], 'a ref needs its repo');
     assert.deepEqual(core.setSource({ repoUrl: 'https://github.com/a/b' }, null).ignored, ['repoUrl'], 'no checker, no value');
   } finally { core.setSource({}, engineBlocks); }
-});
-
-test('quoting doubles the typographic single quotes too, which PowerShell also reads as the end of a string', () => {
-  assert.equal(core.psQuote('Contoso\u2019s Prod'), "'Contoso\u2019\u2019s Prod'");
-  assert.match(core.collectCommand({ subscriptions: "Bob's \u2018Sub\u2019" }), /-SubscriptionNames 'Bob''s \u2018\u2018Sub\u2019\u2019'/);
 });
 
 test('a report\'s title and body share their placeholders, and a long title is never cut inside one', () => {

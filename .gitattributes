@@ -6,5 +6,8 @@
 contracts/*.json -text
 # So is the method (assess/PINS.json), which the facts script checks before -Assess.
 assess/*.json -text
-# The vendored portal engine is hashed byte for byte (site/assets/engine.lock.json).
-site/assets/engine/*.js -text
+assess/*.psm1 -text
+# So is the check catalog schema (checks/PINS.json).
+checks/check-catalog.schema.json -text
+# So is the portal engine copy (site/assets/engine.lock.json).
+site/assets/engine/* -text

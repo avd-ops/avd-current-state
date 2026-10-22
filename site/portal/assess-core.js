@@ -2,12 +2,19 @@
    assess-core.js: the assessment portal's engine (docs/assessment-portal-spec.md). Pure functions, no DOM and no
    network: it reads the AVDCS-STATE lines the scripts print, builds the self-contained Cloud Shell blocks, and
    turns the discovery answers into intake.json (contract C19, avd-intake/v1, in avd-assess contracts/) and the
-   private discovery notes, the decisions into review.json (C23), and the review into plan.json (C24) and plan.md. Runs in the browser (window.AssessCore) and in Node (tests/portal/). */
+   private discovery notes, the decisions into review.json (C23), and the review into plan.json (C24) and plan.md. Runs in the browser (window.AssessCore) and in Node (tests/portal/).
+   Quoting, Run in and finding state lines come from the avd-ops portal engine copy in site/assets/engine/
+   (engine.lock.json); the page loads those files first. */
 (function (root, factory) {
-  if (typeof module === 'object' && module.exports) module.exports = factory();
-  else root.AssessCore = factory();
-})(typeof self !== 'undefined' ? self : this, function () {
+  if (typeof module === 'object' && module.exports) {
+    const take = (f) => require(`../assets/engine/${f}.js`);
+    module.exports = factory({ core: take('core'), blocks: take('blocks'), runin: take('runin'), statelines: take('statelines') });
+  } else root.AssessCore = factory(root.AvdOpsEngine);
+})(typeof self !== 'undefined' ? self : this, function (engine) {
   'use strict';
+  if (!engine || !engine.core || !engine.blocks || !engine.runin || !engine.statelines) {
+    throw new Error('The portal engine copy (site/assets/engine/) did not load: the page loads core.js, blocks.js, runin.js and statelines.js before assess-core.js.');
+  }
 
   const REPO_URL = 'https://github.com/avd-ops/avd-current-state.git';
   const STAGES = ['collect', 'facts', 'analyze'];
@@ -28,12 +35,8 @@
   // page doesn't know, is skipped rather than guessed at.
   function parseStateLines(text) {
     const out = [];
-    const re = /<<<AVDCS-STATE([\s\S]*?)AVDCS-STATE>>>/g;
-    let m;
-    while ((m = re.exec(String(text || '')))) {
-      const body = m[1].replace(/\r?\n/g, '').trim();
-      let s;
-      try { s = JSON.parse(body); } catch (e) { continue; }
+    for (const line of engine.statelines.extract(text, 'AVDCS-STATE', { newlines: 'lf' })) {
+      const s = line.value;
       if (!s || s.v !== 1 || !STAGES.includes(s.stage) || !STATUSES.includes(s.status)) continue;
       out.push({ stage: s.stage, status: s.status, context: s.context || {}, counts: s.counts || {}, coverage: s.coverage || {} });
     }
@@ -95,20 +98,14 @@
   // ---- Cloud Shell blocks ---------------------------------------------------------------------------
 
   // A PowerShell single-quoted string. Names come from the operator's own Settings; a line break or a control
-  // character can't be quoted safely, so it is refused.
-  function psQuote(s) {
-    const v = String(s);
-    if (/[\u0000-\u001f\u007f]/.test(v)) throw new Error('A value holds a line break or a control character.');
-    // PowerShell also ends a single-quoted string at the typographic single quotes (U+2018 to U+201B).
-    return `'${v.replace(/['\u2018\u2019\u201a\u201b]/g, '$&$&')}'`;
-  }
+  // character is refused, and typographic single quotes are doubled too, since PowerShell also ends a string at
+  // them.
+  const psQuote = engine.blocks.psQuote;
 
   function nameList(text) {
     return String(text || '').split(/[\n,]/).map((s) => s.trim()).filter(Boolean);
   }
 
-  // Every block stands alone (Cloud Shell sessions end and reconnect): clone or update, Set-Location, the
-  // output folder (~/clouddrive survives the session when it exists), and a sign-in check.
   // A copy published into the operator's own subscription (avd_portal_publish.ps1) pins the repo and the tag or
   // commit its commands run (site/portal/portal-config.js). The values are checked with the engine's blocks.js
   // before they reach a command; anything else keeps the default, and the keys that were refused are reported.
@@ -125,6 +122,8 @@
   // The repo's web address, where a report opens its issue.
   function repoWebUrl() { return (source.repoUrl || REPO_URL).replace(/\.git$/, ''); }
 
+  // Every block stands alone (Cloud Shell sessions end and reconnect): clone or update, Set-Location, the
+  // output folder (~/clouddrive survives the session when it exists), and a sign-in check.
   function preamble(opts) {
     const o = opts || {};
     // A published copy's commands use their own clone, so the default clone (and the README's blocks) keep
@@ -373,13 +372,12 @@
   }
 
   function fileCommand(name, obj) {
-    const json = JSON.stringify(obj, null, 2);
-    if (/^'@/m.test(json) || /[^\x20-\x7e\n]/.test(json)) throw new Error(`${name} holds a character the block cannot carry.`);
+    const [open, json, close] = engine.blocks.hereString(name, obj);
     return preamble({ signIn: false }).concat([
       `$file = Join-Path $out '${name}'`,
-      "$text = @'",
+      `$text = ${open}`,
       json,
-      "'@",
+      close,
       // The file gets exactly the bytes the download has (LF line ends, one final LF, UTF-8 with no BOM) on every
       // platform, so a hash taken in the browser (plan.json pins review.json by its SHA-256) matches the file.
       '[System.IO.File]::WriteAllText($file, ($text -replace "`r`n", "`n") + "`n", [System.Text.UTF8Encoding]::new($false))',
@@ -567,47 +565,17 @@
   // the whole block in one pwsh. Where each script works: platforms.json (copied here; a test keeps them equal).
   const PLATFORMS = {
     "avd_current_state_collector.ps1": {"cloudshell-pwsh": "untested", "cloudshell-bash": "untested", "windows": "untested", "macos": "untested", "winps51": "untested", "requires": "PowerShell 7.2 or later, the Az modules"},
+    "avd_current_state_drift.ps1": {"cloudshell-pwsh": "untested", "cloudshell-bash": "untested", "windows": "untested", "macos": "untested", "winps51": "untested", "requires": "PowerShell 7.2 or later, the Az modules (Az.Accounts; Az.Resources for role assignments), Reader on the subscription"},
     "avd_current_state_facts.ps1": {"cloudshell-pwsh": "untested", "cloudshell-bash": "untested", "windows": "tested", "macos": "tested", "winps51": "untested", "requires": "PowerShell 7.2 or later (offline: no Az modules, no sign-in)", "evidence": "CI on every pull request (tests/Facts.Tests.ps1 runs the script end to end on a fixture package, -Assess included) on Windows and macOS with PowerShell 7, avd-current-state #36, 2026-10-21; no Azure needed"},
     "avd_deployment_validator.ps1": {"cloudshell-pwsh": "untested", "cloudshell-bash": "untested", "windows": "untested", "macos": "untested", "winps51": "untested", "requires": "PowerShell 7.2 or later, the Az modules"},
     "avd_ops_reader.ps1": {"cloudshell-pwsh": "untested", "cloudshell-bash": "untested", "windows": "untested", "macos": "untested", "winps51": "untested", "requires": "PowerShell 7.2 or later, Az.Accounts"}
   };
-  const PLACES = { cloudshell: 'Cloud Shell', windows: 'Windows', macos: 'macOS' };
-  // Windows runs PowerShell 7 only; Bash there means WSL, which is its own Linux machine.
-  function validRunIn(r) {
-    const o = r || {};
-    const where = Object.prototype.hasOwnProperty.call(PLACES, o.where) ? o.where : 'cloudshell';
-    return { where, shell: o.shell === 'bash' && where !== 'windows' ? 'bash' : 'pwsh' };
-  }
-  function isDefaultRunIn(r) { const v = validRunIn(r); return v.where === 'cloudshell' && v.shell === 'pwsh'; }
-  function scriptsIn(command) {
-    return [...new Set((String(command || '').match(/\.\/(avd_[\w]+\.ps1)/g) || []).map((m) => m.slice(2)))];
-  }
-  // The weakest of a block's scripts where it runs. A block with no script (writing intake.json) is proven where
-  // it was written and untested elsewhere.
-  function support(command, runIn) {
-    const r = validRunIn(runIn), key = r.where === 'cloudshell' ? `cloudshell-${r.shell}` : r.where;
-    const rank = { tested: 0, untested: 1, no: 2 };
-    const scripts = scriptsIn(command);
-    let status = !scripts.length && !isDefaultRunIn(r) ? 'untested' : 'tested';
-    const requires = [], blockedBy = [];
-    for (const s of scripts) {
-      const p = PLATFORMS[s];
-      let v = p ? p[key] : 'untested';
-      if (!Object.prototype.hasOwnProperty.call(rank, v)) v = 'untested';
-      if (v === 'no') blockedBy.push(s);
-      if (rank[v] > rank[status]) status = v;
-      if (p && p.requires) for (const q of String(p.requires).split(/,\s*/)) if (q && !requires.includes(q)) requires.push(q);
-    }
-    return { status, requires: r.where === 'cloudshell' ? [] : requires, blockedBy, place: PLACES[r.where], shell: r.shell };
-  }
-  // Bash writes the PowerShell, word for word, to a file through a quoted heredoc (bash expands nothing in it),
-  // then runs it with pwsh.
-  function forRunIn(command, runIn) {
-    const r = validRunIn(runIn);
-    if (!command || r.shell === 'pwsh') return command || '';
-    if (/^AVD_PS$/m.test(command)) throw new Error('The block holds a line the Bash version cannot carry.');
-    return ['f="$(mktemp -d)/step.ps1"', `cat > "$f" <<'AVD_PS'`, command, 'AVD_PS', 'pwsh -NoLogo -File "$f"'].join('\n');
-  }
+  const PLACES = engine.runin.PLACES;
+  // The engine's Run in, given this portal's scripts and where each works.
+  const SCRIPTS = /\.\/(avd_[\w]+\.ps1)/g;
+  const { validRunIn, isDefaultRunIn, forRunIn } = engine.runin;
+  const scriptsIn = (command) => engine.runin.scriptsIn(command, SCRIPTS);
+  const support = (command, runIn) => engine.runin.support(command, runIn, PLATFORMS, SCRIPTS);
 
   return {
     STAGES, HUBS, IDENTITY, DAYS, TOPICS,

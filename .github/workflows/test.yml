@@ -25,6 +25,7 @@ jobs:
           Set-PSRepository PSGallery -InstallationPolicy Trusted
           Install-Module PSScriptAnalyzer -Scope CurrentUser -Force
           Invoke-ScriptAnalyzer -Path ./avd_current_state_facts.ps1 -Settings ./PSScriptAnalyzerSettings.psd1 -EnableExit
+          Invoke-ScriptAnalyzer -Path ./avd_current_state_drift.ps1 -Settings ./PSScriptAnalyzerSettings.psd1 -EnableExit
           Invoke-ScriptAnalyzer -Path ./avd_ops_reader.ps1 -Settings ./PSScriptAnalyzerSettings.psd1 -EnableExit
           Invoke-ScriptAnalyzer -Path ./avd_portal_publish.ps1 -Settings ./PSScriptAnalyzerSettings.psd1 -EnableExit
           Invoke-ScriptAnalyzer -Path ./lib -Recurse -Settings ./PSScriptAnalyzerSettings.psd1 -EnableExit
@@ -77,6 +78,33 @@ jobs:
             Write-Host "loads: $($f.Name)"
           }
           if ($failed) { throw "$failed file(s) don't parse in Windows PowerShell 5.1." }
+
+  # The vendored avd-assess files come from a published release (avd-assess docs/distribution-spec.md,
+  # sections 8 and 9). The run never fetches anything; this job proves the pin: the release named in
+  # assess/PINS.json exists, its datapackage.json is the vendored one with the pinned SHA-256, and GitHub's
+  # build provenance attestation for it checks out. The Pester suite then checks every file against it.
+  assess-release:
+    name: avd-assess release pin is published and attested
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Release manifest matches the pin
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          release=$(jq -r .release assess/PINS.json)
+          manifest=$(jq -r .manifest assess/PINS.json)
+          for f in contracts/PINS.json; do
+            [ "$(jq -r .release "$f")" = "$release" ] && [ "$(jq -r .manifest "$f")" = "$manifest" ] || { echo "::error::$f pins another release or manifest"; exit 1; }
+          done
+          d=$(mktemp -d)
+          echo "Downloading datapackage.json from avd-assess release $release"
+          gh release download "$release" -R avd-ops/avd-assess -p datapackage.json -D "$d" || { echo "::error::avd-assess release $release is not published yet; merge after it is"; exit 1; }
+          echo "$manifest  $d/datapackage.json" | sha256sum -c -
+          cmp "$d/datapackage.json" assess/datapackage.json
+          echo "Checking the build provenance attestation"
+          gh attestation verify "$d/datapackage.json" -R avd-ops/avd-assess
 
   portal:
     name: Assessment portal engine + page
@@ -132,7 +160,7 @@ jobs:
       # the schemas at the avd-assess commit the method is pinned to (assess/PINS.json).
       - name: Plan fixtures match avd-assess contracts C21, C23 and C24
         env:
-          ASSESS_COMMIT: a5f4df1564178e84bc3c52fec123c0c3db59d395
+          ASSESS_COMMIT: 052c6ea36250ecc8624d258de360fe4072729683
         run: |
           pip install --quiet jsonschema
           base="https://raw.githubusercontent.com/avd-ops/avd-assess/$ASSESS_COMMIT/contracts/schemas"

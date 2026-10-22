@@ -1,5 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://assess.avd-ops.dev/schemas/avd-assessment/v1.json",
   "title": "avd-assessment/v1: one estate assessed with a pinned avd-assess method (assessment.json)",
   "description": "Contract C21, written by avd-current-state's -Assess from a C11 snapshot, an optional C19 intake and the pinned method (C20). One row per check with its outcome and the pseudonyms and fact IDs it used, the pillar scores with their coverage, and each C14 decision's readiness. It holds no names, IDs or free text and passes the same guard as C11. Filed in the estate vault beside its snapshot.",
   "type": "object",

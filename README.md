@@ -20,6 +20,7 @@ living knowledge base of the estate.
 | [`avd_current_state_collector.ps1`](#current-state-collector) | Any time | *What is in this environment today?* Produces a portable evidence package. |
 | [`avd_deployment_validator.ps1`](#deployment-validator) | Before and after an AVD deployment | *Is this subscription ready to deploy, and did the deployment land correctly?* Produces a pass/fail report. |
 | [`avd_current_state_facts.ps1`](#facts-snapshot-for-the-brain-and-avd-swarm) | After a collector or validator run | *What can the brain's agents know about this estate?* Turns the packages into one redacted facts snapshot: counts, public values and pseudonyms, no names or IDs. |
+| [`avd_current_state_drift.ps1`](#drift-check) | On a schedule, from a private repository | *Does the estate still match what the landing zone deployed, and who changed what?* Reports drift and unexplained changes; changes nothing. |
 | [`avd_second_brain.ps1`](#second-brain) (in [avd-second-brain](https://github.com/avd-ops/avd-second-brain)) | After every collector or validator run | *What changed, what is still broken, and why is it built this way?* Keeps a Markdown knowledge base of the estate over time. |
 
 ## Read-Only by Design
@@ -396,6 +397,22 @@ The brain's [tests/Connectors.Tests.ps1](https://github.com/avd-ops/avd-second-b
 
 ---
 
+## Drift check
+
+`avd_current_state_drift.ps1` compares a landing zone with what [avd-landing-zone](https://github.com/avd-ops/avd-landing-zone) last deployed and reports, in plain language, what drifted and who changed what ([docs/drift-spec.md](docs/drift-spec.md)). It only reads: the subscription's deployment records, the same Resource Graph and REST reads as the collector, the Resource Graph change log (14 days) and the Activity Log. Fixes go through the landing zone's deploy workflow after a person approves.
+
+- **Declared state:** the parameters of the landing zone's last successful `avdlz-*` subscription deployment (needs Reader on the subscription), or a committed baseline (`-BaselinePath`; `-ProposeBaseline` writes one to review).
+- **Attribution:** a change is a landing zone deployment (same correlation ID), the landing zone's own automation ([drift/expected-actors.json](drift/expected-actors.json)), run-time state ([drift/runtime-paths.json](drift/runtime-paths.json)), or unexplained. A user is said as "a user" with the correlation ID, never by name.
+- **Rules need approval:** a rule in those two files hides changes only while its exact digest is approved in the operator's private `drift-approvals.json`, for at most 90 days. `-ShowSuppressionDigest` prints each digest and a ready-to-paste approval line; `-Digest` adds a weekly digest of what each rule hid.
+- **Exit codes:** 2 couldn't check (never clean), 1 findings, 0 clean. Only 0 may close the drift issue.
+- **Schedule:** [samples/drift.yml](samples/drift.yml) is a daily GitHub Actions workflow for the operator's **private** repository: OIDC sign-in as the read-only reader, one issue per environment, no artifacts.
+
+```powershell
+git -C ~/avd-current-state pull 2>$null; if (-not $?) { git clone https://github.com/avd-ops/avd-current-state ~/avd-current-state }
+Set-Location ~/avd-current-state
+pwsh -NoLogo -File ./avd_current_state_drift.ps1 -Environment dev -ConfigPath ~/avd-private/drift
+```
+
 ## Facts snapshot for the brain and avd-swarm
 
 The packages hold tenant data: subscription and object IDs, resource and user names, IP
@@ -464,14 +481,18 @@ avd-assess's fact register (contract C15), pinned with the schema in `contracts/
 ### The assessment method
 
 `assess/` holds byte-identical copies of [avd-assess](https://github.com/avd-ops/avd-assess)'s
-`method.json` and `index.json` (contract C20), pinned by commit and SHA-256 in `assess/PINS.json`
-at the same commit as `contracts/`. `lib/AvdAssess.psm1` runs the method's checks over a snapshot
+`method.json` and `index.json` (contract C20), pinned in `assess/PINS.json` to a published avd-assess
+release (`release`, its commit, and `manifest`, the SHA-256 of the release's `datapackage.json`,
+vendored beside them), with `contracts/` at the same release. `lib/AvdAssess.psm1` runs the method's checks over a snapshot
 and an optional `intake.json` (C19) and builds the assessment report (C21): one row per check
 (`pass`, `warn`, `gap` or `unknown`, with the pseudonyms it looked at), the pillar scores with
 their coverage, and each design decision's readiness. A missing fact makes a subject `unknown`,
 never a failure. Nothing is fetched at run time, and none of it needs the brain or avd-swarm. A
-method update is a PR that copies the files at a new avd-assess commit and updates both PINS files;
-`tests/Assess.Tests.ps1` fails if a copy drifts.
+method update is a PR that copies the files from a new attested release (avd-assess
+`docs/distribution-spec.md` section 9) and updates both PINS files; `tests/Assess.Tests.ps1` fails if a
+copy drifts, and runs the vendored bundle verifier (`assess/AvdAssessBundle.psm1`) over every copy
+against the manifest. CI also checks the release is published and attested; the run itself never
+needs the network or assess.avd-ops.dev.
 
 Run it with the facts script's `-Assess` switch, and give the Discover stage's `intake.json` when
 you have one:
@@ -579,6 +600,7 @@ Each links its reference page, generated from the script's own help by the secon
 <!-- Generated by scripts/Update-BrainDocs.ps1. Do not edit between the markers; edit the source and regenerate. -->
 | Script | What it does |
 |---|---|
+| [`avd_current_state_drift.ps1`](docs/reference/avd_current_state_drift.md) | AVD Current State Drift -- compares a live landing zone with what avd-landing-zone last deployed, attributes every change, and reports it. |
 | [`avd_current_state_facts.ps1`](docs/reference/avd_current_state_facts.md) | AVD Current State Facts -- turns collector and validator evidence packages into one redacted facts snapshot (avd-current-state-facts/v1) for avd-second-brain and avd-swarm. |
 | [`avd_ops_reader.ps1`](docs/reference/avd_ops_reader.md) | avd-ops-reader -- the optional read-only identity for unattended avd-current-state runs: set it up, check it, remove it (docs/reader-identity.md). |
 | [`avd_portal_publish.ps1`](docs/reference/avd_portal_publish.md) | Publishes a copy of the assessment portal into your own subscription (optional), or removes it. |
