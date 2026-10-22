@@ -202,7 +202,13 @@
   $('report-link').addEventListener('click', () => toggleReport($('report-panel').classList.contains('hidden')));
   $('report-close').addEventListener('click', () => { toggleReport(false); $('report-link').focus(); });
   for (const id of ['report-desc', 'report-terms']) $(id).addEventListener('input', renderReport);
-  $('report-output').addEventListener('change', renderReport);
+  // Taking the output in or out rebuilds the report, so an edited copy can't keep output the box says is left out.
+  $('report-output').addEventListener('change', () => {
+    const had = reportEdited;
+    reportEdited = false; $('report-ok').checked = false; $('report-submit').disabled = true;
+    renderReport();
+    if (had) $('report-status').textContent = 'The report was rebuilt, so your edits to it are gone.';
+  });
   $('report-body').addEventListener('input', () => { reportEdited = true; $('report-ok').checked = false; $('report-submit').disabled = true; });
   $('report-ok').addEventListener('change', () => { $('report-submit').disabled = !$('report-ok').checked; });
   $('report-submit').addEventListener('click', () => {
@@ -211,7 +217,7 @@
     let link;
     try { link = engine.redact.issueUrl(core.repoWebUrl(), r.title, r.body); } catch (e) { $('report-status').textContent = e.message; return; }
     window.open(link.url, '_blank', 'noopener');
-    $('report-status').textContent = link.trimmed ? `The link was too long for GitHub, so ${link.trimmed} lines in the middle were left out. Copy the report and paste it into the issue if they matter.` : 'Opened GitHub in a new tab.';
+    $('report-status').textContent = link.trimmed ? `The report was too long for a GitHub link, so part of it was cut (${link.trimmed} lines). Copy the report and paste it into the issue if they matter.` : 'Opened GitHub in a new tab.';
   });
   $('report-copy').addEventListener('click', () => {
     const r = finalReport();

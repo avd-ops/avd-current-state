@@ -99,7 +99,8 @@
   function psQuote(s) {
     const v = String(s);
     if (/[\u0000-\u001f\u007f]/.test(v)) throw new Error('A value holds a line break or a control character.');
-    return `'${v.replace(/'/g, "''")}'`;
+    // PowerShell also ends a single-quoted string at the typographic single quotes (U+2018 to U+201B).
+    return `'${v.replace(/['\u2018\u2019\u201a\u201b]/g, '$&$&')}'`;
   }
 
   function nameList(text) {
@@ -126,13 +127,18 @@
 
   function preamble(opts) {
     const o = opts || {};
+    // A published copy's commands use their own clone, so the default clone (and the README's blocks) keep
+    // following the default branch; a ref the repo doesn't have stops the block instead of running other code.
     const clone = source.repoUrl
-      ? [`if (Test-Path (Join-Path $repo '.git')) { git -C $repo remote set-url origin ${psQuote(source.repoUrl)}; git -C $repo ${source.ref ? 'fetch --quiet --tags origin' : 'pull --ff-only --quiet'} } else { git clone --quiet ${psQuote(source.repoUrl)} $repo }`]
-        .concat(source.ref ? [`git -C $repo checkout --quiet ${psQuote(source.ref)}`] : [])
-      : [`if (Test-Path (Join-Path $repo '.git')) { git -C $repo pull --ff-only --quiet } else { git clone --quiet ${REPO_URL} $repo }`];
-    const lines = [
-      "$repo = Join-Path $HOME 'avd-current-state'"
-    ].concat(clone, [
+      ? [
+        "$repo = Join-Path $HOME 'avd-current-state-pinned'",
+        `if (Test-Path (Join-Path $repo '.git')) { git -C $repo remote set-url origin ${psQuote(source.repoUrl)}; git -C $repo ${source.ref ? 'fetch --quiet --tags origin' : 'pull --ff-only --quiet'} } else { git clone --quiet ${psQuote(source.repoUrl)} $repo }`
+      ].concat(source.ref ? [`git -C $repo checkout --quiet --detach ${psQuote(source.ref)}; if ($LASTEXITCODE) { throw ${psQuote(`This copy of the portal runs ${source.ref} from ${source.repoUrl}, and the clone could not check it out.`)} }`] : [])
+      : [
+        "$repo = Join-Path $HOME 'avd-current-state'",
+        `if (Test-Path (Join-Path $repo '.git')) { git -C $repo pull --ff-only --quiet } else { git clone --quiet ${REPO_URL} $repo }`
+      ];
+    const lines = clone.concat([
       'Set-Location $repo',
       "$out = if (Test-Path (Join-Path $HOME 'clouddrive')) { Join-Path $HOME 'clouddrive/avd-assessment' } else { Join-Path $HOME 'avd-assessment' }",
       'New-Item -ItemType Directory -Force -Path $out | Out-Null'
@@ -544,9 +550,14 @@
     const output = String(i.output || '').replace(/\r\n/g, '\n').replace(/\s+$/, '');
     if (output) { const f = redact.fence(output); lines.push('### Cloud Shell output', '', `${f}text`, output, f, ''); }
     lines.push('<!-- avdcs-portal-report v1 -->', '_Sent from the assessment portal. Redacted in the reporter\'s browser before submitting; check before copying anything from it into the repo._');
-    const r = redact.redact(lines.join('\n'), opts);
-    const title = redact.redact(`Assessment portal: ${i.headline || `problem at the ${stage || 'unknown'} stage`}`, opts).text;
-    return { title: title.slice(0, 120), body: r.text, redaction: r };
+    // The title and the body are redacted together, so a placeholder names the same value in both.
+    const rawTitle = `Assessment portal: ${i.headline || `problem at the ${stage || 'unknown'} stage`}`.replace(/\s+/g, ' ');
+    const r = redact.redact(`${rawTitle}\n${lines.join('\n')}`, opts);
+    const cut = r.text.indexOf('\n');
+    let title = r.text.slice(0, cut);
+    // Cut at 120 characters, never inside a placeholder.
+    if (title.length > 120) title = title.slice(0, 120).replace(/<[a-z]*-?\d*$/, '').trimEnd();
+    return { title, body: r.text.slice(cut + 1), redaction: r };
   }
   function reportSummary(redaction, redact) { return redact.describe(redaction.counts, REPORT_LABELS); }
 

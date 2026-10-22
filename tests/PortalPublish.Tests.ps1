@@ -31,6 +31,14 @@ Describe 'Get-AvdcsPortalHostRegion' {
     It 'refuses a region Static Web Apps does not offer' {
         (Get-AvdcsPortalHostRegion -Hosting StaticWebApp -Location eastus2 -StaticWebAppLocation 'northcentralus' -ErrorAction SilentlyContinue).Allowed | Should -BeFalse
     }
+    It 'blocks everything when the assignments have no region in common, or one allows none' {
+        $a = @((New-Assignment $script:resources @('westeurope')), (New-Assignment $script:resources @('eastasia')))
+        $r = Get-AvdcsPortalHostRegion -Hosting Storage -Location eastus -Assignments $a
+        $r.Allowed | Should -BeFalse; $r.Detail | Should -Match 'no region in common'
+        (Get-AvdcsPortalHostRegion -Hosting StaticWebApp -Location eastus2 -Assignments $a).Allowed | Should -BeFalse
+        $empty = [pscustomobject]@{ properties = [pscustomobject]@{ policyDefinitionId = "/providers/Microsoft.Authorization/policyDefinitions/$script:groups"; enforcementMode = 'Default'; parameters = [pscustomobject]@{ listOfAllowedLocations = [pscustomobject]@{ value = @() } } } }
+        (Get-AvdcsPortalHostRegion -Hosting Storage -Location eastus -Assignments @($empty)).Allowed | Should -BeFalse
+    }
     It 'intersects every assignment, checks resource groups too, and skips one not enforced or with no parameters' {
         $a = @((New-Assignment $script:resources @('eastus2', 'centralus')), (New-Assignment $script:resources @('centralus')), (New-Assignment $script:groups @('eastus2')),
             (New-Assignment $script:resources @('westeurope') -Mode DoNotEnforce), (New-Assignment 'audit-only'))
@@ -120,7 +128,7 @@ Describe 'avd_portal_publish.ps1 against a fake subscription' {
         $script:script = Join-Path $script:root 'avd_portal_publish.ps1'
         function Invoke-Publish {
             param([string] $Arguments, [hashtable] $Env = @{}, [int] $NpxExit = 0, [switch] $NoNpx)
-            $names = @('FAKEPUBLISH_STATE', 'FAKEPUBLISH_POLICY', 'FAKEPUBLISH_NPX', 'SWA_CLI_DEPLOYMENT_TOKEN')
+            $names = @('FAKEPUBLISH_STATE', 'FAKEPUBLISH_POLICY', 'FAKEPUBLISH_NPX', 'FAKEPUBLISH_REF', 'SWA_CLI_DEPLOYMENT_TOKEN')
             $saved = @{ PSModulePath = $env:PSModulePath }
             foreach ($n in $names) { $saved[$n] = [Environment]::GetEnvironmentVariable($n) }
             try {
@@ -131,9 +139,11 @@ Describe 'avd_portal_publish.ps1 against a fake subscription' {
                 # npx: a function, which PowerShell finds before any npx on PATH. It records its arguments and
                 # whether it saw the deployment token, and fails on request. -NoNpx hides every npx.
                 $npx = if ($NoNpx) { "`$env:PATH = ''" } else {
-                    "function global:npx { `$d = `$args[3]; Set-Content -Path `$env:FAKEPUBLISH_NPX -Value ((`$args -join ' ') + ' token=' + [bool]`$env:SWA_CLI_DEPLOYMENT_TOKEN + ' files=' + (Get-ChildItem -Recurse -File `$d | ForEach-Object { [IO.Path]::GetRelativePath(`$d, `$_.FullName).Replace('\','/') } | Sort-Object) -join ','); `$global:LASTEXITCODE = $NpxExit; 'swa: done' }"
+                    "function global:npx { `$d = `$args[3]; Set-Content -Path `$env:FAKEPUBLISH_NPX -Value ((`$args -join ' ') + ' token=' + [bool]`$env:SWA_CLI_DEPLOYMENT_TOKEN + ' files=' + (Get-ChildItem -Recurse -File `$d | ForEach-Object { [IO.Path]::GetRelativePath(`$d, `$_.FullName).Replace('\','/') } | Sort-Object) -join ','); if ($NpxExit -lt 0) { throw 'npx stopped' }; `$global:LASTEXITCODE = $NpxExit; 'swa: done' }"
                 }
-                $command = "`$env:PSModulePath = '$script:fakes'; Import-Module Az.Accounts; $npx; & '$script:script' $Arguments; exit `$LASTEXITCODE"
+                # git: a function too, so the ref check needs no network. FAKEPUBLISH_REF=missing: the repo lacks the ref.
+                $git = "function global:git { `$global:LASTEXITCODE = if (`$env:FAKEPUBLISH_REF -eq 'missing') { 2 } else { 0 }; if (`$args -contains 'ls-remote' -and -not `$global:LASTEXITCODE) { 'abc' } }"
+                $command = "`$env:PSModulePath = '$script:fakes'; Import-Module Az.Accounts; $git; $npx; & '$script:script' $Arguments; exit `$LASTEXITCODE"
                 $log = & $script:pwsh -NoProfile -NonInteractive -Command $command 2>&1
                 [pscustomobject]@{ Code = $LASTEXITCODE; Text = ($log | Out-String) }
             }
@@ -170,6 +180,34 @@ Describe 'avd_portal_publish.ps1 against a fake subscription' {
         $r.Text | Should -Match 'Exit code 3'
         $r.Text | Should -Match 'swa: done'
         (Get-FakeState).resets | Should -Be 1
+    }
+
+    It 'resets the token even when the upload stops halfway' {
+        $r = Invoke-Publish '-Location eastus2 -RepoUrl https://github.com/contoso/avd-current-state -Ref v1.2.0' -NpxExit -1
+        $r.Code | Should -Not -Be 0
+        $r.Text | Should -Match 'npx stopped'
+        (Get-FakeState).resets | Should -Be 1
+    }
+
+    It 'leaves a site that is there as it is: a rerun never changes its plan' {
+        (Invoke-Publish '-Location eastus2 -RepoUrl https://github.com/contoso/avd-current-state -Ref v1.2.0').Code | Should -Be 0
+        $s = Get-FakeState
+        $id = @($s.sites.Keys)[0]
+        $s.sites[$id].sku = @{ name = 'Standard'; tier = 'Standard' }
+        $s.calls = @()
+        $s | ConvertTo-Json -Depth 20 | Set-Content -Path $script:state
+        $r = Invoke-Publish '-Location eastus2 -RepoUrl https://github.com/contoso/avd-current-state -Ref v1.2.0'
+        $r.Code | Should -Be 0 -Because $r.Text
+        $r.Text | Should -Match 'Standard plan, which is billed'
+        (Get-FakeState).sites[$id].sku.name | Should -Be 'Standard'
+        @((Get-FakeState).calls | Where-Object { $_ -like 'PUT */staticSites/*' }) | Should -BeNullOrEmpty
+    }
+
+    It 'refuses a ref the repo does not have, before it creates anything' {
+        $r = Invoke-Publish '-Location eastus2 -RepoUrl https://github.com/contoso/avd-current-state -Ref 0123456789abcdef0123456789abcdef01234567' -Env @{ FAKEPUBLISH_REF = 'missing' }
+        $r.Code | Should -Be 1
+        $r.Text | Should -Match 'has no tag, branch or commit'
+        Test-Path $script:state | Should -BeFalse
     }
 
     It 'invites you with -RequireSignIn' {

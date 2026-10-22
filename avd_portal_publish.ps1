@@ -78,7 +78,7 @@ param(
 
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
-if ($PSVersionTable.PSVersion.Major -lt 7) { throw 'This script needs PowerShell 7.2 or later (Cloud Shell has it): run it with pwsh.' }
+if ($PSVersionTable.PSVersion -lt [version]'7.2') { throw 'This script needs PowerShell 7.2 or later (Cloud Shell has it): run it with pwsh.' }
 Import-Module (Join-Path $PSScriptRoot 'lib/AvdPortalPublish.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot 'lib/AvdReader.psm1') -Force
 
@@ -145,6 +145,27 @@ function Get-ResourceGroup {
     $r
 }
 
+function Test-RemoteRef {
+    <#
+      Whether the repo has the ref, so the published commands can check it out: a tag or branch through
+      git ls-remote, a full commit hash by fetching that one commit into a throwaway repo.
+    #>
+    param([string] $Url, [string] $Name)
+    if ($Name -match '^[0-9a-f]{40}$') {
+        $tmp = Join-Path ([IO.Path]::GetTempPath()) "avdcs-ref-$([guid]::NewGuid().ToString('n').Substring(0, 8))"
+        try {
+            git init --bare --quiet $tmp 2>$null
+            git -C $tmp fetch --quiet --depth 1 $Url $Name 2>$null
+            return $LASTEXITCODE -eq 0
+        }
+        finally { Remove-Item -Recurse -Force -Path $tmp -ErrorAction SilentlyContinue; $global:LASTEXITCODE = 0 }
+    }
+    $found = @(git ls-remote --tags --heads $Url $Name 2>$null)
+    $ok = $LASTEXITCODE -eq 0 -and $found.Count -gt 0
+    $global:LASTEXITCODE = 0
+    $ok
+}
+
 $ctx = Get-AzContext
 if (-not $ctx) { throw 'No Azure sign-in. Run Connect-AzAccount first (Cloud Shell is already signed in).' }
 if ($Subscription) {
@@ -195,6 +216,11 @@ $global:LASTEXITCODE = 0
 if (-not $RepoUrl -or -not $Ref) { throw 'Could not read the repo URL or commit from this checkout. Pass -RepoUrl and -Ref.' }
 # Checks both (throws with the reason); the page checks them again before it uses them.
 $null = Get-AvdcsPortalConfigScript -RepoUrl $RepoUrl -Ref $Ref -PortalUrl 'https://example.com/' -Hosting $Hosting
+Write-Host "  Checking that $RepoUrl has $Ref..." -ForegroundColor DarkGray
+if (-not (Test-RemoteRef -Url $RepoUrl -Name $Ref)) {
+    Write-Step Fail 'Commands clone and check out' "$RepoUrl has no tag, branch or commit $Ref, so the page's commands couldn't check it out." 'Push the commit, or pass -Ref with a tag or a full commit hash the repo has (and -RepoUrl for a fork).'
+    exit 1
+}
 Write-Step Pass 'Commands clone and check out' "$RepoUrl at $Ref"
 
 Write-Host ''
@@ -244,11 +270,15 @@ $rgPath = "$sub/resourceGroups/$ResourceGroupName"
 
 if ($Hosting -eq 'StaticWebApp') {
     $siteId = "$rgPath/providers/Microsoft.Web/staticSites/$($names.StaticSite)"
-    Write-Host "  Creating the Static Web Apps site $($names.StaticSite) (a minute)..." -ForegroundColor DarkGray
-    $null = Invoke-Arm "$($siteId)?api-version=$webApi" -Method PUT -Body @{
-        location = $region.ResourceLocation; tags = $tags; sku = @{ name = 'Free'; tier = 'Free' }
-        # Files are uploaded from Cloud Shell with a deployment token, not from a linked repository.
-        properties = @{ stagingEnvironmentPolicy = 'Disabled'; allowConfigFileUpdates = $true }
+    # A site that is there already is used as it is: a rerun never changes its plan or settings.
+    $found = Invoke-Arm "$($siteId)?api-version=$webApi" -Allow 404
+    if ($found -and $found.PSObject.Properties['StatusCode'] -and $found.StatusCode -eq 404) {
+        Write-Host "  Creating the Static Web Apps site $($names.StaticSite) (a minute)..." -ForegroundColor DarkGray
+        $null = Invoke-Arm "$($siteId)?api-version=$webApi" -Method PUT -Body @{
+            location = $region.ResourceLocation; tags = $tags; sku = @{ name = 'Free'; tier = 'Free' }
+            # Files are uploaded from Cloud Shell with a deployment token, not from a linked repository.
+            properties = @{ stagingEnvironmentPolicy = 'Disabled'; allowConfigFileUpdates = $true }
+        }
     }
     $site = Wait-Arm "$($siteId)?api-version=$webApi" { param($s) $s.properties.PSObject.Properties['defaultHostname'] -and $s.properties.defaultHostname } 'The Static Web Apps site'
     if ("$($site.sku.name)" -ne 'Free') {
@@ -286,7 +316,7 @@ try {
     foreach ($d in 'portal', 'assets') { Copy-Item -Recurse -Path (Join-Path $PSScriptRoot "site/$d") -Destination (Join-Path $stage $d) }
     Set-Content -Path (Join-Path $stage 'portal/portal-config.js') -Value (Get-AvdcsPortalConfigScript -RepoUrl $RepoUrl -Ref $Ref -PortalUrl "$($portalRoot)portal/" -Hosting $Hosting) -NoNewline
     # The site root opens the portal.
-    Set-Content -Path (Join-Path $stage 'index.html') -Value '<!doctype html><meta charset="utf-8"><title>AVD assessment portal</title><meta http-equiv="refresh" content="0; url=portal/"><p><a href="portal/">AVD assessment portal</a></p>'
+    Set-Content -Path (Join-Path $stage 'index.html') -Value '<!doctype html><meta charset="utf-8"><title>AVD assessment portal</title><meta http-equiv="refresh" content="0; url=/portal/"><p><a href="/portal/">AVD assessment portal</a></p>'
     if ($Hosting -eq 'StaticWebApp') {
         Set-Content -Path (Join-Path $stage 'staticwebapp.config.json') -Value (Get-AvdcsStaticWebAppConfig -RequireSignIn:$RequireSignIn)
         if ($RequireSignIn) {
@@ -302,20 +332,24 @@ try {
     Write-Host ''
     Write-Host '  Upload' -ForegroundColor White
     if ($Hosting -eq 'StaticWebApp') {
-        $token = (Invoke-Arm "$siteId/listSecrets?api-version=$webApi" -Method POST).properties.apiKey
-        if (-not $token) { throw "Static Web Apps returned no deployment token for $($names.StaticSite)." }
-        Write-Host "  Uploading with $swaCli (npx downloads it the first time)..." -ForegroundColor DarkGray
+        $token = $null; $out = ''; $code = -1
         try {
+            $token = (Invoke-Arm "$siteId/listSecrets?api-version=$webApi" -Method POST).properties.apiKey
+            if (-not $token) { throw "Static Web Apps returned no deployment token for $($names.StaticSite)." }
+            Write-Host "  Uploading with $swaCli (npx downloads it the first time)..." -ForegroundColor DarkGray
             $env:SWA_CLI_DEPLOYMENT_TOKEN = $token
+            # npm writes warnings to stderr; they are output to read here, not errors that stop the script.
+            $ErrorActionPreference = 'Continue'
             $out = & npx --yes $swaCli deploy $stage --env production --no-use-keychain 2>&1 | Out-String
             $code = $LASTEXITCODE
         }
         finally {
+            $ErrorActionPreference = 'Stop'
             Remove-Item Env:SWA_CLI_DEPLOYMENT_TOKEN -ErrorAction SilentlyContinue
+            # Kill the token this shell held, whether or not the upload worked, even when it stopped halfway.
+            if ($token) { $null = Invoke-Arm "$siteId/resetapikey?api-version=$webApi" -Method POST -Body @{ properties = @{ shouldUpdateRepository = $false } } }
             $token = $null
         }
-        # Kill the token this shell held, whether or not the upload worked.
-        $null = Invoke-Arm "$siteId/resetapikey?api-version=$webApi" -Method POST -Body @{ properties = @{ shouldUpdateRepository = $false } }
         if ($code -ne 0) {
             $tail = (($out -split "`n") | Where-Object { $_.Trim() } | Select-Object -Last 15) -join "`n          "
             Write-Step Fail 'Upload (Static Web Apps CLI)' "Exit code $code. Last lines:`n          $tail" 'Rerun; if npm is blocked here, publish with -Hosting Storage.'

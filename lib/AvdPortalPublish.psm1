@@ -58,8 +58,8 @@ function Get-AvdcsPortalHostRegion {
                     $v = if ($p -and $p.Value -and $p.Value.PSObject.Properties['listOfAllowedLocations']) { $p.Value.listOfAllowedLocations.value } else { @() }
                     , @($v | Where-Object { $_ })
                 })
+        # No assignment: no limit ($null). Otherwise the regions every assignment allows, which can be none.
         if (-not $lists.Count) { return $null }
-        # Every assignment must allow it: intersect the lists.
         $set = $lists[0]
         foreach ($l in $lists) { $set = @($set | Where-Object { $l -contains $_ }) }
         , @($set | ForEach-Object { "$_".ToLower() })
@@ -69,8 +69,8 @@ function Get-AvdcsPortalHostRegion {
     $where = $Location.ToLower()
     if ($Hosting -eq 'StaticWebApp') {
         $where = if ($StaticWebAppLocation) { $StaticWebAppLocation.ToLower() }
-        elseif ($script:StaticWebAppRegions -contains $Location.ToLower() -and (-not $res -or $res -contains $Location.ToLower())) { $Location.ToLower() }
-        elseif ($res) { @(@($script:StaticWebAppRegions | Where-Object { $res -contains $_ }) + @('centralus'))[0] }
+        elseif ($script:StaticWebAppRegions -contains $Location.ToLower() -and ($null -eq $res -or $res -contains $Location.ToLower())) { $Location.ToLower() }
+        elseif ($null -ne $res) { @(@($script:StaticWebAppRegions | Where-Object { $res -contains $_ }) + @('centralus'))[0] }
         else { 'centralus' }
     }
     $out = [ordered]@{ Hosting = $Hosting; Location = $Location.ToLower(); ResourceLocation = $where; Allowed = $true; Detail = ''; Remediation = '' }
@@ -79,15 +79,15 @@ function Get-AvdcsPortalHostRegion {
         $out.Detail = "Static Web Apps isn't offered in $where; it is in $($script:StaticWebAppRegions -join ', ')."
         $out.Remediation = "Pass -StaticWebAppLocation with one of those, or publish to a storage static website in $($Location.ToLower()) with -Hosting Storage."
     }
-    elseif ($rgs -and $rgs -notcontains $out.Location) {
+    elseif ($null -ne $rgs -and $rgs -notcontains $out.Location) {
         $out.Allowed = $false
-        $out.Detail = "An allowed-locations policy blocks resource groups in $($out.Location) (allowed: $($rgs -join ', '))."
-        $out.Remediation = "Pass -Location with one of: $($rgs -join ', ')."
+        $out.Detail = "An allowed-locations policy blocks resource groups in $($out.Location) (allowed: $(if ($rgs.Count) { $rgs -join ', ' } else { 'none: the assignments have no region in common' }))."
+        $out.Remediation = if ($rgs.Count) { "Pass -Location with one of: $($rgs -join ', ')." } else { 'Ask the policy owner which region the portal may use, or for an exemption.' }
     }
-    elseif ($res -and $res -notcontains $where) {
+    elseif ($null -ne $res -and $res -notcontains $where) {
         $out.Allowed = $false
-        $out.Detail = "An allowed-locations policy blocks resources in $where (allowed: $($res -join ', '))."
-        $out.Remediation = if ($Hosting -eq 'StaticWebApp') { "Static Web Apps needs one of $($script:StaticWebAppRegions -join ', ') on the allowed list (or a policy exemption), or publish with -Hosting Storage, which uses $($out.Location)." } else { "Pass -Location with one of: $($res -join ', ')." }
+        $out.Detail = "An allowed-locations policy blocks resources in $where (allowed: $(if ($res.Count) { $res -join ', ' } else { 'none: the assignments have no region in common' }))."
+        $out.Remediation = if ($Hosting -eq 'StaticWebApp') { "Static Web Apps needs one of $($script:StaticWebAppRegions -join ', ') on the allowed list (or a policy exemption), or publish with -Hosting Storage, which uses $($out.Location)." } elseif ($res.Count) { "Pass -Location with one of: $($res -join ', ')." } else { 'Ask the policy owner which region the portal may use, or for an exemption.' }
     }
     [pscustomobject]$out
 }

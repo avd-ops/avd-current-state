@@ -25,6 +25,8 @@
   };
   const KIND = /^[a-z]+$/;
   const PLACEHOLDER = /^<[a-z]+-\d+>$/;
+  // In an issue link, a line longer than this is shortened before whole lines are cut.
+  const LONG_LINE = 400;
 
   function escapeRe(s) { return String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
 
@@ -165,8 +167,9 @@
 
   /*
    * issueUrl(repoUrl, title, body, { label, maxLength }) -> { url, trimmed }
-   * The prefilled new-issue link. GitHub rejects very long URLs, so the middle of a long body is cut, keeping the
-   * start (the description) and as much of the end (the output's last lines) as fits.
+   * The prefilled new-issue link. GitHub rejects very long URLs, so a long body is cut: lines over 400 characters
+   * are shortened, then the middle goes, keeping the start (the description) and as much of the end (the output's
+   * last lines) as fits. trimmed counts the lines cut or shortened; 0 means the whole body is in the link.
    */
   function issueUrl(repoUrl, title, body, opts) {
     const o = opts || {};
@@ -174,22 +177,30 @@
     const maxLength = o.maxLength || 7500;
     const label = o.label === undefined ? 'portal-report' : core.check(String(o.label), /^[a-z0-9-]{0,50}$/, 'The label');
     const base = `${repo}/issues/new?${label ? `labels=${label}&` : ''}title=${encodeURIComponent(title)}&body=`;
-    if ((base + encodeURIComponent(body)).length <= maxLength) return { url: base + encodeURIComponent(body), trimmed: 0 };
-    const all = String(body).split('\n');
-    let head = Math.min(all.length, 30);
-    const fits = (tail) => {
+    const fits = (b) => (base + encodeURIComponent(b)).length <= maxLength;
+    if (fits(String(body))) return { url: base + encodeURIComponent(body), trimmed: 0 };
+    // Too long: first shorten very long lines (one pasted line of JSON can fill the link by itself), then keep
+    // as many lines from the start (up to 30) and then from the end as fit, with a marker for the cut.
+    let shortened = 0;
+    const all = String(body).split('\n').map((l) => {
+      if (l.length <= LONG_LINE) return l;
+      shortened++;
+      return `${l.slice(0, LONG_LINE)} [... ${l.length - LONG_LINE} characters cut]`;
+    });
+    const build = (head, tail) => {
       const cut = all.length - head - tail;
-      const b = all.slice(0, head).concat([`[... ${cut} lines cut to fit a GitHub link. Paste the copied full report here if they matter ...]`], all.slice(all.length - tail)).join('\n');
-      return (base + encodeURIComponent(b)).length <= maxLength ? b : null;
+      return cut > 0 ? all.slice(0, head).concat([`[... ${cut} lines cut to fit a GitHub link. Paste the copied full report here if they matter ...]`], all.slice(all.length - tail)).join('\n') : all.join('\n');
     };
-    let best = fits(0);
-    if (best === null) { head = Math.min(head, 8); best = fits(0); }
-    let lo = 0, hi = all.length - head;
+    if (fits(build(all.length, 0))) return { url: base + encodeURIComponent(build(all.length, 0)), trimmed: shortened };
+    let head = Math.min(all.length - 1, 30);
+    while (head > 0 && !fits(build(head, 0))) head--;
+    // The most lines from the end that still fit, always leaving at least one line cut.
+    let lo = 0, hi = all.length - head - 1;
     while (lo < hi) {
-      const mid = Math.ceil((lo + hi) / 2), b = fits(mid);
-      if (b !== null) { best = b; lo = mid; } else hi = mid - 1;
+      const mid = Math.ceil((lo + hi) / 2);
+      if (fits(build(head, mid))) lo = mid; else hi = mid - 1;
     }
-    return { url: base + encodeURIComponent(best || ''), trimmed: all.length - head - lo };
+    return { url: base + encodeURIComponent(build(head, lo)), trimmed: all.length - head - lo + shortened };
   }
 
   return { PUBLIC_IDS, PUBLIC_DOMAINS, LABELS, maskSecrets, redact, describe, fence, issueUrl };

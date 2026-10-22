@@ -316,8 +316,9 @@ test('a published copy pins its repo and ref; a refused value keeps the default'
 
     assert.deepEqual(core.setSource({ repoUrl: 'https://github.com/contoso/avd-current-state/', ref: 'v1.2.0' }, engineBlocks), { repoUrl: 'https://github.com/contoso/avd-current-state', ref: 'v1.2.0', ignored: [] });
     const pinned = core.collectCommand({}).split('\n');
+    assert.equal(pinned[0], "$repo = Join-Path $HOME 'avd-current-state-pinned'", 'its own clone: the default one keeps following main');
     assert.equal(pinned[1], "if (Test-Path (Join-Path $repo '.git')) { git -C $repo remote set-url origin 'https://github.com/contoso/avd-current-state'; git -C $repo fetch --quiet --tags origin } else { git clone --quiet 'https://github.com/contoso/avd-current-state' $repo }");
-    assert.equal(pinned[2], "git -C $repo checkout --quiet 'v1.2.0'");
+    assert.equal(pinned[2], "git -C $repo checkout --quiet --detach 'v1.2.0'; if ($LASTEXITCODE) { throw 'This copy of the portal runs v1.2.0 from https://github.com/contoso/avd-current-state, and the clone could not check it out.' }");
     assert.equal(pinned[3], 'Set-Location $repo');
     assert.equal(core.repoWebUrl(), 'https://github.com/contoso/avd-current-state');
 
@@ -333,6 +334,20 @@ test('a published copy pins its repo and ref; a refused value keeps the default'
     assert.deepEqual(core.setSource({ ref: 'v1' }, engineBlocks).ignored, ['ref'], 'a ref needs its repo');
     assert.deepEqual(core.setSource({ repoUrl: 'https://github.com/a/b' }, null).ignored, ['repoUrl'], 'no checker, no value');
   } finally { core.setSource({}, engineBlocks); }
+});
+
+test('quoting doubles the typographic single quotes too, which PowerShell also reads as the end of a string', () => {
+  assert.equal(core.psQuote('Contoso\u2019s Prod'), "'Contoso\u2019\u2019s Prod'");
+  assert.match(core.collectCommand({ subscriptions: "Bob's \u2018Sub\u2019" }), /-SubscriptionNames 'Bob''s \u2018\u2018Sub\u2019\u2019'/);
+});
+
+test('a report\'s title and body share their placeholders, and a long title is never cut inside one', () => {
+  const r = core.buildReport({ stage: 'Analyze', headline: 'Validated Beta Sub', output: 'Alpha Sub then Beta Sub', settings: { subscriptions: 'Alpha Sub\nBeta Sub' } }, redact);
+  const inTitle = r.title.match(/<subscription-\d+>/)[0];
+  assert.match(r.body, new RegExp(`then ${inTitle}`), 'the same value, the same number');
+  const long = core.buildReport({ stage: 'Analyze', headline: `${'x'.repeat(98)} Alpha Sub`, settings: { subscriptions: 'Alpha Sub' } }, redact);
+  assert.ok(long.title.length <= 120);
+  assert.doesNotMatch(long.title, /<[a-z]*-?\d*$/, 'no half placeholder at the end');
 });
 
 test('a report redacts what this repo\'s scripts print, the settings and the operator\'s terms', () => {
