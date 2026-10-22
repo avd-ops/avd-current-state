@@ -47,16 +47,15 @@ jobs:
       AVD_ENVIRONMENT: ${{ vars.AVD_ENVIRONMENT }}
       DIGEST_INPUT: ${{ inputs.digest }}
     steps:
-      - name: Mask the IDs in the log
-        run: |
-          echo "::add-mask::${{ vars.AVD_TENANT_ID }}"
-          echo "::add-mask::${{ vars.AVD_SUBSCRIPTION_ID }}"
-          echo "::add-mask::${{ vars.AVD_READER_CLIENT_ID }}"
-
       - name: Health check (the repository is private)
         env:
           GH_TOKEN: ${{ github.token }}
+          MASK_TENANT: ${{ vars.AVD_TENANT_ID }}
+          MASK_SUBSCRIPTION: ${{ vars.AVD_SUBSCRIPTION_ID }}
+          MASK_CLIENT: ${{ vars.AVD_READER_CLIENT_ID }}
         run: |
+          # The IDs are masked in the log before anything can print them.
+          for v in "$MASK_TENANT" "$MASK_SUBSCRIPTION" "$MASK_CLIENT"; do [ -n "$v" ] && echo "::add-mask::$v"; done
           private="$(gh api "repos/$GITHUB_REPOSITORY" --jq .private)"
           if [ "$private" != "true" ]; then
             echo "This repository is not private, so the drift report can't be written here. Stopping."
