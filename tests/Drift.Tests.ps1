@@ -366,8 +366,8 @@ Describe 'the sample workflow (samples/drift.yml)' {
     $block = [regex]::Match($script:yml, '(?ms)^permissions:\s*\n(.*?)\n\S').Groups[1].Value
     @($block -split '\n' | Where-Object { $_.Trim() } | ForEach-Object { $_.Trim() } | Sort-Object) | Should -Be @('actions: read', 'contents: read', 'id-token: write', 'issues: write')
     $script:yml | Should -Not -Match 'secrets\.'
-    $script:yml | Should -Match 'client-id: \$\{\{ vars\.DRIFT_READER_CLIENT_ID \}\}'
-    $script:yml | Should -Match 'environment: drift-reader'
+    $script:yml | Should -Match 'client-id: \$\{\{ vars\.AVD_READER_CLIENT_ID \}\}'
+    $script:yml | Should -Match 'environment: avd-reader'
   }
 
   It 'pins every action by commit SHA and never uploads an artifact' {
