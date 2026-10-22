@@ -98,6 +98,8 @@ The page uses the [avd-ops design system](https://github.com/avd-ops/avd-ops/blo
 | Load a file | none | `.filedrop`: a labeled `input type=file` with a drop zone, the file name and size after loading, and an error line on a schema mismatch. Says "read in your browser, never uploaded" |
 | Download a file | `.cta.ghost` | none (a `download` link) |
 
+The logic shared with the deployment portal (quoting, Run in, finding state lines) comes from the [avd-ops portal engine](https://github.com/avd-ops/avd-ops/blob/main/docs/portal-engine-spec.md), vendored the same way into `site/assets/engine/` at a tag recorded in `site/assets/engine.lock.json`; this portal takes the pure files only (no `probe.js`). `assess-core.js` keeps its exports and delegates to it, and `tests/portal/engine-golden.test.mjs` holds every block, in every Run in choice, and the state lines byte for byte to what they were before the move.
+
 Accessibility: every control is reachable by keyboard; the findings table is a real `table` with a caption and column headers; outcome and disposition are words, not just colors; focus uses `--focus`. Phones: the table becomes one card per finding below 40rem.
 
 ## 6. Tests

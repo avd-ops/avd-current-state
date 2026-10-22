@@ -1,0 +1,11 @@
+{
+  "$comment": "The avd-ops portal engine files this portal takes (avd-ops docs/portal-engine-spec.md, sections 4 and 6.5): the tag and commit they came from and each file's SHA-256 from that commit's site/assets/engine/MANIFEST.json. Update it by copying the files at a new tag, never by hand-editing a file.",
+  "tag": "pe-v1.0.0",
+  "commit": "4b8cd122d6e9648fb76c1871d2af1d22f83a4273",
+  "files": {
+    "core.js": "b0302d56fff1b8c498bf935f24a7cf6d960038739dee3d31bced7cd8333c0761",
+    "blocks.js": "5195aeb2ba81289e57242bad00c8ee83725f9c8a2165f39e964f2e16ac0c99af",
+    "runin.js": "3f7f6a9bc81ba5f4c7aade3c24dcd03e8654d64e50ae742f0970456e0c4689cd",
+    "statelines.js": "9be69be2b5b1291b020a2c695fa31cf522921b0b01cbe4c41aae70f8ab46049e"
+  }
+}

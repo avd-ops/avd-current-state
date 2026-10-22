@@ -9,3 +9,5 @@ assess/*.json -text
 assess/*.psm1 -text
 # So is the check catalog schema (checks/PINS.json).
 checks/check-catalog.schema.json -text
+# So is the portal engine copy (site/assets/engine.lock.json).
+site/assets/engine/* -text
