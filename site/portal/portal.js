@@ -41,7 +41,9 @@
   // ---- Settings ----
   const SETTINGS = ['subscriptions', 'validationSubscription', 'resourceGroup'];
   // Settings and Report a problem open as sheets over the step, one at a time; Escape or the backdrop closes the
-  // open one and focus goes back to the tool that opened it.
+  // open one and focus goes back to the control that opened it. The page behind an open sheet is inert, so Tab
+  // stays in the sheet.
+  let opener = null;
   const SHEETS = { settings: ['settings-panel', 'settings-link'], report: ['report-panel', 'report-link'] };
   const sheetOpen = () => Object.keys(SHEETS).find((k) => !$(SHEETS[k][0]).classList.contains('hidden'));
   function showSheet(name, open) {
@@ -51,15 +53,19 @@
       $(SHEETS[k][1]).setAttribute('aria-expanded', String(on));
     }
     $('sheet-backdrop').classList.toggle('hidden', !open);
+    for (const n of document.querySelectorAll('main.wz-layout, nav.wz-nav, .after')) n.inert = !!open;
   }
   function toggleSettings(open, focus) {
+    if (open && !sheetOpen()) opener = document.activeElement;
     showSheet('settings', open);
     if (open) (focus || $('subscriptions')).focus();
   }
   function closeSheet() {
     const k = sheetOpen();
     if (!k) return;
-    showSheet(k, false); $(SHEETS[k][1]).focus();
+    showSheet(k, false);
+    (opener && opener.isConnected ? opener : $(SHEETS[k][1])).focus();
+    opener = null;
   }
   $('settings-link').addEventListener('click', () => toggleSettings(sheetOpen() !== 'settings'));
   $('settings-close').addEventListener('click', closeSheet);
@@ -234,6 +240,7 @@
     return { title: r.title, body };
   }
   function toggleReport(open) {
+    if (open && !sheetOpen()) opener = document.activeElement;
     showSheet('report', open);
     if (open) { reportEdited = false; $('report-ok').checked = false; $('report-submit').disabled = true; renderReport(); $('report-desc').focus(); }
   }
