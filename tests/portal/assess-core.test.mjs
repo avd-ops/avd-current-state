@@ -307,3 +307,76 @@ test('a typographic single quote is doubled too: PowerShell ends a string at it'
   assert.equal(core.psQuote('O’Brien'), "'O’’Brien'");
   assert.match(core.collectCommand({ subscriptions: "x’; Remove-Item ~ -Recurse; ’" }), /-SubscriptionNames 'x’’; Remove-Item ~ -Recurse; ’’'/);
 });
+
+// ---- Where the commands come from (portal-config.js) and Report a problem (the engine's redact.js) ----
+const engineBlocks = createRequire(import.meta.url)('../../site/assets/engine/blocks.js');
+const redact = createRequire(import.meta.url)('../../site/assets/engine/redact.js');
+
+test('a published copy pins its repo and ref; a refused value keeps the default', () => {
+  try {
+    assert.deepEqual(core.setSource({}, engineBlocks), { repoUrl: '', ref: '', ignored: [] });
+    const plain = core.collectCommand({});
+    assert.match(plain, /git -C \$repo pull --ff-only --quiet } else { git clone --quiet https:\/\/github\.com\/avd-ops\/avd-current-state\.git \$repo }/);
+    assert.equal(core.repoWebUrl(), 'https://github.com/avd-ops/avd-current-state');
+
+    assert.deepEqual(core.setSource({ repoUrl: 'https://github.com/contoso/avd-current-state/', ref: 'v1.2.0' }, engineBlocks), { repoUrl: 'https://github.com/contoso/avd-current-state', ref: 'v1.2.0', ignored: [] });
+    const pinned = core.collectCommand({}).split('\n');
+    assert.equal(pinned[0], "$repo = Join-Path $HOME 'avd-current-state-pinned'", 'its own clone: the default one keeps following main');
+    assert.equal(pinned[1], "if (Test-Path (Join-Path $repo '.git')) { git -C $repo remote set-url origin 'https://github.com/contoso/avd-current-state'; git -C $repo fetch --quiet --tags origin } else { git clone --quiet 'https://github.com/contoso/avd-current-state' $repo }");
+    assert.equal(pinned[2], "git -C $repo checkout --quiet --detach 'v1.2.0'; if ($LASTEXITCODE) { throw 'This copy of the portal runs v1.2.0 from https://github.com/contoso/avd-current-state, and the clone could not check it out.' }");
+    assert.equal(pinned[3], 'Set-Location $repo');
+    assert.equal(core.repoWebUrl(), 'https://github.com/contoso/avd-current-state');
+
+    assert.deepEqual(core.setSource({ repoUrl: 'https://github.com/contoso/x.git' }, engineBlocks).ignored, []);
+    assert.match(core.collectCommand({}), /remote set-url origin 'https:\/\/github\.com\/contoso\/x\.git'; git -C \$repo pull --ff-only --quiet/, 'no ref: follow the default branch');
+    assert.equal(core.repoWebUrl(), 'https://github.com/contoso/x');
+
+    for (const bad of [{ repoUrl: 'https://evil.example/a/b' }, { repoUrl: "https://github.com/a/b'; rm -rf ~" }, { repoUrl: 'https://github.com/a/../b' }]) {
+      assert.deepEqual(core.setSource(bad, engineBlocks).ignored, ['repoUrl'], JSON.stringify(bad));
+      assert.equal(core.collectCommand({}), plain);
+    }
+    assert.deepEqual(core.setSource({ repoUrl: 'https://github.com/a/b', ref: "main'; x" }, engineBlocks).ignored, ['ref']);
+    assert.deepEqual(core.setSource({ ref: 'v1' }, engineBlocks).ignored, ['ref'], 'a ref needs its repo');
+    assert.deepEqual(core.setSource({ repoUrl: 'https://github.com/a/b' }, null).ignored, ['repoUrl'], 'no checker, no value');
+  } finally { core.setSource({}, engineBlocks); }
+});
+
+test('a report\'s title and body share their placeholders, and a long title is never cut inside one', () => {
+  const r = core.buildReport({ stage: 'Analyze', headline: 'Validated Beta Sub', output: 'Alpha Sub then Beta Sub', settings: { subscriptions: 'Alpha Sub\nBeta Sub' } }, redact);
+  const inTitle = r.title.match(/<subscription-\d+>/)[0];
+  assert.match(r.body, new RegExp(`then ${inTitle}`), 'the same value, the same number');
+  const long = core.buildReport({ stage: 'Analyze', headline: `${'x'.repeat(98)} Alpha Sub`, settings: { subscriptions: 'Alpha Sub' } }, redact);
+  assert.ok(long.title.length <= 120);
+  assert.doesNotMatch(long.title, /<[a-z]*-?\d*$/, 'no half placeholder at the end');
+});
+
+test('a report redacts what this repo\'s scripts print, the settings and the operator\'s terms', () => {
+  const g = (c) => [c.repeat(8), c.repeat(4), c.repeat(4), c.repeat(4), c.repeat(12)].join('-');
+  const output = [
+    `[INFO] Authenticated as ${['ops.admin', 'fabrikam.com'].join('@')} in tenant ${g('a')}.`,
+    `[INFO] Validating subscription: Fabrikam Production (${g('b')})`,
+    `  [FAIL] HostPool-StartVM          /subscriptions/${g('b')}/resourceGroups/rg-fab-avd/providers/Microsoft.DesktopVirtualization/hostpools/hp-fab-01 has Start VM on Connect off`,
+    '  [WARN] Profiles-Storage          stfabprofiles01.file.core.windows.net is Standard_LRS on FAB-SRV-07',
+    `  [INFO] Workspace                 ${'/home/fabuser/clouddrive'}`,
+    '<<<AVDCS-STATE {"schema":"avdcs-state/v1","stage":"analyze","status":"done"} AVDCS-STATE>>>'
+  ].join('\n');
+  const r = core.buildReport({ description: 'Start VM on Connect shows as failed for Fabrikam', stage: 'Analyze', headline: 'Not ready: 1 fail, 1 warn, 0 pass.', output,
+    settings: { subscriptions: 'Fabrikam Production\nFabrikam Dev', resourceGroup: 'rg-fab-avd' }, extraTerms: ['Fabrikam', 'FAB-SRV-07'], runIn: { where: 'cloudshell', shell: 'pwsh' } }, redact);
+  for (const v of ['fabrikam.com', 'ops.admin', g('a'), g('b'), 'Fabrikam', 'rg-fab-avd', 'hp-fab-01', 'stfabprofiles01', 'FAB-SRV-07', 'fabuser']) assert.ok(!r.body.includes(v) && !r.title.includes(v), v);
+  assert.match(r.body, /Validating subscription: <subscription-1> \(<id-2>\)/);
+  assert.match(r.body, /\/resourceGroups\/<group-1>\/providers\/Microsoft\.DesktopVirtualization\/hostpools\/<resource-1> has Start VM/);
+  assert.match(r.body, /<storage-1>\.file\.core\.windows\.net is Standard_LRS on <custom-\d>/);
+  assert.match(r.body, /^- Stage: Analyze$/m);
+  assert.match(r.body, /^- Run in: Cloud Shell, PowerShell$/m);
+  assert.match(r.body, /^```text\n\[INFO\]/m, 'the output sits in a fence');
+  assert.match(r.body, /AVDCS-STATE \{"schema":"avdcs-state\/v1","stage":"analyze","status":"done"\} AVDCS-STATE>>>/, 'the state line stays readable');
+  assert.match(r.body, /<!-- avdcs-portal-report v1 -->/);
+  assert.equal(r.title, 'Assessment portal: Not ready: 1 fail, 1 warn, 0 pass.');
+  for (const label of ['subscription name', 'resource group', 'resource name', 'storage account']) assert.match(core.reportSummary(r.redaction, redact), new RegExp(`\\d x ${label}\\b`), label);
+  const bare = core.buildReport({ stage: 'Review' }, redact);
+  assert.equal(bare.title, 'Assessment portal: problem at the Review stage');
+  assert.match(bare.body, /_No description given\._/);
+  assert.doesNotMatch(bare.body, /Cloud Shell output/, 'no output, no section');
+  const again = redact.redact(`${r.body}\nand Fabrikam Dev too`, core.reportOptions({ subscriptions: 'Fabrikam Production\nFabrikam Dev' }, ['Fabrikam'])).text;
+  assert.doesNotMatch(again, /Fabrikam/, 'an edited report is redacted again with the same options');
+});

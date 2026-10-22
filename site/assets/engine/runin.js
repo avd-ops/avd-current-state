@@ -1,4 +1,4 @@
-/* avd-ops portal engine v1.0.0: runin.js. Personal project, not for production, as is; not affiliated with the author's employer or Microsoft. MIT.
+/* avd-ops portal engine v1.1.0: runin.js. Personal project, not for production, as is; not affiliated with the author's employer or Microsoft. MIT.
    Run in (avd-ops docs/design-system.md, "Run in"): where the operator runs a portal's blocks, Cloud Shell, Windows
    or macOS, in PowerShell or Bash. A portal writes its blocks for Cloud Shell PowerShell, the default; these
    primitives tell it how well a block works elsewhere and rewrite it. Pure. */

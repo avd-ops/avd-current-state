@@ -58,6 +58,10 @@
   .later{border-left:3px solid var(--line-strong);padding-left:var(--space-3);color:var(--muted)}
   [aria-invalid="true"]{border-color:var(--bad)!important}
   .row>.filedrop{flex:1 1 260px}
+  details.more>summary{cursor:pointer;color:var(--accent);font-size:.92rem}
+  details.more[open]>summary{margin-bottom:var(--space-2)}
+  #report-body{min-height:220px}
+  #report-panel .switch{margin-top:var(--space-3)}
   table.findings caption{text-align:left;font:600 .85rem var(--display);color:var(--muted);padding:var(--space-2) .7rem}
   table.findings td{vertical-align:middle}
   table.findings td.check strong{display:block;font-weight:600}
@@ -91,11 +95,12 @@
   <header class="top">
     <div class="title"><h1>AVD assessment portal</h1></div>
     <div class="toplinks"><a class="about" href="https://github.com/avd-ops/avd-current-state">About avd-current-state</a>
+      <button type="button" class="secondary" id="report-link" aria-controls="report-panel" aria-expanded="false">Report a problem</button>
       <button type="button" class="secondary" id="settings-link" aria-controls="settings-panel" aria-expanded="false">Assessment settings</button></div>
   </header>
 
   <div class="top-intro">
-    <p class="lede">Walks an <a href="https://github.com/avd-ops/avd-current-state">avd-current-state</a> assessment step by step. Run each command in <a href="https://shell.azure.com/powershell" target="_blank" rel="noopener">Azure Cloud Shell (PowerShell)</a>, paste the output back here, and answer the discovery questions. Everything happens in your browser: nothing you paste or type is sent anywhere, and every command only reads.</p>
+    <p class="lede">Walks an <a href="https://github.com/avd-ops/avd-current-state">avd-current-state</a> assessment step by step. Run each command in <a href="https://shell.azure.com/powershell" target="_blank" rel="noopener">Azure Cloud Shell (PowerShell)</a>, paste the output back here, and answer the discovery questions. Everything happens in your browser: nothing you paste or type leaves this page unless you send a report yourself, and every command only reads.</p>
   </div>
 
   <!-- Run in (avd-ops docs/design-system.md): every command block follows this choice. Cloud Shell PowerShell is the default; the choice is kept in this browser only. -->
@@ -118,6 +123,27 @@
     <div class="actions">
       <button type="button" class="secondary" id="reset">Start over</button>
       <span class="muted">Clears the saved progress, answers, notes and settings from this browser.</span>
+    </div>
+  </section>
+
+  <!-- Report a problem (docs/assessment-portal-spec.md, decision 5): redacted here with the avd-ops engine's
+       redact.js, then GitHub's new-issue form opens with it. Nothing is sent from this page. -->
+  <section class="panel accent hidden" id="report-panel" aria-labelledby="report-title">
+    <div class="panel-head"><h2 id="report-title">Report a problem</h2><button type="button" class="linkbtn" id="report-close">Close</button></div>
+    <p>This opens a <strong>public</strong> GitHub issue. Your browser redacts the report first. Read it before you send it.</p>
+    <details class="more"><summary>What gets removed</summary>
+      <p class="muted">Anything that looks like a password, key or token; email addresses and UPNs; tenant and domain names; IDs; public IP addresses; user names in paths; subscription and resource group names (from your settings and the output); resource names in Azure resource IDs; storage and key vault names; and the words you add below. Server names the output prints any other way are not found: add them. Nothing leaves this page until you submit the issue on GitHub, which needs a GitHub account.</p>
+    </details>
+    <label class="field gap"><span>What were you doing, and what went wrong?</span><textarea class="prose" id="report-desc" rows="3"></textarea></label>
+    <label class="switch gap"><input type="checkbox" id="report-output" checked><span><strong>Include the output pasted at this stage</strong></span></label>
+    <label class="field gap"><span>Also remove (comma-separated: company, server and app names, anything else private)</span><input type="text" id="report-terms" autocomplete="off"></label>
+    <label class="field gap"><span>The report, as it will be sent (you can edit it)</span><textarea id="report-body" spellcheck="false"></textarea></label>
+    <p class="muted" id="report-summary" role="status"></p>
+    <label class="switch"><input type="checkbox" id="report-ok"><span><strong>I have read the report and it holds nothing private</strong></span></label>
+    <div class="actions">
+      <button type="button" id="report-submit" disabled>Open GitHub issue</button>
+      <button type="button" class="secondary" id="report-copy">Copy report</button>
+      <span class="muted" id="report-status" role="status"></span>
     </div>
   </section>
 
@@ -316,10 +342,12 @@
   <p class="credit">A <a href="https://prignano.ai/">prignano.ai</a> production</p>
 </main>
 <datalist id="zones"><option value="UTC"><option value="America/New_York"><option value="America/Chicago"><option value="America/Denver"><option value="America/Los_Angeles"><option value="America/Toronto"><option value="America/Sao_Paulo"><option value="Europe/London"><option value="Europe/Dublin"><option value="Europe/Amsterdam"><option value="Europe/Berlin"><option value="Europe/Paris"><option value="Asia/Singapore"><option value="Asia/Tokyo"><option value="Asia/Kolkata"><option value="Australia/Sydney"></datalist>
+<script src="portal-config.js"></script>
 <script src="../assets/engine/core.js"></script>
 <script src="../assets/engine/blocks.js"></script>
 <script src="../assets/engine/runin.js"></script>
 <script src="../assets/engine/statelines.js"></script>
+<script src="../assets/engine/redact.js"></script>
 <script src="assess-catalog.js"></script>
 <script src="assess-core.js"></script>
 <script src="portal.js"></script>

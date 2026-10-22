@@ -10,7 +10,7 @@ import { dirname, join } from 'node:path';
 const root = new URL('../../', import.meta.url).pathname;
 const read = (f) => readFileSync(join(root, f), 'utf8');
 const pages = ['site/index.html', 'site/portal/index.html'];
-const scripts = ['site/portal/assess-catalog.js', 'site/portal/assess-core.js', 'site/portal/portal.js'];
+const scripts = ['site/portal/portal-config.js', 'site/portal/assess-catalog.js', 'site/portal/assess-core.js', 'site/portal/portal.js'];
 
 test('the notice comes before the first stage, and each script carries it', () => {
   const html = read('site/portal/index.html');

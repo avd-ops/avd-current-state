@@ -106,17 +106,42 @@
     return String(text || '').split(/[\n,]/).map((s) => s.trim()).filter(Boolean);
   }
 
+  // A copy published into the operator's own subscription (avd_portal_publish.ps1) pins the repo and the tag or
+  // commit its commands run (site/portal/portal-config.js). The values are checked with the engine's blocks.js
+  // before they reach a command; anything else keeps the default, and the keys that were refused are reported.
+  let source = { repoUrl: '', ref: '' };
+  function setSource(cfg, blocks) {
+    const c = cfg && typeof cfg === 'object' ? cfg : {};
+    const ignored = [];
+    source = { repoUrl: '', ref: '' };
+    if (c.repoUrl !== undefined) { if (blocks && blocks.isRepoUrl(c.repoUrl)) source.repoUrl = c.repoUrl.replace(/\/+$/, ''); else ignored.push('repoUrl'); }
+    if (c.ref !== undefined) { if (blocks && blocks.isRef(c.ref)) source.ref = c.ref; else ignored.push('ref'); }
+    if (source.ref && !source.repoUrl) { source.ref = ''; ignored.push('ref'); }
+    return { repoUrl: source.repoUrl, ref: source.ref, ignored };
+  }
+  // The repo's web address, where a report opens its issue.
+  function repoWebUrl() { return (source.repoUrl || REPO_URL).replace(/\.git$/, ''); }
+
   // Every block stands alone (Cloud Shell sessions end and reconnect): clone or update, Set-Location, the
   // output folder (~/clouddrive survives the session when it exists), and a sign-in check.
   function preamble(opts) {
     const o = opts || {};
-    const lines = [
-      "$repo = Join-Path $HOME 'avd-current-state'",
-      `if (Test-Path (Join-Path $repo '.git')) { git -C $repo pull --ff-only --quiet } else { git clone --quiet ${REPO_URL} $repo }`,
+    // A published copy's commands use their own clone, so the default clone (and the README's blocks) keep
+    // following the default branch; a ref the repo doesn't have stops the block instead of running other code.
+    const clone = source.repoUrl
+      ? [
+        "$repo = Join-Path $HOME 'avd-current-state-pinned'",
+        `if (Test-Path (Join-Path $repo '.git')) { git -C $repo remote set-url origin ${psQuote(source.repoUrl)}; git -C $repo ${source.ref ? 'fetch --quiet --tags origin' : 'pull --ff-only --quiet'} } else { git clone --quiet ${psQuote(source.repoUrl)} $repo }`
+      ].concat(source.ref ? [`git -C $repo checkout --quiet --detach ${psQuote(source.ref)}; if ($LASTEXITCODE) { throw ${psQuote(`This copy of the portal runs ${source.ref} from ${source.repoUrl}, and the clone could not check it out.`)} }`] : [])
+      : [
+        "$repo = Join-Path $HOME 'avd-current-state'",
+        `if (Test-Path (Join-Path $repo '.git')) { git -C $repo pull --ff-only --quiet } else { git clone --quiet ${REPO_URL} $repo }`
+      ];
+    const lines = clone.concat([
       'Set-Location $repo',
       "$out = if (Test-Path (Join-Path $HOME 'clouddrive')) { Join-Path $HOME 'clouddrive/avd-assessment' } else { Join-Path $HOME 'avd-assessment' }",
       'New-Item -ItemType Directory -Force -Path $out | Out-Null'
-    ];
+    ]);
     if (o.signIn !== false) lines.push('if (-not (Get-AzContext)) { Connect-AzAccount -UseDeviceAuthentication }');
     return lines;
   }
@@ -482,6 +507,58 @@
     return fileCommand('plan.json', plan);
   }
 
+  // ---- Report a problem (decision 5 of the spec; the engine's redact.js) ------------------------------
+  // The issue is public, so everything in it passes through the engine's redaction in the browser first: the
+  // engine's generic steps, the operator's own settings and terms, and the patterns below for what this repo's
+  // scripts print (subscription names, resource groups and resource names in ARM IDs, storage and key vault host
+  // names). Nothing is sent: the page opens GitHub's new-issue form and the operator submits it.
+  const REPORT_PATTERNS = [
+    { kind: 'subscription', re: /(?<pre>Validating subscription: )(?<value>[^\n]+?)(?<post> \()/g },
+    { kind: 'subscription', re: /(?<pre>subscription ')(?<value>[^'\n]+)(?<post>')/gi },
+    { kind: 'subscription', re: /(?<pre>"subscriptionName"\s*:\s*")(?<value>[^"\n]+)(?<post>")/g },
+    { kind: 'group', re: /(?<pre>\/resourceGroups\/)(?<value>[^/\s'"?,;)]+)/gi },
+    { kind: 'resource', re: /(?<pre>\/(?:hostpools|sessionhosts|applicationgroups|workspaces|scalingplans|virtualMachines|networkInterfaces|disks|virtualNetworks|subnets|privateEndpoints|storageAccounts|vaults|shares|galleries|images|automationAccounts)\/)(?<value>[^/\s'"?,;)]+)/gi },
+    { kind: 'storage', re: /\b(?!privatelink\b)(?<value>[a-z0-9]{3,24})(?<post>\.(?:file|blob|queue|table|dfs|web)\.core\.windows\.net)\b/g },
+    { kind: 'vault', re: /\b(?!privatelink\b)(?<value>[a-z0-9-]{3,24})(?<post>\.vault\.azure\.net)\b/g }
+  ];
+  const REPORT_LABELS = { subscription: 'subscription name', group: 'resource group', resource: 'resource name', storage: 'storage account', vault: 'key vault' };
+
+  // The settings an operator typed: subscription and resource group names, removed wherever they appear.
+  function reportKnown(settings) {
+    const s = settings || {};
+    return nameList(s.subscriptions).concat(nameList(s.validationSubscription)).map((v) => ({ kind: 'subscription', value: v }))
+      .concat(nameList(s.resourceGroup).map((v) => ({ kind: 'group', value: v })));
+  }
+
+  // The redaction options for a report: the settings, the operator's terms and this repo's patterns.
+  function reportOptions(settings, extraTerms) {
+    return { known: reportKnown(settings), extraTerms: (extraTerms || []).map((t) => String(t).trim()).filter(Boolean), patterns: REPORT_PATTERNS };
+  }
+
+  // buildReport({ description, stage, headline, output, settings, extraTerms, runIn }, redact) -> { title, body, redaction }
+  function buildReport(input, redact) {
+    const i = input || {};
+    const opts = reportOptions(i.settings, i.extraTerms);
+    const stage = String(i.stage || '');
+    const lines = ['### What happened', '', String(i.description || '').trim() || '_No description given._', '', '### Portal', ''];
+    lines.push(`- Stage: ${stage || 'none'}`);
+    if (i.headline) lines.push(`- What the page made of it: ${i.headline}`);
+    if (i.runIn) { const r = validRunIn(i.runIn); lines.push(`- Run in: ${PLACES[r.where]}, ${r.shell === 'bash' ? 'Bash' : 'PowerShell'}`); }
+    lines.push('');
+    const output = String(i.output || '').replace(/\r\n/g, '\n').replace(/\s+$/, '');
+    if (output) { const f = redact.fence(output); lines.push('### Cloud Shell output', '', `${f}text`, output, f, ''); }
+    lines.push('<!-- avdcs-portal-report v1 -->', '_Sent from the assessment portal. Redacted in the reporter\'s browser before submitting; check before copying anything from it into the repo._');
+    // The title and the body are redacted together, so a placeholder names the same value in both.
+    const rawTitle = `Assessment portal: ${i.headline || `problem at the ${stage || 'unknown'} stage`}`.replace(/\s+/g, ' ');
+    const r = redact.redact(`${rawTitle}\n${lines.join('\n')}`, opts);
+    const cut = r.text.indexOf('\n');
+    let title = r.text.slice(0, cut);
+    // Cut at 120 characters, never inside a placeholder.
+    if (title.length > 120) title = title.slice(0, 120).replace(/<[a-z]*-?\d*$/, '').trimEnd();
+    return { title, body: r.text.slice(cut + 1), redaction: r };
+  }
+  function reportSummary(redaction, redact) { return redact.describe(redaction.counts, REPORT_LABELS); }
+
   // ---- Run in (avd-ops docs/design-system.md, "Run in") ----------------------------------------------
   // Where the operator runs the blocks: Cloud Shell, Windows or macOS, in PowerShell or Bash. The blocks above
   // are PowerShell and already sign in when they need to, so PowerShell runs them as they are anywhere; Bash runs
@@ -503,10 +580,11 @@
   return {
     STAGES, HUBS, IDENTITY, DAYS, TOPICS,
     parseStateLines, latestStates, summarizeCollect, summarizeAnalyze,
-    psQuote, nameList, collectCommand, analyzeCommand, readerCommand,
+    setSource, repoWebUrl, psQuote, nameList, collectCommand, analyzeCommand, readerCommand,
     regionList, buildIntake, intakeCommand, notesMarkdown,
     REASONS, REASON_LABELS, sha256Hex, parseAssessment, checkTitle, startReview, buildReview, reviewCommand,
     reviewText, titleOf, buildPlan, planMarkdown, planCommand, CODE_SHORT, skippedWhy,
+    reportOptions, buildReport, reportSummary,
     PLATFORMS, PLACES, validRunIn, isDefaultRunIn, scriptsIn, support, forRunIn
   };
 });

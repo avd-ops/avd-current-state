@@ -1,4 +1,4 @@
-/* avd-ops portal engine v1.0.0: statelines.js. Personal project, not for production, as is; not affiliated with the author's employer or Microsoft. MIT.
+/* avd-ops portal engine v1.1.0: statelines.js. Personal project, not for production, as is; not affiliated with the author's employer or Microsoft. MIT.
    Finds the machine-readable lines the family's scripts end with, <<<MARKER {json} MARKER>>> (avd-landing-zone
    decision 0007). Pure. A paste is untrusted: this only parses; each portal checks the result against its own
    schema and keeps its own policy for lines that don't parse. */

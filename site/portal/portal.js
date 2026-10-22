@@ -5,6 +5,15 @@
 (function () {
   'use strict';
   const core = window.AssessCore;
+  const engine = window.AvdOpsEngine || {};
+  // A copy published into a subscription names its repo and ref (portal-config.js); the defaults otherwise.
+  const source = core.setSource(window.AVDCS_PORTAL_CONFIG, engine.blocks);
+  if (source.ignored.length) {
+    const note = document.createElement('p');
+    note.className = 'errors';
+    note.textContent = `This copy's portal-config.js holds a value the page refused (${source.ignored.join(', ')}), so the commands use ${core.repoWebUrl()}.`;
+    document.querySelector('.top-intro').append(note);
+  }
   const $ = (id) => document.getElementById(id);
   const STAGES = ['collect', 'discover', 'analyze', 'review', 'plan'];
   const NAMES = { collect: 'Collect', discover: 'Discover', analyze: 'Analyze', review: 'Review', plan: 'Plan' };
@@ -133,8 +142,15 @@
   function renderAnalyze() {
     renderResult('analyze-result', 'analyze-paste-stop', state.analyze ? core.summarizeAnalyze(state.analyze) : null);
   }
+  // The last output read at each stage, with its secrets masked, for a report. Kept in memory only: a reload drops it.
+  const pasted = {};
+  function takePaste(id, stage) {
+    const text = $(id).value;
+    pasted[stage] = engine.redact ? engine.redact.maskSecrets(text).text : '';
+    return text;
+  }
   $('collect-read').addEventListener('click', () => {
-    const s = core.latestStates($('collect-paste').value);
+    const s = core.latestStates(takePaste('collect-paste', 'collect'));
     state.collect = s.collect || null; state.facts = s.facts || null;
     const sum = core.summarizeCollect(state.collect, state.facts);
     if (sum.estate) { state.answers.estate = sum.estate; $('estate').value = sum.estate; }
@@ -143,10 +159,72 @@
     if (!state.collect) renderResult('collect-result', 'collect-paste-stop', sum);
   });
   $('analyze-read').addEventListener('click', () => {
-    state.analyze = core.latestStates($('analyze-paste').value).analyze || null;
+    state.analyze = core.latestStates(takePaste('analyze-paste', 'analyze')).analyze || null;
     $('analyze-paste').value = '';
     save(); renderAnalyze(); renderSteps();
     if (!state.analyze) renderResult('analyze-result', 'analyze-paste-stop', core.summarizeAnalyze(null));
+  });
+
+  // ---- Report a problem (spec decision 5): redacted here by the engine's redact.js, then GitHub's form ----
+  let reportEdited = false;
+  function stageHeadline() {
+    const st = state.stage;
+    if (st === 'collect' && state.collect) return core.summarizeCollect(state.collect, state.facts).headline;
+    if (st === 'analyze' && state.analyze) return core.summarizeAnalyze(state.analyze).headline;
+    return '';
+  }
+  function reportTerms() { return $('report-terms').value.split(',').map((t) => t.trim()).filter(Boolean); }
+  function buildReport() {
+    if (!engine.redact) { $('report-body').value = ''; $('report-summary').textContent = 'The redaction script did not load, so this page cannot build a report.'; return null; }
+    const output = $('report-output').checked ? (pasted[state.stage] || '') : '';
+    $('report-output').disabled = !pasted[state.stage];
+    return core.buildReport({ description: $('report-desc').value, stage: NAMES[state.stage], headline: stageHeadline(), output, settings: state.settings, extraTerms: reportTerms(), runIn }, engine.redact);
+  }
+  function renderReport() {
+    const r = buildReport();
+    if (!r) return;
+    if (!reportEdited) $('report-body').value = r.body;
+    $('report-summary').textContent = `${core.reportSummary(r.redaction, engine.redact)}${reportEdited ? ' You edited the report: it is redacted again when you open the issue.' : ''}`;
+    $('report-status').textContent = '';
+  }
+  // What goes out: the body as shown, redacted once more, so a value typed into it after the first pass is caught too.
+  function finalReport() {
+    const r = buildReport();
+    if (!r) return null;
+    const body = engine.redact.redact($('report-body').value, core.reportOptions(state.settings, reportTerms())).text;
+    return { title: r.title, body };
+  }
+  function toggleReport(open) {
+    $('report-panel').classList.toggle('hidden', !open);
+    $('report-link').setAttribute('aria-expanded', String(open));
+    if (open) { reportEdited = false; $('report-ok').checked = false; $('report-submit').disabled = true; renderReport(); $('report-desc').focus(); }
+  }
+  $('report-link').addEventListener('click', () => toggleReport($('report-panel').classList.contains('hidden')));
+  $('report-close').addEventListener('click', () => { toggleReport(false); $('report-link').focus(); });
+  for (const id of ['report-desc', 'report-terms']) $(id).addEventListener('input', renderReport);
+  // Taking the output in or out rebuilds the report, so an edited copy can't keep output the box says is left out.
+  $('report-output').addEventListener('change', () => {
+    const had = reportEdited;
+    reportEdited = false; $('report-ok').checked = false; $('report-submit').disabled = true;
+    renderReport();
+    if (had) $('report-status').textContent = 'The report was rebuilt, so your edits to it are gone.';
+  });
+  $('report-body').addEventListener('input', () => { reportEdited = true; $('report-ok').checked = false; $('report-submit').disabled = true; });
+  $('report-ok').addEventListener('change', () => { $('report-submit').disabled = !$('report-ok').checked; });
+  $('report-submit').addEventListener('click', () => {
+    const r = finalReport();
+    if (!r) return;
+    let link;
+    try { link = engine.redact.issueUrl(core.repoWebUrl(), r.title, r.body); } catch (e) { $('report-status').textContent = e.message; return; }
+    window.open(link.url, '_blank', 'noopener');
+    $('report-status').textContent = link.trimmed ? `The report was too long for a GitHub link, so part of it was cut (${link.trimmed} lines). Copy the report and paste it into the issue if they matter.` : 'Opened GitHub in a new tab.';
+  });
+  $('report-copy').addEventListener('click', () => {
+    const r = finalReport();
+    if (!r) return;
+    const done = () => { $('report-status').textContent = 'Copied.'; };
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(r.body).then(done, () => { $('report-body').select(); });
+    else $('report-body').select();
   });
 
   // ---- Discover ----

@@ -1,4 +1,4 @@
-/* avd-ops portal engine v1.0.0: core.js. Personal project, not for production, as is; not affiliated with the author's employer or Microsoft. MIT.
+/* avd-ops portal engine v1.1.0: core.js. Personal project, not for production, as is; not affiliated with the author's employer or Microsoft. MIT.
    The portal engine (docs/portal-engine-spec.md): plain classic scripts the family's portals vendor at a pin. In a
    browser each file adds one member to window.AvdOpsEngine; in Node each is a module. Load this file first. */
 (function (root, factory) {
@@ -7,7 +7,7 @@
 })(typeof self !== 'undefined' ? self : this, function () {
   'use strict';
 
-  const VERSION = '1.0.0';
+  const VERSION = '1.1.0';
 
   // A pattern's test with no state: a g or y flag would carry lastIndex from one call to the next.
   function matches(value, pattern) {

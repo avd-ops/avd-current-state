@@ -1,4 +1,4 @@
-/* avd-ops portal engine v1.0.0: blocks.js. Personal project, not for production, as is; not affiliated with the author's employer or Microsoft. MIT.
+/* avd-ops portal engine v1.1.0: blocks.js. Personal project, not for production, as is; not affiliated with the author's employer or Microsoft. MIT.
    Quoting and arguments for the self-contained Cloud Shell blocks a portal hands out. Pure: no DOM, no network. */
 (function (root, factory) {
   if (typeof module === 'object' && module.exports) module.exports = factory(require('./core.js'));
