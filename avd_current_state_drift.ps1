@@ -78,7 +78,9 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 # An unexpected error is a run that couldn't check (exit 2), never findings (1) or clean (0).
 trap {
-    Write-Host "[drift] Stopped by an error, so this run couldn't check: $($_.Exception.Message) (line $($_.InvocationInfo.ScriptLineNumber))"
+    # In GitHub Actions the log shows the error's type and line only, since a message can carry names.
+    $why = if ($env:GITHUB_ACTIONS -eq 'true') { $_.Exception.GetType().Name } else { $_.Exception.Message }
+    Write-Host "[drift] Stopped by an error, so this run couldn't check: $why (line $($_.InvocationInfo.ScriptLineNumber))"
     Write-Host '[drift] RESULT COULDNT-CHECK (exit 2)'
     exit 2
 }
@@ -187,7 +189,7 @@ $sub = "/subscriptions/$SubscriptionId"
 Write-Step 'Reading the subscription deployment records ...'
 $dep = Invoke-RebuildRestRead -Path "$sub/providers/Microsoft.Resources/deployments?api-version=2021-04-01" -Invoker $rest
 $deployments = @($dep.Items)
-if ($dep.Status -eq 'failed') { Write-Step "  Deployment records unreadable: $($dep.Error)" } else { Write-Step "  $($deployments.Count) deployment record(s)." }
+if ($dep.Status -eq 'failed') { Write-Step "  Deployment records unreadable$(if ($quiet) { " ($(("$($dep.Error)" -split ':')[0]))" } else { ": $($dep.Error)" })" } else { Write-Step "  $($deployments.Count) deployment record(s)." }
 
 $declared = $null
 if ($BaselinePath) {
@@ -202,7 +204,7 @@ if ($BaselinePath) {
     $declared = Get-DriftDeclaredState -Deployments $deployments -Environment $Environment -DeploymentName $DeploymentName
 }
 if (-not $declared -and -not $ProposeBaseline) {
-    if ($dep.Status -eq 'failed') { Add-CouldNotCheck 'declared' 'The deployment records could not be read. The reader needs Reader on the subscription (spec section 5), or pass -BaselinePath.' }
+    if ($dep.Status -eq 'failed') { Add-CouldNotCheck 'declared' "The deployment records could not be read ($(ConvertTo-DriftLiteral $dep.Error)). The reader needs Reader on the subscription (spec section 5), or pass -BaselinePath." }
     else { Add-CouldNotCheck 'declared' 'No successful avdlz-* deployment with namePrefix and environmentName was found. Pass -DeploymentName or -BaselinePath, or -ProposeBaseline for an estate the landing zone did not deploy.' }
 }
 if ($declared) {
