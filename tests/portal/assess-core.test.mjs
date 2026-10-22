@@ -176,7 +176,7 @@ test('run in: the engine carries platforms.json, and it lists every script a blo
     for (const k of ['cloudshell-pwsh', 'cloudshell-bash', 'windows', 'macos']) assert.match(e[k], /^(tested|untested|no)$/, `${s} ${k}`);
     if (Object.values(e).includes('tested')) assert.ok(e.evidence, `${s}: tested needs evidence`);
   }
-  for (const c of [core.collectCommand({ subscriptions: 'Sub A' }), core.analyzeCommand({})]) for (const s of core.scriptsIn(c)) assert.ok(file.scripts[s], `${s} is missing from platforms.json`);
+  for (const c of [core.collectCommand({ subscriptions: 'Sub A' }), core.analyzeCommand({}), core.readerCommand()]) for (const s of core.scriptsIn(c)) assert.ok(file.scripts[s], `${s} is missing from platforms.json`);
 });
 
 test('run in: PowerShell runs every block as it is; Bash writes it word for word to a file and runs pwsh', () => {
@@ -200,4 +200,10 @@ test('run in: untested is marked, and Cloud Shell needs nothing installed', () =
   assert.deepEqual(core.support(c, null).requires, []);
   assert.equal(core.support(core.intakeCommand({ schema: 'avd-intake/v1' }), null).status, 'tested', 'a block with no script is proven where it was written');
   assert.equal(core.support(core.intakeCommand({ schema: 'avd-intake/v1' }), { shell: 'bash' }).status, 'untested');
+});
+
+test('reader: the page only offers the reader check, which reads; setup and removal stay in the docs', () => {
+  const c = core.readerCommand();
+  assert.match(c, /\.\/avd_ops_reader\.ps1 -Mode Test$/m);
+  assert.doesNotMatch(c, /Initialize|Remove/);
 });
