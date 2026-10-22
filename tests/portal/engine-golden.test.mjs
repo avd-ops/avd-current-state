@@ -1,6 +1,7 @@
 // Golden tests for the move onto the avd-ops portal engine (avd-ops docs/portal-engine-spec.md, section 9,
 // goldens 1 and 2): every block the portal builds, in all five Run in choices with its support line, and the
-// state lines it reads, must stay byte for byte what they were before the move.
+// state lines it reads, must stay byte for byte what they were before the move. The one wanted change: psQuote
+// doubles typographic single quotes too (the last quoting entry, added with the move).
 // Regenerate only when a change is wanted: UPDATE_GOLDEN=1 node --test tests/portal/engine-golden.test.mjs
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -53,7 +54,7 @@ function current() {
   };
   const states = {};
   for (const [name, text] of Object.entries(pastes)) states[name] = { lines: core.parseStateLines(text), latest: core.latestStates(text) };
-  const quoting = ["plain", "O'Brien", "''", 'a b', 'x;y'].map((v) => core.psQuote(v));
+  const quoting = ["plain", "O'Brien", "''", 'a b', 'x;y', 'O\u2019Brien \u2018\u201a\u201b'].map((v) => core.psQuote(v));
   return { commands, states, quoting };
 }
 

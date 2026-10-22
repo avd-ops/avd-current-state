@@ -302,3 +302,8 @@ test('reader: the page only offers the reader check, which reads; setup and remo
   assert.match(c, /\.\/avd_ops_reader\.ps1 -Mode Test$/m);
   assert.doesNotMatch(c, /Initialize|Remove/);
 });
+
+test('a typographic single quote is doubled too: PowerShell ends a string at it', () => {
+  assert.equal(core.psQuote('O’Brien'), "'O’’Brien'");
+  assert.match(core.collectCommand({ subscriptions: "x’; Remove-Item ~ -Recurse; ’" }), /-SubscriptionNames 'x’’; Remove-Item ~ -Recurse; ’’'/);
+});

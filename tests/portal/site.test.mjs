@@ -4,7 +4,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 
 const root = new URL('../../', import.meta.url).pathname;
@@ -45,7 +45,7 @@ test('no request to another site: every src and stylesheet is local, the scripts
       assert.ok(existsSync(join(root, dirname(f), url.split('#')[0])), `${f}: ${url} resolves`);
     }
   }
-  for (const f of scripts) {
+  for (const f of scripts.concat(readdirSync(join(root, 'site/assets/engine')).map((e) => `site/assets/engine/${e}`))) {
     const js = read(f);
     assert.doesNotMatch(js, /\bfetch\s*\(|XMLHttpRequest|WebSocket|EventSource|sendBeacon|importScripts|\beval\s*\(|new Function/, f);
     assert.doesNotMatch(js, /innerHTML|outerHTML|insertAdjacentHTML|document\.write/, `${f}: text goes in with textContent`);
@@ -92,4 +92,31 @@ test('the vendored files match the hashes in design-system.lock.json', () => {
   for (const [f, sha] of Object.entries(lock.files)) {
     assert.equal(createHash('sha256').update(readFileSync(join(root, 'site/assets', f))).digest('hex'), sha, f);
   }
+});
+
+// engine.lock.json records the avd-ops portal engine tag and commit the copy came from and each file's hash from
+// that commit's MANIFEST.json (avd-ops docs/portal-engine-spec.md, section 6.5). This portal makes no requests, so
+// it takes the pure files only: never probe.js.
+test('the portal engine copy matches engine.lock.json, needs nothing unlisted, and the page loads it first', () => {
+  const lock = JSON.parse(read('site/assets/engine.lock.json'));
+  assert.match(lock.tag, /^pe-v\d+\.\d+\.\d+$/);
+  assert.match(lock.commit, /^[0-9a-f]{40}$/);
+  const present = readdirSync(join(root, 'site/assets/engine')).sort();
+  assert.deepEqual(present, Object.keys(lock.files).sort(), 'every engine file is listed and every listed file is present');
+  assert.ok(!present.includes('probe.js'), 'no network file');
+  const needs = [];
+  for (const [f, sha] of Object.entries(lock.files)) {
+    const text = readFileSync(join(root, 'site/assets/engine', f));
+    assert.equal(createHash('sha256').update(text).digest('hex'), sha, f);
+    assert.ok(text.toString().startsWith(`/* avd-ops portal engine ${lock.tag.slice(3)}: ${f}. `), `${f} is ${lock.tag}`);
+    for (const [, need] of text.toString().matchAll(/require\('\.\/([\w-]+\.js)'\)/g)) {
+      assert.ok(lock.files[need], `${f} needs ${need}`);
+      needs.push([f, need]);
+    }
+  }
+  const html = read('site/portal/index.html');
+  const at = (src) => html.indexOf(`<script src="${src}"></script>`);
+  assert.ok(at('../assets/engine/core.js') >= 0, 'core.js is loaded');
+  for (const [f, need] of needs) assert.ok(at(`../assets/engine/${need}`) >= 0 && at(`../assets/engine/${need}`) < at(`../assets/engine/${f}`), `${need} loads before ${f}`);
+  for (const f of Object.keys(lock.files)) assert.ok(at(`../assets/engine/${f}`) >= at('../assets/engine/core.js') && at(`../assets/engine/${f}`) < at('assess-core.js'), `${f} loads after core.js and before assess-core.js`);
 });
