@@ -127,6 +127,27 @@ jobs:
           check('/tmp/review.schema.json', 'tests/portal/fixtures/review.json', 'avd-assessment-review/v1')
           PY
 
+      # The Plan stage writes plan.json (C24) from a report, its review and the pinned method's hints. The
+      # engine's fixtures (a report on the method's own checks, its review and the plan) must be valid, against
+      # the schemas at the avd-assess commit the method is pinned to (assess/PINS.json).
+      - name: Plan fixtures match avd-assess contracts C21, C23 and C24
+        env:
+          ASSESS_COMMIT: a5f4df1564178e84bc3c52fec123c0c3db59d395
+        run: |
+          pip install --quiet jsonschema
+          base="https://raw.githubusercontent.com/avd-ops/avd-assess/$ASSESS_COMMIT/contracts/schemas"
+          curl -fsSL "$base/assessment.schema.json" -o /tmp/assessment.schema.json
+          curl -fsSL "$base/assessment-review.schema.json" -o /tmp/review.schema.json
+          curl -fsSL "$base/remediation-plan.schema.json" -o /tmp/plan.schema.json
+          python3 - <<'PY'
+          import json, jsonschema
+          for schema, path in [('/tmp/assessment.schema.json', 'tests/portal/fixtures/assessment-method.json'),
+                               ('/tmp/review.schema.json', 'tests/portal/fixtures/review-method.json'),
+                               ('/tmp/plan.schema.json', 'tests/portal/fixtures/plan.json')]:
+              jsonschema.Draft202012Validator(json.load(open(schema))).validate(json.load(open(path)))
+              print(f'{path} is valid')
+          PY
+
   lz-parameters:
     name: Landing zone parameter list matches its pin
     runs-on: ubuntu-latest

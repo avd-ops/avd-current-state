@@ -274,7 +274,36 @@
 
   <section class="panel stage hidden" id="stage-plan" aria-labelledby="plan-title">
     <h2 id="plan-title">Plan the remediation <span class="muted">stage 5 of 5</span></h2>
-    <p class="later">Coming after Review. The findings you chose to fix become an ordered plan: what good looks like and why, the landing zone setting that changes it where one is known, and what is out of the landing zone's reach. Saved as <code>plan.json</code> (avd-remediation-plan/v1) and <code>plan.md</code>.</p>
+    <p class="intro">The findings you chose to fix, and every finding nobody reviewed, become an ordered plan: what good looks like and why, the landing zone parameter or setting that changes it where one is known, and what is outside the landing zone's reach. Accepted and deferred findings stay out. Saved as <code>plan.json</code> (avd-remediation-plan/v1), which holds only check IDs, citations and public values, and <code>plan.md</code> for people.</p>
+    <p class="muted" id="plan-empty">Load <code>assessment.json</code> in the Review stage first.</p>
+    <div id="plan-body" class="hidden">
+      <div class="result-line" id="plan-summary"></div>
+      <p class="muted" id="plan-review-note"></p>
+      <div class="row">
+        <label class="field"><span>Planned on</span><input type="text" id="plannedOn" autocomplete="off" placeholder="2026-10-22"></label>
+      </div>
+      <div class="table-wrap findings-wrap">
+        <table class="findings">
+          <caption>The plan, in priority order: gap, warn, unknown; then severity</caption>
+          <thead><tr><th scope="col">Order</th><th scope="col">Check</th><th scope="col">Outcome</th><th scope="col">Change</th><th scope="col">Why</th></tr></thead>
+          <tbody id="plan-items"></tbody>
+        </table>
+      </div>
+      <div id="plan-skipped"></div>
+      <p class="muted">A landing zone change fixes only what the landing zone deployed. A finding on a resource it doesn't own is changed where that resource is managed.</p>
+      <div class="actions"><button type="button" id="plan-build">Build plan.json</button></div>
+      <div id="plan-errors" aria-live="polite"></div>
+      <div id="plan-out" class="hidden gap">
+        <div class="slot">
+          <div class="stop good">
+            <p class="label run-label">Run in Cloud Shell</p>
+            <p class="muted">Writes <code>plan.json</code> beside the evidence packages. It holds no names, so this block is safe to paste.</p>
+            <div class="term"><div class="term-head"><span class="term-label">Write plan.json</span><button type="button" data-copy="plan-cmd">Copy</button></div><pre id="plan-cmd"></pre></div>
+            <div class="actions"><a class="btnlink secondary" id="plan-download" href="#" download="plan.json">Download plan.json</a><a class="btnlink secondary" id="plan-md-download" href="#" download="plan.md">Download plan.md</a></div>
+          </div>
+        </div>
+      </div>
+    </div>
   </section>
 
   <nav class="stepnav" aria-label="Stage navigation">
@@ -287,6 +316,7 @@
   <p class="credit">A <a href="https://prignano.ai/">prignano.ai</a> production</p>
 </main>
 <datalist id="zones"><option value="UTC"><option value="America/New_York"><option value="America/Chicago"><option value="America/Denver"><option value="America/Los_Angeles"><option value="America/Toronto"><option value="America/Sao_Paulo"><option value="Europe/London"><option value="Europe/Dublin"><option value="Europe/Amsterdam"><option value="Europe/Berlin"><option value="Europe/Paris"><option value="Asia/Singapore"><option value="Asia/Tokyo"><option value="Asia/Kolkata"><option value="Australia/Sydney"></datalist>
+<script src="assess-catalog.js"></script>
 <script src="assess-core.js"></script>
 <script src="portal.js"></script>
 </body>

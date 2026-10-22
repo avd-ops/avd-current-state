@@ -1,0 +1,93 @@
+{
+  "schema": "avd-remediation-plan/v1",
+  "estate": "est-0a1b2c3d",
+  "plannedOn": "2026-10-22",
+  "basis": {
+    "assessment": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "review": "e6c6a1d9b36f01463c795a58fcaee53e69224e234372f891645101719b4925e6",
+    "method": 3,
+    "landingZoneCommit": "ae6e80b574cccde570d0053d4c62b519d31052a8"
+  },
+  "items": [
+    {
+      "order": 1,
+      "check": "asm-files-private-endpoint",
+      "outcome": "gap",
+      "pillar": "security",
+      "severity": "medium",
+      "claims": [
+        "ref:review-checklists-avd#F01.10"
+      ],
+      "source": "unreviewed",
+      "change": {
+        "kind": "lz-setting",
+        "name": "profile-storage-private-endpoint"
+      }
+    },
+    {
+      "order": 2,
+      "check": "asm-files-zone-redundant",
+      "outcome": "warn",
+      "pillar": "reliability",
+      "severity": "high",
+      "claims": [
+        "ref:review-checklists-avd#A03.05",
+        "ref:psrule-azure#AZR-000195"
+      ],
+      "source": "review-fix",
+      "change": {
+        "kind": "lz-parameter",
+        "name": "profileStorageSku",
+        "to": "Premium_ZRS"
+      }
+    },
+    {
+      "order": 3,
+      "check": "asm-pooled-host-redundancy",
+      "outcome": "warn",
+      "pillar": "reliability",
+      "severity": "medium",
+      "claims": [
+        "ref:waf-reliability-checklist#RE:05"
+      ],
+      "source": "unreviewed",
+      "change": {
+        "kind": "lz-parameter",
+        "name": "sessionHostCount",
+        "to": 2
+      }
+    },
+    {
+      "order": 4,
+      "check": "asm-personal-start-vm-on-connect",
+      "outcome": "warn",
+      "pillar": "cost",
+      "severity": "low",
+      "claims": [
+        "ref:review-checklists-avd#E01.05"
+      ],
+      "source": "unreviewed",
+      "change": {
+        "kind": "lz-parameter",
+        "name": "startVmOnConnect",
+        "to": true
+      }
+    },
+    {
+      "order": 5,
+      "check": "asm-defender-servers",
+      "outcome": "unknown",
+      "pillar": "security",
+      "severity": "medium",
+      "claims": [
+        "ref:review-checklists-avd#G03.04",
+        "ref:avd-security-guide#defender-for-cloud"
+      ],
+      "source": "unreviewed",
+      "change": {
+        "kind": "manual",
+        "code": "collect-evidence"
+      }
+    }
+  ]
+}
