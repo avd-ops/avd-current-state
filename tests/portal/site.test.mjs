@@ -4,13 +4,13 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 
 const root = new URL('../../', import.meta.url).pathname;
 const read = (f) => readFileSync(join(root, f), 'utf8');
 const pages = ['site/index.html', 'site/portal/index.html'];
-const scripts = ['site/portal/assess-catalog.js', 'site/portal/assess-core.js', 'site/portal/portal.js'];
+const scripts = ['site/portal/portal-config.js', 'site/portal/assess-catalog.js', 'site/portal/assess-core.js', 'site/portal/portal.js'];
 
 test('the notice comes before the first stage, and each script carries it', () => {
   const html = read('site/portal/index.html');
@@ -92,4 +92,30 @@ test('the vendored files match the hashes in design-system.lock.json', () => {
   for (const [f, sha] of Object.entries(lock.files)) {
     assert.equal(createHash('sha256').update(readFileSync(join(root, 'site/assets', f))).digest('hex'), sha, f);
   }
+});
+
+// engine.lock.json records the avd-ops portal engine files this page takes (avd-ops docs/portal-engine-spec.md,
+// section 6.5): each listed file matches its hash, every file a listed file needs is listed, no unlisted engine
+// file is present, the page loads core.js first, and no copy can make a request.
+test('the vendored portal engine matches engine.lock.json and makes no request', () => {
+  const lock = JSON.parse(read('site/assets/engine.lock.json'));
+  assert.match(lock.tag, /^pe-v\d+\.\d+\.\d+$/);
+  assert.match(lock.commit, /^[0-9a-f]{40}$/);
+  const dir = join(root, 'site/assets/engine');
+  const present = readdirSync(dir).filter((f) => f.endsWith('.js')).sort();
+  assert.deepEqual(present, Object.keys(lock.files).sort(), 'no engine file outside the lock');
+  assert.ok(lock.files['core.js'], 'core.js is always taken');
+  for (const [f, sha] of Object.entries(lock.files)) {
+    const buf = readFileSync(join(dir, f)), text = buf.toString('utf8');
+    assert.equal(createHash('sha256').update(buf).digest('hex'), sha, f);
+    assert.ok(text.startsWith(`/* avd-ops portal engine v${lock.tag.slice(4)}: ${f}.`), `${f} is the locked version`);
+    for (const [, need] of text.matchAll(/require\('\.\/([\w-]+\.js)'\)/g)) assert.ok(lock.files[need], `${f} needs ${need}`);
+    const code = text.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:\\'"`])\/\/.*$/gm, '$1');
+    assert.doesNotMatch(code, /\bfetch\b|XMLHttpRequest|WebSocket|EventSource|sendBeacon|importScripts|\beval\b|new Function|innerHTML|document\./, `${f} stays pure`);
+  }
+  const srcs = [...read('site/portal/index.html').matchAll(/<script src="([^"]+)"/g)].map((m) => m[1]);
+  const engine = srcs.filter((s) => s.startsWith('../assets/engine/'));
+  assert.equal(engine[0], '../assets/engine/core.js', 'core.js loads first');
+  assert.deepEqual(engine.map((s) => s.slice('../assets/engine/'.length)).sort(), Object.keys(lock.files).sort(), 'the page loads every file it takes');
+  assert.ok(srcs.indexOf('portal.js') > srcs.indexOf(engine[engine.length - 1]), 'the engine loads before the page script');
 });

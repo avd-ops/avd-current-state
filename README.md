@@ -504,6 +504,17 @@ name is in the log and the state line (`assessment`).
 
 Each script ends with one line the page reads, `<<<AVDCS-STATE {...} AVDCS-STATE>>>`, built by `lib/AvdPortalState.psm1`. It holds counts, the package folder's name and the estate pseudonym, never a name or an ID. The page uses the [avd-ops design system](https://github.com/avd-ops/avd-ops/blob/main/docs/design-system.md), vendored in `site/assets/`. Run it locally with `python3 -m http.server -d site` and open `http://localhost:8000/portal/`.
 
+**Report a problem** opens a public GitHub issue with what you were doing and, if you want, the output you pasted at that stage. The page redacts it first, in your browser, with the avd-ops portal engine's `redact.js` (vendored in `site/assets/engine/`, pinned by `site/assets/engine.lock.json`): secrets, emails, tenant, domain, subscription and resource group names, resource names in Azure resource IDs, IDs, public IP addresses and the words you add. Read it before you submit it.
+
+**Your own copy.** [`avd_portal_publish.ps1`](docs/reference/avd_portal_publish.md) publishes the page into your own subscription: Azure Static Web Apps on the Free plan by default ($0; `-RequireSignIn` limits it to operators you invite), or a storage static website with `-Hosting Storage` (cents a month). It checks your allowed-locations policies first, pins the repo and the tag or commit the page's commands run (`-RepoUrl`, `-Ref`), and `-Remove` deletes the resource group it made and nothing else. You never need it: the copy on GitHub Pages works for everyone.
+
+```powershell
+$repo = Join-Path $HOME 'avd-current-state'
+if (Test-Path (Join-Path $repo '.git')) { git -C $repo pull --ff-only --quiet } else { git clone --quiet https://github.com/avd-ops/avd-current-state.git $repo }
+Set-Location $repo
+./avd_portal_publish.ps1 -Location eastus2
+```
+
 ## Unattended runs: the optional reader
 
 Nothing here needs an app registration: Cloud Shell is already signed in, and Az remembers your sign-in elsewhere. For runs with nobody signed in, such as a weekly collection from GitHub Actions in your private repo, [`avd_ops_reader.ps1`](avd_ops_reader.ps1) sets up `avd-ops-reader`, an optional app-only identity that only reads: single tenant, no secret (an app management policy blocks passwords; the check fails on any certificate), a federated credential per private repo bound by GitHub's immutable subject, and Reader on the scopes you name. `-Mode Test` checks it and `-Mode Remove` takes it all away. One reader serves every private repo that runs reads; writes never use it. The guide, the red team and a sample workflow: [docs/reader-identity.md](docs/reader-identity.md), [samples/avd-ops-reader.yml](samples/avd-ops-reader.yml).
@@ -570,6 +581,7 @@ Each links its reference page, generated from the script's own help by the secon
 |---|---|
 | [`avd_current_state_facts.ps1`](docs/reference/avd_current_state_facts.md) | AVD Current State Facts -- turns collector and validator evidence packages into one redacted facts snapshot (avd-current-state-facts/v1) for avd-second-brain and avd-swarm. |
 | [`avd_ops_reader.ps1`](docs/reference/avd_ops_reader.md) | avd-ops-reader -- the optional read-only identity for unattended avd-current-state runs: set it up, check it, remove it (docs/reader-identity.md). |
+| [`avd_portal_publish.ps1`](docs/reference/avd_portal_publish.md) | Publishes a copy of the assessment portal into your own subscription (optional), or removes it. |
 <!-- generated:entry-points end -->
 
 ## Contributing
