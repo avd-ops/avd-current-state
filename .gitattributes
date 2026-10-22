@@ -6,3 +6,5 @@
 contracts/*.json -text
 # So is the method (assess/PINS.json), which the facts script checks before -Assess.
 assess/*.json -text
+# So is the check catalog schema (checks/PINS.json).
+checks/check-catalog.schema.json -text
