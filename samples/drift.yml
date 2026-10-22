@@ -1,0 +1,139 @@
+# Sample: a daily, read-only drift check of one landing zone, for the operator's PRIVATE repository
+# (avd-current-state docs/drift-spec.md section 3.3). Never run it in a public repository: the report
+# holds resource names and values.
+#
+# Personal project, not for production use. Provided as is, without warranty of any kind (MIT License).
+# Not affiliated with the author's employer, with Liquidware or with Microsoft.
+#
+# To use it, in the private repository:
+#   1. Copy this file to .github/workflows/drift.yml and set AVD_CURRENT_STATE_COMMIT to a commit you reviewed.
+#   2. Set up the optional avd-ops-reader for this repository (docs/reader-identity.md) with Reader on the
+#      subscription (-Subscription), since the deployment records live there. It creates the environment
+#      'avd-reader' (default branch only) and its federated credential. Set the repository variables
+#      AVD_READER_CLIENT_ID, AVD_TENANT_ID, AVD_SUBSCRIPTION_ID and AVD_ENVIRONMENT. No secret is needed.
+#   3. Turn on immutable OIDC subjects for a repository created before 2026-07-15.
+#   4. Protect .github/workflows/** and drift/drift-approvals.json with a ruleset that needs the owner's
+#      review: whoever can edit this file can use the reader's token, and an approval hides changes.
+#   5. Keep drift/drift-exceptions.json, drift/drift-approvals.json and drift/drift-values.json there.
+name: drift
+
+on:
+  schedule:
+    - cron: '17 6 * * *'
+  workflow_dispatch:
+    inputs:
+      digest:
+        description: Add the weekly digest of suppression rules
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  id-token: write
+  issues: write
+  actions: read
+
+concurrency:
+  group: drift
+  cancel-in-progress: false
+
+jobs:
+  drift:
+    runs-on: ubuntu-latest
+    environment: avd-reader
+    timeout-minutes: 30
+    env:
+      AVD_CURRENT_STATE_COMMIT: 0000000000000000000000000000000000000000
+      AVD_ENVIRONMENT: ${{ vars.AVD_ENVIRONMENT }}
+      DIGEST_INPUT: ${{ inputs.digest }}
+    steps:
+      - name: Health check (the repository is private)
+        env:
+          GH_TOKEN: ${{ github.token }}
+          MASK_TENANT: ${{ vars.AVD_TENANT_ID }}
+          MASK_SUBSCRIPTION: ${{ vars.AVD_SUBSCRIPTION_ID }}
+          MASK_CLIENT: ${{ vars.AVD_READER_CLIENT_ID }}
+        run: |
+          # The IDs are masked in the log before anything can print them.
+          for v in "$MASK_TENANT" "$MASK_SUBSCRIPTION" "$MASK_CLIENT"; do [ -n "$v" ] && echo "::add-mask::$v"; done
+          private="$(gh api "repos/$GITHUB_REPOSITORY" --jq .private)"
+          if [ "$private" != "true" ]; then
+            echo "This repository is not private, so the drift report can't be written here. Stopping."
+            exit 2
+          fi
+          echo "DRIFT_REPO_PRIVATE=true" >> "$GITHUB_ENV"
+          last="$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/drift.yml/runs?status=success&per_page=1" --jq '.workflow_runs[0].updated_at // empty')"
+          echo "DRIFT_LAST_SUCCESS=$last" >> "$GITHUB_ENV"
+
+      - name: Check out this private repository (exceptions, approvals, values)
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          path: private
+          ref: ${{ github.event.repository.default_branch }}
+          persist-credentials: false
+
+      - name: Check out avd-current-state at the reviewed commit
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          repository: avd-ops/avd-current-state
+          ref: ${{ env.AVD_CURRENT_STATE_COMMIT }}
+          path: avd-current-state
+          persist-credentials: false
+
+      - name: Sign in as avd-ops-reader (federated, no secret)
+        uses: azure/login@8216e11d8cd9b42fe925c852af8e76311ff067ac # v2.3.1
+        with:
+          client-id: ${{ vars.AVD_READER_CLIENT_ID }}
+          tenant-id: ${{ vars.AVD_TENANT_ID }}
+          subscription-id: ${{ vars.AVD_SUBSCRIPTION_ID }}
+          enable-AzPSSession: true
+
+      - name: Drift check (read-only)
+        id: drift
+        shell: pwsh
+        run: |
+          # The runner image's Az modules; nothing is installed from a gallery at run time.
+          $arguments = @{ Environment = $env:AVD_ENVIRONMENT; ConfigPath = './private/drift'; OutputPath = './output' }
+          if ($env:DRIFT_LAST_SUCCESS) { $arguments.LastSuccess = $env:DRIFT_LAST_SUCCESS }
+          if ([datetime]::UtcNow.DayOfWeek -eq 'Monday' -or $env:DIGEST_INPUT -eq 'true') { $arguments.Digest = $true }
+          & ./avd-current-state/avd_current_state_drift.ps1 @arguments
+          "code=$LASTEXITCODE" >> $env:GITHUB_OUTPUT
+          exit 0
+
+      - name: Update the drift issue
+        if: always() && env.DRIFT_REPO_PRIVATE == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CODE: ${{ steps.drift.outputs.code }}
+        run: |
+          title="Drift: $AVD_ENVIRONMENT"
+          body="output/drift-report.md"
+          if [ ! -f "$body" ]; then
+            mkdir -p output
+            printf '# %s\n\n**Couldn'"'"'t check:** the run stopped before it wrote a report (exit %s). See the run log.\n' "$title" "${CODE:-unknown}" > "$body"
+          fi
+          if [ "$(wc -c < "$body")" -gt 60000 ]; then
+            head -c 60000 "$body" > output/issue.md
+            printf '\n\n_The report was cut to fit an issue; the full report is in the private run store when one is set up._\n' >> output/issue.md
+            body="output/issue.md"
+          fi
+          number="$(gh issue list --state all --search "\"$title\" in:title" --json number,title --jq "map(select(.title == \"$title\")) | .[0].number // empty")"
+          if [ -z "$number" ]; then
+            if [ "$CODE" = "0" ]; then exit 0; fi
+            gh issue create --title "$title" --body-file "$body"
+          else
+            gh issue edit "$number" --body-file "$body"
+            if [ "$CODE" = "0" ]; then
+              gh issue close "$number" --comment "Clean run: nothing drifted and every change is explained."
+            else
+              gh issue reopen "$number" 2>/dev/null || true
+            fi
+          fi
+
+      - name: Fail when the run couldn't check
+        if: always() && steps.drift.outputs.code != '0' && steps.drift.outputs.code != '1'
+        env:
+          CODE: ${{ steps.drift.outputs.code }}
+        run: |
+          echo "The drift check couldn't check (exit ${CODE:-unknown}). See the issue."
+          exit 1

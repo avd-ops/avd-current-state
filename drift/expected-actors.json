@@ -1,0 +1,45 @@
+{
+  "schema": "avd-current-state-drift-rules/v1",
+  "kind": "expected-actors",
+  "description": "Changes the landing zone's own automation makes, so they aren't reported as drift (docs/drift-spec.md sections 3.2 and 3.6). Placeholders in angle brackets are resolved from the operator's private drift-values.json. A rule hides nothing until its exact digest is approved in the private drift-approvals.json. Every field a rule gives must match; 'properties' must cover every changed property that runtime-paths.json leaves.",
+  "rules": [
+    {
+      "id": "auto-shutdown-host-drain",
+      "why": "The auto shutdown runbook drains session hosts before it stops them (avd-landing-zone decision 0011).",
+      "actorType": "AppId",
+      "actor": "<auto-shutdown-principal-id>",
+      "types": ["microsoft.desktopvirtualization/hostpools/sessionhosts"],
+      "operation": "microsoft.desktopvirtualization/hostpools/sessionhosts/write"
+    },
+    {
+      "id": "auto-shutdown-pool-lock",
+      "why": "Locking sets the avdlz-power-lock tag and turns Start VM on Connect off; unlocking reverses both (decision 0011).",
+      "actorType": "AppId",
+      "actor": "<auto-shutdown-principal-id>",
+      "types": ["microsoft.desktopvirtualization/hostpools"],
+      "properties": ["tags.avdlz-power-lock", "properties.startVMOnConnect"]
+    },
+    {
+      "id": "auto-shutdown-scaling-exclusion",
+      "why": "Locking tags the hosts with the scaling plan's exclusion tag so autoscale doesn't start them again (decision 0011).",
+      "actorType": "AppId",
+      "actor": "<auto-shutdown-principal-id>",
+      "types": ["microsoft.compute/virtualmachines"],
+      "properties": ["tags.avd-scaling-exclude"]
+    },
+    {
+      "id": "autoscale-host-drain",
+      "why": "The scaling plan drains hosts through the Azure Virtual Desktop service's own identity before it stops them.",
+      "actorType": "AppId",
+      "actor": "<avd-service-app-id>",
+      "types": ["microsoft.desktopvirtualization/hostpools/sessionhosts"],
+      "operation": "microsoft.desktopvirtualization/hostpools/sessionhosts/write"
+    },
+    {
+      "id": "policy-remediation",
+      "why": "A known policy assignment's remediation identity writes the settings that policy deploys.",
+      "actorType": "AppId",
+      "actor": "<policy-remediation-principal-id>"
+    }
+  ]
+}

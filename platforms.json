@@ -10,6 +10,14 @@
    "winps51": "untested",
    "requires": "PowerShell 7.2 or later, the Az modules"
   },
+  "avd_current_state_drift.ps1": {
+   "cloudshell-pwsh": "untested",
+   "cloudshell-bash": "untested",
+   "windows": "untested",
+   "macos": "untested",
+   "winps51": "untested",
+   "requires": "PowerShell 7.2 or later, the Az modules (Az.Accounts; Az.Resources for role assignments), Reader on the subscription"
+  },
   "avd_current_state_facts.ps1": {
    "cloudshell-pwsh": "untested",
    "cloudshell-bash": "untested",
