@@ -6,8 +6,9 @@ import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-const root = new URL('../../', import.meta.url).pathname;
+const root = fileURLToPath(new URL('../../', import.meta.url));
 const read = (f) => readFileSync(join(root, f), 'utf8');
 const pages = ['site/index.html', 'site/portal/index.html'];
 const scripts = ['site/portal/portal-config.js', 'site/portal/assess-catalog.js', 'site/portal/assess-core.js', 'site/portal/portal.js'];
