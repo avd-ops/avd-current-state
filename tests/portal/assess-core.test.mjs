@@ -5,10 +5,12 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
 
-const root = new URL('../../', import.meta.url).pathname;
-const read = (f) => readFileSync(root + f, 'utf8');
+const root = fileURLToPath(new URL('../../', import.meta.url));
+const read = (f) => readFileSync(join(root, f), 'utf8');
 const core = createRequire(import.meta.url)('../../site/portal/assess-core.js');
 
 const answers = {
