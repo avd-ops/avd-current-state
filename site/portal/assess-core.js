@@ -19,6 +19,9 @@
   const REPO_URL = 'https://github.com/avd-ops/avd-current-state.git';
   const STAGES = ['collect', 'facts', 'analyze'];
   const STATUSES = ['done', 'partial', 'failed'];
+  const PLANES = ['azure', 'entra', 'intune', 'm365', 'power-platform'];
+  const PLANE_LABELS = { azure: 'Azure', entra: 'Entra ID', intune: 'Intune', m365: 'Microsoft 365', 'power-platform': 'Power Platform', orchestrator: 'Orchestrator' };
+  const PLANE_SCOPES = ['in-scope', 'out-of-scope', 'not-decided'];
   const HUBS = ['none', 'azure-hub', 'vwan', 'other'];
   const IDENTITY = ['entra-only', 'hybrid-ad', 'entra-ds', 'undecided'];
   const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
@@ -146,14 +149,22 @@
     return lines;
   }
 
+  function planeArg(settings) {
+    const raw = settings && Array.isArray(settings.planes) ? settings.planes : [];
+    const chosen = PLANES.filter((p) => raw.includes(p));
+    if (!chosen.length || chosen.length === PLANES.length) return '';
+    return ` -Planes ${chosen.map(psQuote).join(',')}`;
+  }
+
   // Collect: the collector over the subscriptions in Settings (all it can read when none are named), then the
   // facts snapshot, which gives the estate its pseudonym. The key is created once beside the packages and
   // reused, so the operator never handles it.
   function collectCommand(settings) {
     const subs = nameList(settings && settings.subscriptions);
     const scope = subs.length ? ` -SubscriptionNames ${subs.map(psQuote).join(',')}` : '';
+    const planes = planeArg(settings);
     return preamble().concat([
-      `./avd_current_state_collector.ps1${scope} -OutputPath $out`,
+      `./avd_current_state_collector.ps1${scope}${planes} -OutputPath $out`,
       "$key = Join-Path $out 'estate.key'",
       './avd_current_state_facts.ps1 -PackagePath $out -KeyPath $key -NewKey:(-not (Test-Path $key)) -OutputPath $out'
     ]).join('\n');
@@ -164,9 +175,11 @@
     const s = settings || {};
     const sub = String(s.validationSubscription || '').trim() || nameList(s.subscriptions)[0] || '';
     const rg = String(s.resourceGroup || '').trim();
+    const planes = planeArg(s);
     let cmd = './avd_deployment_validator.ps1 -Mode PostDeployment';
     if (sub) cmd += ` -SubscriptionName ${psQuote(sub)}`;
     if (rg) cmd += ` -ResourceGroupName ${psQuote(rg)}`;
+    cmd += planes;
     cmd += ' -OutputPath $out';
     return preamble().concat([cmd]).join('\n');
   }
@@ -212,19 +225,26 @@
     if (!days.length) err('days', 'Pick at least one working day.');
     const timeZone = String(ans.timeZone || '').trim();
     if (!TZ_RE.test(timeZone)) err('timeZone', 'Use a time zone name like America/Chicago, or UTC.');
+    const m365PlaneScope = String(ans.m365PlaneScope || '').trim();
+    if (m365PlaneScope && !PLANE_SCOPES.includes(m365PlaneScope)) err('m365PlaneScope', 'Pick whether Microsoft 365 is in scope.');
+    const powerPlatformPlaneScope = String(ans.powerPlatformPlaneScope || '').trim();
+    if (powerPlatformPlaneScope && !PLANE_SCOPES.includes(powerPlatformPlaneScope)) err('powerPlatformPlaneScope', 'Pick whether Power Platform is in scope.');
     if (errors.length) return { intake: null, errors };
+    const intake = {
+      schema: 'avd-intake/v1',
+      estate,
+      answeredOn,
+      residency: { required, regions: resRegions },
+      preferredRegions: preferred,
+      existingHub: ans.existingHub,
+      identityConstraints: ans.identityConstraints,
+      workingHours: { start, end, days, timeZone }
+    };
+    if (m365PlaneScope) intake.m365PlaneScope = m365PlaneScope;
+    if (powerPlatformPlaneScope) intake.powerPlatformPlaneScope = powerPlatformPlaneScope;
     return {
       errors,
-      intake: {
-        schema: 'avd-intake/v1',
-        estate,
-        answeredOn,
-        residency: { required, regions: resRegions },
-        preferredRegions: preferred,
-        existingHub: ans.existingHub,
-        identityConstraints: ans.identityConstraints,
-        workingHours: { start, end, days, timeZone }
-      }
+      intake
     };
   }
 
@@ -280,7 +300,7 @@
 
   // ---- Review: review.json (C23) ------------------------------------------------------------------
 
-  const OUTCOMES = ['gap', 'warn', 'unknown', 'pass'];
+  const OUTCOMES = ['gap', 'warn', 'unknown', 'pass', 'not-applicable'];
   const REASONS = {
     fix: ['fix-planned'],
     accept: ['cost', 'compensating-control', 'business-need', 'not-applicable'],
@@ -310,18 +330,24 @@
     const results = [];
     for (const r of doc.results) {
       if (!r || !CHECK_RE.test(r.check || '') || !OUTCOMES.includes(r.outcome)) return { assessment: null, error: 'A result has a check ID or an outcome this page doesn\'t know.' };
-      results.push({ check: r.check, outcome: r.outcome, subjects: Array.isArray(r.subjects) ? r.subjects.length : 0, facts: Array.isArray(r.facts) ? r.facts.filter((f) => typeof f === 'string') : [] });
+      const row = { check: r.check, outcome: r.outcome, subjects: Array.isArray(r.subjects) ? r.subjects.length : 0, facts: Array.isArray(r.facts) ? r.facts.filter((f) => typeof f === 'string') : [] };
+      if (typeof r.plane === 'string' && PLANES.includes(r.plane)) row.plane = r.plane;
+      results.push(row);
     }
     const counts = { gap: 0, warn: 0, unknown: 0, pass: 0 };
-    for (const r of results) counts[r.outcome]++;
+    for (const r of results) {
+      if (counts[r.outcome] !== undefined) counts[r.outcome]++;
+    }
     const methodVersion = doc.method && Number.isInteger(doc.method.version) ? doc.method.version : 0;
-    return { assessment: { estate: doc.estate, generatedUtc: doc.generatedUtc, methodVersion, results, counts }, error: '' };
+    const out = { estate: doc.estate, generatedUtc: doc.generatedUtc, methodVersion, results, counts };
+    if (doc.planes && typeof doc.planes === 'object') out.planes = doc.planes;
+    return { assessment: out, error: '' };
   }
 
   // A readable name for a check ID until the pinned method's titles arrive with the validator's assess mode:
   // asm-personal-start-vm-on-connect -> Personal start VM on connect.
   function checkTitle(id) {
-    const words = String(id).replace(/^asm-/, '').split('-').map((w) => (/^(vm|avd|rdp|fslogix|nsg|udr|dns|sku|ip)$/.test(w) ? w.toUpperCase() : w));
+    const words = String(id).replace(/^asm-/, '').split('-').map((w) => (/^(vm|avd|rdp|fslogix|nsg|udr|dns|sku|ip|ca|sso|mfa|kfm|dlp|vnet|vdi)$/.test(w) ? w.toUpperCase() : w));
     const t = words.join(' ');
     return t.charAt(0).toUpperCase() + t.slice(1);
   }
@@ -337,6 +363,7 @@
     return assessment.results.slice().sort((a, b) => rank(a.outcome) - rank(b.outcome) || a.check.localeCompare(b.check)).map((r) => {
       const d = earlier[r.check];
       const row = { check: r.check, outcome: r.outcome, disposition: '', reason: '' };
+      if (r.plane) row.plane = r.plane;
       if (d && d.outcome === r.outcome) Object.assign(row, { disposition: d.disposition, reason: d.reason, carriedForward: true }, d.reviewBy ? { reviewBy: d.reviewBy } : {});
       return row;
     });
@@ -439,18 +466,20 @@
     if (review) for (const d of review.decisions || []) decided[d.check] = d;
     const items = [], skipped = [];
     for (const r of assessment.results) {
-      if (r.outcome === 'pass') continue;
+      if (r.outcome === 'pass' || r.outcome === 'not-applicable') continue;
       const d = decided[r.check] && decided[r.check].outcome === r.outcome ? decided[r.check] : null;
       if (d && d.disposition !== 'fix') { skipped.push({ check: r.check, outcome: r.outcome, why: d.disposition, reason: d.reason }); continue; }
       const c = catalog.checks[r.check];
       if (!c || !Array.isArray(c.claims) || !c.claims.length || !SEVERITIES.includes(c.severity)) { skipped.push({ check: r.check, outcome: r.outcome, why: 'not-in-method' }); continue; }
       const h = c.remediation || { kind: 'manual', code: 'no-known-change' };
+      const plane = c.plane || r.plane || 'azure';
+      const changePlane = h.plane || plane;
       let change;
-      if (r.outcome === 'unknown') change = { kind: 'manual', code: 'collect-evidence' };
-      else if (h.kind === 'lz-parameter') change = Object.assign({ kind: 'lz-parameter', name: h.name }, h.to !== undefined ? { to: h.to } : {});
-      else if (h.kind === 'lz-setting') change = { kind: 'lz-setting', name: h.name };
-      else change = { kind: 'manual', code: CODE_LABELS[h.code] ? h.code : 'no-known-change' };
-      items.push({ check: r.check, outcome: r.outcome, pillar: c.pillar, severity: c.severity, claims: c.claims.slice(), source: d ? 'review-fix' : 'unreviewed', change });
+      if (r.outcome === 'unknown') change = { kind: 'manual', plane: changePlane, code: 'collect-evidence' };
+      else if (h.kind === 'lz-parameter') change = Object.assign({ kind: 'lz-parameter', plane: changePlane, name: h.name }, h.to !== undefined ? { to: h.to } : {});
+      else if (h.kind === 'lz-setting') change = { kind: 'lz-setting', plane: changePlane, name: h.name };
+      else change = { kind: 'manual', plane: changePlane, code: CODE_LABELS[h.code] ? h.code : 'no-known-change' };
+      items.push({ check: r.check, plane, outcome: r.outcome, pillar: c.pillar, severity: c.severity, claims: c.claims.slice(), source: d ? 'review-fix' : 'unreviewed', change });
     }
     items.sort((a, b) => RANK[a.outcome] - RANK[b.outcome] || RANK[a.severity] - RANK[b.severity] || (a.check < b.check ? -1 : a.check > b.check ? 1 : 0));
     const basis = { assessment: sha256 };
@@ -462,7 +491,7 @@
       estate: assessment.estate,
       plannedOn,
       basis,
-      items: items.map((it, i) => ({ order: i + 1, check: it.check, outcome: it.outcome, pillar: it.pillar, severity: it.severity, claims: it.claims, source: it.source, change: it.change }))
+      items: items.map((it, i) => ({ order: i + 1, check: it.check, plane: it.plane, outcome: it.outcome, pillar: it.pillar, severity: it.severity, claims: it.claims, source: it.source, change: it.change }))
     };
     return { plan, skipped, errors };
   }
@@ -488,7 +517,8 @@
     if (!plan.items.length) out.push('_Nothing to change: every finding passed, or was accepted or deferred in the review._', '');
     for (const it of plan.items) {
       out.push(`## ${it.order}. ${titleOf(it.check, catalog)}`, '',
-        `- Check: \`${it.check}\` (${it.outcome}, ${it.pillar}, ${it.severity})${it.source === 'unreviewed' ? ', not reviewed' : ''}`,
+        `- Check: \`${it.check}\` (${it.outcome}, ${it.plane || 'azure'}, ${it.pillar}, ${it.severity})${it.source === 'unreviewed' ? ', not reviewed' : ''}`,
+        `- Plane: ${PLANE_LABELS[it.plane] || it.plane || 'Azure'}`,
         `- Change: ${changeText(it.change)}`,
         `- Why: ${it.claims.map((c) => `\`${c}\``).join(', ')} (avd-assess)`, '');
     }
@@ -578,9 +608,9 @@
   const support = (command, runIn) => engine.runin.support(command, runIn, PLATFORMS, SCRIPTS);
 
   return {
-    STAGES, HUBS, IDENTITY, DAYS, TOPICS,
+    STAGES, PLANES, PLANE_LABELS, PLANE_SCOPES, HUBS, IDENTITY, DAYS, TOPICS,
     parseStateLines, latestStates, summarizeCollect, summarizeAnalyze,
-    setSource, repoWebUrl, psQuote, nameList, collectCommand, analyzeCommand, readerCommand,
+    setSource, repoWebUrl, psQuote, nameList, planeArg, collectCommand, analyzeCommand, readerCommand,
     regionList, buildIntake, intakeCommand, notesMarkdown,
     REASONS, REASON_LABELS, sha256Hex, parseAssessment, checkTitle, startReview, buildReview, reviewCommand,
     reviewText, titleOf, buildPlan, planMarkdown, planCommand, CODE_SHORT, skippedWhy,

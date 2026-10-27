@@ -117,6 +117,14 @@
       "description": "Fact intake.agentRdpBypass (optional). Whether RDP traffic is split out of tunnels, proxies and inspection on the user devices, the session hosts, both or neither.",
       "enum": ["both-sides", "client-only", "host-only", "neither", "no-agents", "unknown"]
     },
+    "m365PlaneScope": {
+      "description": "Fact intake.m365PlaneScope (optional). Whether the estate uses Microsoft 365 productivity configuration for AVD, manages it outside the AVD plane, or does not use M365.",
+      "enum": ["in-scope", "managed-separately", "not-used"]
+    },
+    "powerPlatformPlaneScope": {
+      "description": "Fact intake.powerPlatformPlaneScope (optional). Whether the estate uses Power Platform day-2 automation for AVD.",
+      "enum": ["in-scope", "not-used"]
+    },
     "extensions": {
       "type": "object",
       "description": "Optional, for upper layers only, keyed by namespace (contracts/README.md rule 1). A foundation reader ignores it.",

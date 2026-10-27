@@ -1,4 +1,4 @@
-﻿#requires -Modules @{ ModuleName = 'Pester'; ModuleVersion = '5.0.0' }
+#requires -Modules @{ ModuleName = 'Pester'; ModuleVersion = '5.0.0' }
 # Offline tests for avd_current_state_facts.ps1 (contract C11 in avd-second-brain). The fixture
 # packages are full of things that must never reach the snapshot: names, IDs, a UPN, IPs, tags.
 
@@ -277,5 +277,55 @@ Describe 'avd_current_state_facts.ps1' {
     New-TestCollector $dir -Stamp '20261001T090000' | Out-Null
     New-TestCollector $dir -Stamp '20261002T090000' -Tenant 'ffffffff-bbbb-4ccc-8ddd-eeeeeeeeeeee' | Out-Null
     { & $script:facts -PackagePath $dir -KeyPath $script:key -OutputPath $TestDrive 6>$null } | Should -Throw '*tenants*'
+  }
+
+  It 'emits planesCollected, entra, intune, m365 and powerPlatform facts without leaking tenant names' {
+    $dir = Join-Path $TestDrive 'five-planes'
+    $pkg = New-TestCollector $dir -Stamp '20261010T090000'
+    $manifest = Get-Content "$pkg/manifest.json" -Raw | ConvertFrom-Json
+    $manifest | Add-Member -NotePropertyName PlanesCollected -NotePropertyValue @{
+      azure            = @{ status = 'collected' }
+      entra            = @{ status = 'collected' }
+      intune           = @{ status = 'collected' }
+      m365             = @{ status = 'partial'; reason = 'teams-ps-unavailable' }
+      'power-platform' = @{ status = 'collected' }
+    }
+    $manifest | ConvertTo-Json -Depth 8 | Set-Content "$pkg/manifest.json"
+    Write-TestJson "$pkg/entra/groups.json" @(@{ id = '33333333-2222-4333-8444-555555555555'; displayName = 'grp-contoso-avd-hosts'; groupTypes = @('DynamicMembership') })
+    Write-TestJson "$pkg/entra/conditionalAccessPolicies.json" @(@{ id = '44444444-2222-4333-8444-555555555555'; displayName = 'CA-Contoso-AVD-MFA'; state = 'enabled'
+        conditions = @{ applications = @{ includeApplications = @('9cdead84-a844-4324-93f2-b2e6bb768d07') }; users = @{ excludeUsers = @('55555555-2222-4333-8444-555555555555') } }
+        grantControls = @{ builtInControls = @('mfa', 'compliantDevice') }; sessionControls = @{ signInFrequency = @{ isEnabled = $true } } })
+    Write-TestJson "$pkg/entra/servicePrincipals.json" @(@{ id = '66666666-2222-4333-8444-555555555555'; displayName = 'stcontosoprofiles'; kerberosReady = $true })
+    Write-TestJson "$pkg/entra/subscribedSkus.json" @(@{ skuPartNumber = 'SPE_E5'; prepaidUnits = @{ enabled = 100 }; consumedUnits = 75 })
+    Write-TestJson "$pkg/intune/settings.json" @(@{ secureByDefault = $true })
+    Write-TestJson "$pkg/intune/mdmPolicies.json" @(@{ id = 'mdm-1'; displayName = 'Contoso MDM'; appliesTo = 'all' })
+    Write-TestJson "$pkg/intune/configurationPolicies.json" @(@{ id = 'cfg-1'; name = 'Contoso FSLogix Catalog'; technologies = 'mdm,windowsEnterpriseMultiSession'; fslogixConfigured = $true; rdpShortpathConfigured = $true; sessionTimeLimitsConfigured = $true; multiSessionUpdateRingAssigned = $true })
+    Write-TestJson "$pkg/intune/managedDevices.json" @(
+      @{ id = '77777777-2222-4333-8444-555555555555'; deviceName = 'avdhost-0'; complianceState = 'compliant'; lastSyncDateTime = '2026-10-10T08:00:00Z'; baselineApplied = $true }
+      @{ id = '88888888-2222-4333-8444-555555555555'; deviceName = 'avdhost-orphan'; complianceState = 'noncompliant'; isAvdSessionHost = $true })
+    Write-TestJson "$pkg/m365/configurationPolicies.json" @(@{ id = 'm365-1'; name = 'Contoso M365 VDI'; oneDriveSilentConfigEnabled = $true; oneDriveKfmState = 'enforced'; oneDriveFilesOnDemandEnabled = $true; m365AppsSharedComputerActivation = $true; outlookCachedModeConfigured = $true; teamsMediaOptimizationState = 'enabled'; mmrConfigured = $true })
+    Write-TestJson "$pkg/power-platform/environments.json" @(@{ id = 'env-1'; displayName = 'Contoso AVD Prod'; properties = @{ environmentSku = 'Production' } })
+    Write-TestJson "$pkg/power-platform/dlpPolicies.json" @(@{ id = 'dlp-1'; displayName = 'Contoso Strict DLP'; defaultConnectorsClassification = 'Blocked' })
+    Write-TestJson "$pkg/power-platform/solutions.json" @(@{ id = 'sol-1'; displayName = 'Contoso Day2 Solution' })
+    Write-TestJson "$pkg/power-platform/workflows.json" @(@{ id = 'wf-1'; displayName = 'Contoso Drain Host Flow'; state = 'activated' })
+    Write-TestJson "$pkg/Contoso_Production/rebuild/resources/microsoft.powerplatform-enterprisepolicies.json" @(@{ id = "/subscriptions/$($script:subId)/resourceGroups/rg-contoso-avd/providers/Microsoft.PowerPlatform/enterprisePolicies/ep-contoso"; name = 'ep-contoso' })
+
+    $r = Invoke-Facts -Packages $dir -Key $script:key -Out (Join-Path $TestDrive 'out-five-planes')
+    $errs = $null
+    Test-Json -Json $r.Text -SchemaFile $script:schema -ErrorVariable errs -ErrorAction SilentlyContinue | Should -BeTrue -Because "$errs"
+    foreach ($s in ($script:secrets + @('grp-contoso-avd-hosts', 'CA-Contoso-AVD-MFA', 'avdhost-orphan', 'Contoso Strict DLP'))) {
+      $r.Text | Should -Not -Match ([regex]::Escape($s))
+    }
+    $r.Data.planesCollected.m365.status | Should -Be 'partial'
+    $r.Data.planesCollected.m365.reason | Should -Be 'teams-ps-unavailable'
+    $r.Data.entra.caAvdRequiresMfa | Should -Be 'enforced'
+    $r.Data.entra.caAvdBreakGlassExcluded | Should -BeTrue
+    $r.Data.entra.skuAvdEligibleAvailable | Should -Be 25
+    $r.Data.intune.fslogixProfileConfigured | Should -BeTrue
+    $r.Data.subscriptions[0].hostPools[0].sessionHosts.intuneManaged | Should -Be 1
+    $r.Data.subscriptions[0].hostPools[0].intuneOrphans | Should -Be 1
+    $r.Data.m365.oneDriveKfmState | Should -Be 'enforced'
+    $r.Data.powerPlatform.dlpDefaultGroupClassification | Should -Be 'Blocked'
+    $r.Data.subscriptions[0].powerPlatform.enterprisePoliciesCount | Should -Be 1
   }
 }

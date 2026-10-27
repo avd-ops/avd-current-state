@@ -1,6 +1,6 @@
 {
   "schema": "avd-assess-method/v1",
-  "version": 4,
+  "version": 5,
   "factRegister": 1,
   "landingZoneCommit": "ae6e80b574cccde570d0053d4c62b519d31052a8",
   "collection": [
@@ -562,11 +562,375 @@
         "gap:intake",
         "gap:identity-scope"
       ]
+    },
+    {
+      "fact": "c11.hostPool.sessionHosts.intuneEnrollRequested",
+      "from": "resource-graph",
+      "table": "Resources",
+      "type": "microsoft.compute/virtualmachines/extensions",
+      "property": "properties.settings.mdmId",
+      "claims": [
+        "ref:avd-entra-joined-hosts#enroll-on-deploy",
+        "gap:intune-scope"
+      ]
+    },
+    {
+      "fact": "c11.hostPool.sessionHosts.intuneManaged",
+      "from": "graph-rest",
+      "property": "deviceManagement/managedDevices",
+      "claims": [
+        "ref:graph-intune-managed-device#device-fields",
+        "gap:intune-scope"
+      ]
+    },
+    {
+      "fact": "c11.hostPool.sessionHosts.intuneCompliant",
+      "from": "graph-rest",
+      "property": "deviceManagement/managedDevices/complianceState",
+      "claims": [
+        "ref:graph-intune-managed-device#device-fields",
+        "gap:intune-scope"
+      ]
+    },
+    {
+      "fact": "c11.hostPool.sessionHosts.intuneNoncompliant",
+      "from": "graph-rest",
+      "property": "deviceManagement/managedDevices/complianceState",
+      "claims": [
+        "ref:graph-intune-managed-device#device-fields",
+        "gap:intune-scope"
+      ]
+    },
+    {
+      "fact": "c11.hostPool.sessionHosts.intuneSyncStale",
+      "from": "graph-rest",
+      "property": "deviceManagement/managedDevices/lastSyncDateTime",
+      "claims": [
+        "ref:graph-intune-managed-device#device-fields",
+        "gap:intune-scope"
+      ]
+    },
+    {
+      "fact": "c11.hostPool.sessionHosts.intuneConfigErrors",
+      "from": "graph-rest",
+      "property": "deviceManagement/managedDevices/deviceConfigurationStates",
+      "claims": [
+        "ref:intune-reports#report-families",
+        "gap:intune-scope"
+      ]
+    },
+    {
+      "fact": "c11.hostPool.sessionHosts.intuneBaselineApplied",
+      "from": "graph-rest",
+      "property": "deviceManagement/intents",
+      "claims": [
+        "ref:intune-security-baselines#baselines-in-intune",
+        "gap:intune-scope"
+      ]
+    },
+    {
+      "fact": "c11.hostPool.intuneOrphans",
+      "from": "graph-rest",
+      "property": "deviceManagement/managedDevices",
+      "claims": [
+        "ref:intune-avd-multisession#orphaned-records",
+        "gap:intune-scope"
+      ]
+    },
+    {
+      "fact": "c11.intune.noPolicyMeansNoncompliant",
+      "from": "graph-rest",
+      "property": "deviceManagement/settings/secureByDefault",
+      "claims": [
+        "ref:graph-device-management-settings#secure-by-default",
+        "ref:intune-compliance#no-policy-default-compliant"
+      ]
+    },
+    {
+      "fact": "c11.entra.userGroupsAssigned",
+      "from": "graph-rest",
+      "property": "groups/id",
+      "claims": [
+        "ref:caf-avd-identity#groups-not-users",
+        "gap:identity-scope"
+      ]
+    },
+    {
+      "fact": "c11.entra.dynamicHostGroups",
+      "from": "graph-rest",
+      "property": "groups/membershipRule",
+      "claims": [
+        "ref:avd-sso#consent-prompt",
+        "gap:identity-scope"
+      ]
+    },
+    {
+      "fact": "c11.entra.caPoliciesTargetingAvd",
+      "from": "graph-rest",
+      "property": "identity/conditionalAccess/policies",
+      "claims": [
+        "ref:avd-mfa-conditional-access#target-apps",
+        "gap:identity-scope"
+      ]
+    },
+    {
+      "fact": "c11.entra.caAvdRequiresMfa",
+      "from": "graph-rest",
+      "property": "identity/conditionalAccess/policies/grantControls",
+      "claims": [
+        "ref:avd-mfa-conditional-access#target-apps",
+        "ref:avd-mfa-conditional-access#two-aligned-policies",
+        "gap:identity-scope"
+      ]
+    },
+    {
+      "fact": "c11.entra.caAvdRequiresCompliantDevice",
+      "from": "graph-rest",
+      "property": "identity/conditionalAccess/policies/grantControls",
+      "claims": [
+        "ref:ca-require-compliant-device#compliance-signal",
+        "gap:identity-scope"
+      ]
+    },
+    {
+      "fact": "c11.entra.caAvdSignInFrequencyConfigured",
+      "from": "graph-rest",
+      "property": "identity/conditionalAccess/policies/sessionControls/signInFrequency",
+      "claims": [
+        "ref:avd-mfa-conditional-access#sign-in-frequency",
+        "gap:identity-scope"
+      ]
+    },
+    {
+      "fact": "c11.entra.caAvdBreakGlassExcluded",
+      "from": "graph-rest",
+      "property": "identity/conditionalAccess/policies/conditions/users/excludeUsers",
+      "claims": [
+        "ref:ca-require-compliant-device#exclude-break-glass",
+        "gap:identity-scope"
+      ]
+    },
+    {
+      "fact": "c11.entra.kerberosStoragePrincipalsReady",
+      "from": "graph-rest",
+      "property": "servicePrincipals",
+      "claims": [
+        "ref:files-entra-kerberos#cloud-only-and-hybrid",
+        "ref:files-entra-kerberos#exclude-from-mfa",
+        "gap:identity-scope"
+      ]
+    },
+    {
+      "fact": "c11.entra.skuAvdEligibleAvailable",
+      "from": "graph-rest",
+      "property": "subscribedSkus",
+      "claims": [
+        "gap:identity-scope"
+      ]
+    },
+    {
+      "fact": "c11.intune.mdmAutoEnrollmentScope",
+      "from": "graph-rest",
+      "property": "policies/mobileDeviceManagementPolicies",
+      "claims": [
+        "ref:intune-avd-multisession#enrollment-prerequisites",
+        "gap:intune-scope"
+      ]
+    },
+    {
+      "fact": "c11.intune.multiSessionCatalogProfiles",
+      "from": "graph-rest",
+      "property": "deviceManagement/configurationPolicies",
+      "claims": [
+        "ref:intune-avd-multisession#settings-catalog-only",
+        "gap:intune-scope"
+      ]
+    },
+    {
+      "fact": "c11.intune.fslogixProfileConfigured",
+      "from": "graph-rest",
+      "property": "deviceManagement/configurationPolicies",
+      "claims": [
+        "ref:intune-avd-multisession#settings-catalog-only",
+        "ref:intune-avd-multisession#admx-supported",
+        "gap:intune-scope"
+      ]
+    },
+    {
+      "fact": "c11.intune.rdpShortpathConfigured",
+      "from": "graph-rest",
+      "property": "deviceManagement/configurationPolicies",
+      "claims": [
+        "ref:configure-rdp-shortpath#select-transport-policy",
+        "gap:intune-scope"
+      ]
+    },
+    {
+      "fact": "c11.intune.sessionTimeLimitsConfigured",
+      "from": "graph-rest",
+      "property": "deviceManagement/configurationPolicies",
+      "claims": [
+        "ref:avd-security-guide#idle-limits",
+        "gap:intune-scope"
+      ]
+    },
+    {
+      "fact": "c11.intune.multiSessionUpdateRingAssigned",
+      "from": "graph-rest",
+      "property": "deviceManagement/deviceConfigurations",
+      "claims": [
+        "ref:intune-avd-multisession#quality-updates-catalog-only",
+        "gap:intune-scope"
+      ]
+    },
+    {
+      "fact": "c11.m365.oneDriveSilentConfigEnabled",
+      "from": "graph-rest",
+      "property": "deviceManagement/configurationPolicies",
+      "claims": [
+        "ref:onedrive-vdi#silent-config-and-kfm",
+        "gap:m365-scope"
+      ]
+    },
+    {
+      "fact": "c11.m365.oneDriveKfmState",
+      "from": "graph-rest",
+      "property": "deviceManagement/configurationPolicies",
+      "claims": [
+        "ref:onedrive-vdi#silent-config-and-kfm",
+        "gap:m365-scope"
+      ]
+    },
+    {
+      "fact": "c11.m365.oneDriveFilesOnDemandEnabled",
+      "from": "graph-rest",
+      "property": "deviceManagement/configurationPolicies",
+      "claims": [
+        "ref:onedrive-vdi#files-on-demand-vdi",
+        "gap:m365-scope"
+      ]
+    },
+    {
+      "fact": "c11.m365.m365AppsSharedComputerActivation",
+      "from": "graph-rest",
+      "property": "deviceManagement/configurationPolicies",
+      "claims": [
+        "ref:avd-office-image#shared-computer-activation",
+        "gap:m365-scope"
+      ]
+    },
+    {
+      "fact": "c11.m365.outlookCachedModeConfigured",
+      "from": "graph-rest",
+      "property": "deviceManagement/configurationPolicies",
+      "claims": [
+        "gap:m365-scope"
+      ]
+    },
+    {
+      "fact": "c11.m365.teamsMediaOptimizationState",
+      "from": "graph-rest",
+      "property": "deviceManagement/configurationPolicies",
+      "claims": [
+        "ref:teams-on-avd#media-optimization",
+        "gap:m365-scope"
+      ]
+    },
+    {
+      "fact": "c11.m365.mmrConfigured",
+      "from": "graph-rest",
+      "property": "deviceManagement/configurationPolicies",
+      "claims": [
+        "ref:avd-multimedia-redirection#mmr-browser-video",
+        "gap:m365-scope"
+      ]
+    },
+    {
+      "fact": "c11.powerPlatform.dedicatedEnvironments",
+      "from": "bap-rest",
+      "property": "providers/Microsoft.BusinessAppPlatform/scopes/admin/environments",
+      "claims": [
+        "ref:power-platform-dlp#environment-coverage",
+        "gap:power-platform-scope"
+      ]
+    },
+    {
+      "fact": "c11.powerPlatform.dlpPoliciesCoveringAvdEnv",
+      "from": "bap-rest",
+      "property": "providers/PowerApps.Admin/policies",
+      "claims": [
+        "ref:power-platform-dlp#connector-groups",
+        "gap:power-platform-scope"
+      ]
+    },
+    {
+      "fact": "c11.powerPlatform.dlpDefaultGroupClassification",
+      "from": "bap-rest",
+      "property": "providers/PowerApps.Admin/policies/defaultConnectorsClassification",
+      "claims": [
+        "ref:power-platform-dlp#default-group-blocked",
+        "gap:power-platform-scope"
+      ]
+    },
+    {
+      "fact": "c11.powerPlatform.enterprisePoliciesCount",
+      "from": "resource-graph",
+      "table": "Resources",
+      "type": "microsoft.powerplatform/enterprisepolicies",
+      "property": "id",
+      "claims": [
+        "ref:power-platform-vnet#enterprise-policy-subnet",
+        "gap:power-platform-scope"
+      ]
+    },
+    {
+      "fact": "c11.powerPlatform.vnetInjectedSubnets",
+      "from": "resource-graph",
+      "table": "Resources",
+      "type": "microsoft.network/virtualnetworks",
+      "property": "properties.subnets",
+      "claims": [
+        "ref:power-platform-vnet#delegated-subnet-egress",
+        "gap:power-platform-scope"
+      ]
+    },
+    {
+      "fact": "c11.powerPlatform.avdDay2SolutionsDeployed",
+      "from": "dataverse-rest",
+      "property": "solutions",
+      "claims": [
+        "gap:power-platform-scope"
+      ]
+    },
+    {
+      "fact": "c11.powerPlatform.avdDay2FlowsActive",
+      "from": "dataverse-rest",
+      "property": "workflows",
+      "claims": [
+        "gap:power-platform-scope"
+      ]
+    },
+    {
+      "fact": "intake.m365PlaneScope",
+      "from": "intake",
+      "claims": [
+        "gap:intake",
+        "gap:m365-scope"
+      ]
+    },
+    {
+      "fact": "intake.powerPlatformPlaneScope",
+      "from": "intake",
+      "claims": [
+        "gap:intake",
+        "gap:power-platform-scope"
+      ]
     }
   ],
   "checks": [
     {
       "id": "asm-personal-start-vm-on-connect",
+      "plane": "azure",
       "title": "Personal host pools use Start VM on Connect",
       "pillar": "cost",
       "severity": "low",
@@ -596,12 +960,14 @@
       ],
       "remediation": {
         "kind": "lz-parameter",
+        "plane": "azure",
         "name": "startVmOnConnect",
         "to": true
       }
     },
     {
       "id": "asm-pooled-host-redundancy",
+      "plane": "azure",
       "title": "Pooled host pools have at least two session hosts",
       "pillar": "reliability",
       "severity": "medium",
@@ -631,12 +997,14 @@
       ],
       "remediation": {
         "kind": "lz-parameter",
+        "plane": "azure",
         "name": "sessionHostCount",
         "to": 2
       }
     },
     {
       "id": "asm-files-private-endpoint",
+      "plane": "azure",
       "title": "Premium file storage is reached through a private endpoint",
       "pillar": "security",
       "severity": "medium",
@@ -666,11 +1034,13 @@
       ],
       "remediation": {
         "kind": "lz-setting",
+        "plane": "azure",
         "name": "profile-storage-private-endpoint"
       }
     },
     {
       "id": "asm-files-zone-redundant",
+      "plane": "azure",
       "title": "Premium file storage is zone-redundant",
       "pillar": "reliability",
       "severity": "high",
@@ -699,12 +1069,14 @@
       "informs": [],
       "remediation": {
         "kind": "lz-parameter",
+        "plane": "azure",
         "name": "profileStorageSku",
         "to": "Premium_ZRS"
       }
     },
     {
       "id": "asm-hosts-trusted-launch",
+      "plane": "azure",
       "title": "Session hosts run Trusted launch with Secure Boot and vTPM on",
       "pillar": "security",
       "severity": "medium",
@@ -727,11 +1099,13 @@
       "informs": [],
       "remediation": {
         "kind": "manual",
+        "plane": "azure",
         "code": "rebuild-hosts"
       }
     },
     {
       "id": "asm-drive-usb-redirection-off",
+      "plane": "azure",
       "title": "Host pools turn drive and USB redirection off",
       "pillar": "security",
       "severity": "medium",
@@ -758,11 +1132,13 @@
       "informs": [],
       "remediation": {
         "kind": "lz-parameter",
+        "plane": "azure",
         "name": "rdpProperties"
       }
     },
     {
       "id": "asm-defender-servers",
+      "plane": "azure",
       "title": "Defender for Cloud's Servers plan is on",
       "pillar": "security",
       "severity": "medium",
@@ -785,12 +1161,14 @@
       "informs": [],
       "remediation": {
         "kind": "lz-parameter",
+        "plane": "azure",
         "name": "enableDefenderForCloud",
         "to": true
       }
     },
     {
       "id": "asm-files-smb-gcm",
+      "plane": "azure",
       "title": "Premium file storage allows only GCM SMB channel encryption, AES-128-GCM included",
       "pillar": "security",
       "severity": "medium",
@@ -818,11 +1196,13 @@
       "informs": [],
       "remediation": {
         "kind": "lz-setting",
+        "plane": "azure",
         "name": "profile-storage-smb-gcm"
       }
     },
     {
       "id": "asm-policy-guardrails-assigned",
+      "plane": "azure",
       "title": "Subscriptions holding AVD have at least one Azure Policy assignment in scope",
       "pillar": "operations",
       "severity": "low",
@@ -844,12 +1224,14 @@
       "informs": [],
       "remediation": {
         "kind": "lz-parameter",
+        "plane": "azure",
         "name": "enablePolicyGuardrails",
         "to": true
       }
     },
     {
       "id": "asm-policy-enforced",
+      "plane": "azure",
       "title": "No policy assignment in scope is left in DoNotEnforce mode",
       "pillar": "operations",
       "severity": "low",
@@ -872,7 +1254,524 @@
       "informs": [],
       "remediation": {
         "kind": "manual",
+        "plane": "azure",
         "code": "process"
+      }
+    },
+    {
+      "id": "asm-entra-no-direct-user-rbac",
+      "plane": "entra",
+      "title": "Application groups use group-based assignment with no direct user assignments",
+      "pillar": "security",
+      "severity": "medium",
+      "claims": [
+        "ref:avd-rbac#user-role",
+        "ref:caf-avd-identity#groups-not-users",
+        "ref:review-checklists-avd#D01.06"
+      ],
+      "facts": [
+        "c11.hostPool.directUserAssignments"
+      ],
+      "rule": {
+        "each": "/subscriptions/*/hostPools/*",
+        "expect": {
+          "directUserAssignments": {
+            "max": 0
+          }
+        },
+        "onFail": "warn"
+      },
+      "informs": [
+        "hostPool.appGroup"
+      ],
+      "remediation": {
+        "kind": "lz-setting",
+        "plane": "entra",
+        "name": "entra-group-rbac-only"
+      }
+    },
+    {
+      "id": "asm-entra-sso-enabled",
+      "plane": "entra",
+      "title": "Host pools with Entra-joined hosts enable Entra single sign-on",
+      "pillar": "security",
+      "severity": "low",
+      "claims": [
+        "ref:avd-sso#host-pool-property",
+        "ref:review-checklists-avd#D03.04"
+      ],
+      "facts": [
+        "c11.hostPool.sessionHosts.entraJoined",
+        "c11.hostPool.entraSso"
+      ],
+      "rule": {
+        "each": "/subscriptions/*/hostPools/*",
+        "where": {
+          "sessionHosts/entraJoined": {
+            "min": 1
+          }
+        },
+        "expect": {
+          "entraSso": {
+            "eq": true
+          }
+        },
+        "onFail": "warn"
+      },
+      "informs": [
+        "identity"
+      ],
+      "remediation": {
+        "kind": "lz-parameter",
+        "plane": "azure",
+        "name": "enableEntraSso",
+        "to": true
+      }
+    },
+    {
+      "id": "asm-entra-ca-avd-mfa",
+      "plane": "entra",
+      "title": "Conditional Access enforces MFA for AVD and Windows Cloud Login",
+      "pillar": "security",
+      "severity": "high",
+      "claims": [
+        "ref:avd-mfa-conditional-access#target-apps",
+        "ref:avd-mfa-conditional-access#two-aligned-policies",
+        "ref:review-checklists-avd#G04.01"
+      ],
+      "facts": [
+        "c11.entra.caAvdRequiresMfa"
+      ],
+      "rule": {
+        "each": "/entra",
+        "expect": {
+          "caAvdRequiresMfa": {
+            "eq": "enforced"
+          }
+        },
+        "onFail": "gap"
+      },
+      "informs": [
+        "identity"
+      ],
+      "remediation": {
+        "kind": "lz-parameter",
+        "plane": "entra",
+        "name": "deployAvdConditionalAccess",
+        "to": true
+      }
+    },
+    {
+      "id": "asm-entra-ca-break-glass-excluded",
+      "plane": "entra",
+      "title": "AVD Conditional Access policies exclude emergency-access (break-glass) accounts",
+      "pillar": "reliability",
+      "severity": "high",
+      "claims": [
+        "ref:ca-require-compliant-device#exclude-break-glass",
+        "ref:mcsb-avd-baseline#IM-7"
+      ],
+      "facts": [
+        "c11.entra.caAvdBreakGlassExcluded"
+      ],
+      "rule": {
+        "each": "/entra",
+        "expect": {
+          "caAvdBreakGlassExcluded": {
+            "eq": true
+          }
+        },
+        "onFail": "gap"
+      },
+      "informs": [
+        "identity"
+      ],
+      "remediation": {
+        "kind": "lz-setting",
+        "plane": "entra",
+        "name": "ca-exclude-break-glass-group"
+      }
+    },
+    {
+      "id": "asm-entra-files-kerberos-ready",
+      "plane": "entra",
+      "title": "Azure Files Entra Kerberos service principal is configured and excluded from MFA CA",
+      "pillar": "security",
+      "severity": "medium",
+      "claims": [
+        "ref:files-entra-kerberos#cloud-only-and-hybrid",
+        "ref:files-entra-kerberos#exclude-from-mfa",
+        "ref:review-checklists-avd#D02.01"
+      ],
+      "facts": [
+        "c11.storage.filesIdentity",
+        "c11.entra.kerberosStoragePrincipalsReady"
+      ],
+      "rule": {
+        "each": "/entra",
+        "expect": {
+          "kerberosStoragePrincipalsReady": {
+            "min": 1
+          }
+        },
+        "onFail": "gap"
+      },
+      "informs": [
+        "identity"
+      ],
+      "remediation": {
+        "kind": "lz-setting",
+        "plane": "entra",
+        "name": "entra-kerberos-consent"
+      }
+    },
+    {
+      "id": "asm-intune-hosts-managed",
+      "plane": "intune",
+      "title": "Session hosts requesting Intune enrollment are managed in Intune",
+      "pillar": "operations",
+      "severity": "medium",
+      "claims": [
+        "ref:intune-avd-multisession#enrollment-prerequisites",
+        "ref:avd-entra-joined-hosts#enroll-on-deploy"
+      ],
+      "facts": [
+        "c11.hostPool.sessionHosts.intuneEnrollRequested",
+        "c11.hostPool.sessionHosts.intuneManaged"
+      ],
+      "rule": {
+        "each": "/subscriptions/*/hostPools/*",
+        "where": {
+          "sessionHosts/intuneEnrollRequested": {
+            "min": 1
+          }
+        },
+        "expect": {
+          "sessionHosts/intuneManaged": {
+            "min": 1
+          }
+        },
+        "onFail": "gap"
+      },
+      "informs": [],
+      "remediation": {
+        "kind": "lz-setting",
+        "plane": "intune",
+        "name": "intune-mdm-auto-enrollment"
+      }
+    },
+    {
+      "id": "asm-intune-hosts-compliant",
+      "plane": "intune",
+      "title": "Intune-managed session hosts have zero noncompliant devices",
+      "pillar": "security",
+      "severity": "high",
+      "claims": [
+        "ref:intune-avd-multisession#compliance-settings-supported",
+        "ref:intune-avd-multisession#compliance-device-targeted"
+      ],
+      "facts": [
+        "c11.hostPool.sessionHosts.intuneNoncompliant"
+      ],
+      "rule": {
+        "each": "/subscriptions/*/hostPools/*",
+        "expect": {
+          "sessionHosts/intuneNoncompliant": {
+            "max": 0
+          }
+        },
+        "onFail": "gap"
+      },
+      "informs": [],
+      "remediation": {
+        "kind": "lz-setting",
+        "plane": "intune",
+        "name": "intune-session-host-compliance"
+      }
+    },
+    {
+      "id": "asm-intune-secure-by-default",
+      "plane": "intune",
+      "title": "Intune tenant marks devices without a compliance policy as noncompliant",
+      "pillar": "security",
+      "severity": "medium",
+      "claims": [
+        "ref:intune-compliance#no-policy-default-compliant",
+        "ref:graph-device-management-settings#secure-by-default"
+      ],
+      "facts": [
+        "c11.intune.noPolicyMeansNoncompliant"
+      ],
+      "rule": {
+        "each": "/intune",
+        "expect": {
+          "noPolicyMeansNoncompliant": {
+            "eq": true
+          }
+        },
+        "onFail": "gap"
+      },
+      "informs": [],
+      "remediation": {
+        "kind": "lz-parameter",
+        "plane": "intune",
+        "name": "complianceSecureByDefault",
+        "to": true
+      }
+    },
+    {
+      "id": "asm-intune-fslogix-catalog-profile",
+      "plane": "intune",
+      "title": "Intune Settings Catalog delivers an FSLogix profile container policy",
+      "pillar": "operations",
+      "severity": "medium",
+      "claims": [
+        "ref:intune-avd-multisession#settings-catalog-only",
+        "ref:intune-avd-multisession#admx-supported"
+      ],
+      "facts": [
+        "c11.intune.fslogixProfileConfigured"
+      ],
+      "rule": {
+        "each": "/intune",
+        "expect": {
+          "fslogixProfileConfigured": {
+            "eq": true
+          }
+        },
+        "onFail": "warn"
+      },
+      "informs": [],
+      "remediation": {
+        "kind": "lz-setting",
+        "plane": "intune",
+        "name": "intune-settings-catalog-fslogix"
+      }
+    },
+    {
+      "id": "asm-intune-no-orphaned-devices",
+      "plane": "intune",
+      "title": "Host pools have no orphaned Intune device records for deleted session hosts",
+      "pillar": "operations",
+      "severity": "low",
+      "claims": [
+        "ref:intune-avd-multisession#orphaned-records"
+      ],
+      "facts": [
+        "c11.hostPool.intuneOrphans"
+      ],
+      "rule": {
+        "each": "/subscriptions/*/hostPools/*",
+        "expect": {
+          "intuneOrphans": {
+            "max": 0
+          }
+        },
+        "onFail": "warn"
+      },
+      "informs": [],
+      "remediation": {
+        "kind": "manual",
+        "plane": "intune",
+        "code": "remove-orphaned-devices"
+      }
+    },
+    {
+      "id": "asm-m365-onedrive-kfm",
+      "plane": "m365",
+      "title": "OneDrive Silent Account Configuration and Known Folder Move are enabled for session hosts",
+      "pillar": "reliability",
+      "severity": "medium",
+      "claims": [
+        "ref:onedrive-vdi#silent-config-and-kfm",
+        "ref:onedrive-vdi#files-on-demand-vdi"
+      ],
+      "facts": [
+        "c11.m365.oneDriveSilentConfigEnabled",
+        "c11.m365.oneDriveKfmState"
+      ],
+      "rule": {
+        "each": "/m365",
+        "expect": {
+          "oneDriveSilentConfigEnabled": {
+            "eq": true
+          },
+          "oneDriveKfmState": {
+            "eq": "enforced"
+          }
+        },
+        "onFail": "warn"
+      },
+      "informs": [],
+      "remediation": {
+        "kind": "lz-parameter",
+        "plane": "m365",
+        "name": "enableOneDriveKfm",
+        "to": true
+      }
+    },
+    {
+      "id": "asm-m365-shared-computer-activation",
+      "plane": "m365",
+      "title": "Microsoft 365 Apps Shared Computer Activation is enabled for multi-session hosts",
+      "pillar": "cost",
+      "severity": "high",
+      "claims": [
+        "ref:avd-office-image#shared-computer-activation",
+        "ref:review-checklists-avd#B01.09"
+      ],
+      "facts": [
+        "c11.hostPool.type",
+        "c11.m365.m365AppsSharedComputerActivation"
+      ],
+      "rule": {
+        "each": "/m365",
+        "expect": {
+          "m365AppsSharedComputerActivation": {
+            "eq": true
+          }
+        },
+        "onFail": "gap"
+      },
+      "informs": [
+        "hostPool.type"
+      ],
+      "remediation": {
+        "kind": "lz-parameter",
+        "plane": "m365",
+        "name": "enableSharedComputerActivation",
+        "to": true
+      }
+    },
+    {
+      "id": "asm-m365-teams-vdi-optimization",
+      "plane": "m365",
+      "title": "Microsoft Teams VDI media optimization is enabled for session hosts",
+      "pillar": "performance",
+      "severity": "medium",
+      "claims": [
+        "ref:teams-on-avd#media-optimization",
+        "ref:review-checklists-avd#B01.10"
+      ],
+      "facts": [
+        "c11.m365.teamsMediaOptimizationState"
+      ],
+      "rule": {
+        "each": "/m365",
+        "expect": {
+          "teamsMediaOptimizationState": {
+            "eq": "enabled"
+          }
+        },
+        "onFail": "warn"
+      },
+      "informs": [],
+      "remediation": {
+        "kind": "lz-parameter",
+        "plane": "m365",
+        "name": "enableTeamsVdiOptimization",
+        "to": true
+      }
+    },
+    {
+      "id": "asm-pp-dedicated-environment",
+      "plane": "power-platform",
+      "title": "Power Platform day-2 workflows run in a dedicated environment outside Default",
+      "pillar": "operations",
+      "severity": "medium",
+      "claims": [
+        "ref:power-platform-dlp#environment-coverage"
+      ],
+      "facts": [
+        "c11.powerPlatform.dedicatedEnvironments"
+      ],
+      "rule": {
+        "each": "/powerPlatform",
+        "expect": {
+          "dedicatedEnvironments": {
+            "min": 1
+          }
+        },
+        "onFail": "warn"
+      },
+      "informs": [],
+      "remediation": {
+        "kind": "lz-parameter",
+        "plane": "power-platform",
+        "name": "deployDedicatedEnvironment",
+        "to": true
+      }
+    },
+    {
+      "id": "asm-pp-dlp-blocks-unapproved",
+      "plane": "power-platform",
+      "title": "Power Platform DLP policy covers the AVD environment and blocks unapproved connectors",
+      "pillar": "security",
+      "severity": "high",
+      "claims": [
+        "ref:power-platform-dlp#connector-groups",
+        "ref:power-platform-dlp#default-group-blocked"
+      ],
+      "facts": [
+        "c11.powerPlatform.dlpPoliciesCoveringAvdEnv",
+        "c11.powerPlatform.dlpDefaultGroupClassification"
+      ],
+      "rule": {
+        "each": "/powerPlatform",
+        "expect": {
+          "dlpPoliciesCoveringAvdEnv": {
+            "min": 1
+          },
+          "dlpDefaultGroupClassification": {
+            "in": [
+              "Blocked",
+              "Confidential"
+            ]
+          }
+        },
+        "onFail": "gap"
+      },
+      "informs": [],
+      "remediation": {
+        "kind": "lz-setting",
+        "plane": "power-platform",
+        "name": "power-platform-strict-dlp"
+      }
+    },
+    {
+      "id": "asm-pp-vnet-enterprise-policy",
+      "plane": "power-platform",
+      "title": "Power Platform enterprise policy injects environments into a delegated VNet subnet",
+      "pillar": "security",
+      "severity": "medium",
+      "claims": [
+        "ref:power-platform-vnet#enterprise-policy-subnet",
+        "ref:power-platform-vnet#delegated-subnet-egress"
+      ],
+      "facts": [
+        "c11.powerPlatform.enterprisePoliciesCount",
+        "c11.powerPlatform.vnetInjectedSubnets"
+      ],
+      "rule": {
+        "each": "/subscriptions/*/powerPlatform",
+        "expect": {
+          "enterprisePoliciesCount": {
+            "min": 1
+          },
+          "vnetInjectedSubnets": {
+            "min": 1
+          }
+        },
+        "onFail": "warn"
+      },
+      "informs": [
+        "network"
+      ],
+      "remediation": {
+        "kind": "lz-parameter",
+        "plane": "power-platform",
+        "name": "enableVnetEnterprisePolicy",
+        "to": true
       }
     }
   ],

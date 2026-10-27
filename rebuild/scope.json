@@ -56,7 +56,8 @@
     { "table": "resources", "type": "microsoft.network/loadbalancers", "serves": ["inventory:diagram"] },
     { "table": "resources", "type": "microsoft.network/applicationgateways", "serves": ["inventory:diagram"] },
     { "table": "resources", "type": "microsoft.compute/virtualmachinescalesets", "serves": ["inventory:diagram"] },
-    { "table": "resources", "type": "microsoft.containerservice/managedclusters", "serves": ["inventory:diagram"] }
+    { "table": "resources", "type": "microsoft.containerservice/managedclusters", "serves": ["inventory:diagram"] },
+    { "table": "resources", "type": "microsoft.powerplatform/enterprisepolicies", "serves": ["enableVnetEnterprisePolicy", "inventory:powerPlatform"] }
   ],
   "rest": [
     { "name": "diagnostic-settings", "parentTypes": ["microsoft.desktopvirtualization/hostpools", "microsoft.desktopvirtualization/applicationgroups", "microsoft.desktopvirtualization/workspaces", "microsoft.desktopvirtualization/scalingplans", "microsoft.keyvault/vaults", "microsoft.recoveryservices/vaults", "microsoft.network/networksecuritygroups", "microsoft.automation/automationaccounts"], "path": "{id}/providers/Microsoft.Insights/diagnosticSettings", "apiVersion": "2021-05-01-preview", "serves": ["module:diagnostics"] },
@@ -69,5 +70,48 @@
     { "name": "backup-policies", "parentTypes": ["microsoft.recoveryservices/vaults"], "path": "{id}/backupPolicies", "apiVersion": "2024-04-01", "serves": ["profileBackupRetentionDays"] },
     { "name": "budgets", "parentTypes": ["subscription"], "path": "{id}/providers/Microsoft.Consumption/budgets", "apiVersion": "2023-11-01", "serves": ["monthlyBudgetAmount", "budgetStartDate", "autoShutdownBudgetPercent"] },
     { "name": "subscription-diagnostic-settings", "parentTypes": ["subscription"], "path": "{id}/providers/Microsoft.Insights/diagnosticSettings", "apiVersion": "2021-05-01-preview", "serves": ["deploySubscriptionSettings"] }
-  ]
+  ],
+  "planes": {
+    "azure": {
+      "permissions": ["Reader"],
+      "calls": [
+        { "plane": "azure", "transport": "resource-graph", "method": "SELECT/PROJECT", "uriPattern": "/providers/Microsoft.ResourceGraph/resources?api-version=2022-10-01", "facts": ["c11.hostPool.type", "c11.hostPool.entraSso", "c11.hostPool.directUserAssignments", "c11.hostPool.sessionHosts.entraJoined", "c11.hostPool.sessionHosts.domainJoined", "c11.powerPlatform.enterprisePoliciesCount", "c11.powerPlatform.vnetInjectedSubnets"] },
+        { "plane": "azure", "transport": "arm-rest", "method": "GET", "uriPattern": "{id}/fileServices/default?api-version=2023-05-01", "facts": ["c11.storage.smbChannelEncryption"] }
+      ]
+    },
+    "entra": {
+      "permissions": ["Group.Read.All", "Policy.Read.All", "Application.Read.All", "Directory.Read.All", "RoleManagement.Read.Directory"],
+      "calls": [
+        { "plane": "entra", "transport": "graph-rest", "method": "GET", "uriPattern": "https://graph.microsoft.com/v1.0/groups", "facts": ["c11.entra.userGroupsAssigned", "c11.entra.dynamicHostGroups"] },
+        { "plane": "entra", "transport": "graph-rest", "method": "GET", "uriPattern": "https://graph.microsoft.com/v1.0/identity/conditionalAccess/policies", "facts": ["c11.entra.caPoliciesTargetingAvd", "c11.entra.caAvdRequiresMfa", "c11.entra.caAvdRequiresCompliantDevice", "c11.entra.caAvdSignInFrequencyConfigured", "c11.entra.caAvdBreakGlassExcluded"] },
+        { "plane": "entra", "transport": "graph-rest", "method": "GET", "uriPattern": "https://graph.microsoft.com/v1.0/servicePrincipals", "facts": ["c11.entra.kerberosStoragePrincipalsReady"] },
+        { "plane": "entra", "transport": "graph-rest", "method": "GET", "uriPattern": "https://graph.microsoft.com/v1.0/subscribedSkus", "facts": ["c11.entra.skuAvdEligibleAvailable"] }
+      ]
+    },
+    "intune": {
+      "permissions": ["DeviceManagementConfiguration.Read.All", "DeviceManagementManagedDevices.Read.All", "DeviceManagementServiceConfig.Read.All"],
+      "calls": [
+        { "plane": "intune", "transport": "graph-rest", "method": "GET", "uriPattern": "https://graph.microsoft.com/v1.0/deviceManagement/settings", "facts": ["c11.intune.noPolicyMeansNoncompliant"] },
+        { "plane": "intune", "transport": "graph-rest", "method": "GET", "uriPattern": "https://graph.microsoft.com/v1.0/policies/mobileDeviceManagementPolicies", "facts": ["c11.intune.mdmAutoEnrollmentScope"] },
+        { "plane": "intune", "transport": "graph-rest", "method": "GET", "uriPattern": "https://graph.microsoft.com/beta/deviceManagement/configurationPolicies", "facts": ["c11.intune.multiSessionCatalogProfiles", "c11.intune.fslogixProfileConfigured", "c11.intune.rdpShortpathConfigured", "c11.intune.sessionTimeLimitsConfigured", "c11.intune.multiSessionUpdateRingAssigned"] },
+        { "plane": "intune", "transport": "graph-rest", "method": "GET", "uriPattern": "https://graph.microsoft.com/v1.0/deviceManagement/managedDevices", "facts": ["c11.hostPool.sessionHosts.intuneManaged", "c11.hostPool.sessionHosts.intuneCompliant", "c11.hostPool.sessionHosts.intuneNoncompliant", "c11.hostPool.sessionHosts.intuneSyncStale", "c11.hostPool.sessionHosts.intuneConfigErrors", "c11.hostPool.sessionHosts.intuneBaselineApplied", "c11.hostPool.intuneOrphans"] }
+      ]
+    },
+    "m365": {
+      "permissions": ["DeviceManagementConfiguration.Read.All", "Organization.Read.All", "SharePointTenantSettings.Read.All"],
+      "calls": [
+        { "plane": "m365", "transport": "graph-rest", "method": "GET", "uriPattern": "https://graph.microsoft.com/beta/deviceManagement/configurationPolicies", "facts": ["c11.m365.oneDriveSilentConfigEnabled", "c11.m365.oneDriveKfmState", "c11.m365.oneDriveFilesOnDemandEnabled", "c11.m365.m365AppsSharedComputerActivation", "c11.m365.outlookCachedModeConfigured", "c11.m365.teamsMediaOptimizationState", "c11.m365.mmrConfigured"] },
+        { "plane": "m365", "transport": "teams-ps", "method": "Get-*", "command": "Get-CsTeamsVdiPolicy", "facts": ["c11.m365.teamsMediaOptimizationState"] }
+      ]
+    },
+    "powerPlatform": {
+      "permissions": ["Power Platform Administrator (read-only)", "Reader"],
+      "calls": [
+        { "plane": "power-platform", "transport": "bap-rest", "method": "GET", "uriPattern": "https://api.bap.microsoft.com/providers/Microsoft.BusinessAppPlatform/scopes/admin/environments?api-version=2023-06-01", "facts": ["c11.powerPlatform.dedicatedEnvironments"] },
+        { "plane": "power-platform", "transport": "bap-rest", "method": "GET", "uriPattern": "https://api.bap.microsoft.com/providers/Microsoft.BusinessAppPlatform/scopes/admin/apiPolicies?api-version=2016-11-01", "facts": ["c11.powerPlatform.dlpPoliciesCoveringAvdEnv", "c11.powerPlatform.dlpDefaultGroupClassification"] },
+        { "plane": "power-platform", "transport": "dataverse-rest", "method": "GET", "uriPattern": "https://{org}.crm.dynamics.com/api/data/v9.2/solutions", "facts": ["c11.powerPlatform.avdDay2SolutionsDeployed"] },
+        { "plane": "power-platform", "transport": "dataverse-rest", "method": "GET", "uriPattern": "https://{org}.crm.dynamics.com/api/data/v9.2/workflows", "facts": ["c11.powerPlatform.avdDay2FlowsActive"] }
+      ]
+    }
+  }
 }

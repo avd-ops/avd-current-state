@@ -75,7 +75,196 @@ function Get-RebuildScope {
             if ($p -ne 'subscription' -and -not $seen.ContainsKey($p)) { throw "REST read '$($r.name)' hangs off '$p', which the scope doesn't read." }
         }
     }
+    $planes = Get-RebuildValue $scope 'planes'
+    if ($null -ne $planes) {
+        foreach ($prop in $planes.PSObject.Properties) {
+            $planeDef = $prop.Value
+            foreach ($perm in @(Get-RebuildValue $planeDef 'permissions' @())) {
+                if ("$perm" -match '(\.ReadWrite(\.|$)|\.Write(\.|$)|\.Manage(\.|$)|Directory\.AccessAsUser\.All)') {
+                    throw "Plane '$($prop.Name)' requests write permission '$perm'."
+                }
+            }
+            foreach ($call in @(Get-RebuildValue $planeDef 'calls' @())) {
+                if ("$($call.method)" -notin @('GET', 'SELECT/PROJECT', 'Get-*', 'list')) {
+                    throw "Plane '$($prop.Name)' has non-read method '$($call.method)'."
+                }
+            }
+        }
+    }
     return $scope
+}
+
+function Resolve-AvdPlanes {
+    <#
+    .SYNOPSIS
+        Expands -Planes ('all' or a subset) into the canonical five-plane order.
+    #>
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseSingularNouns', '')]
+    param([string[]]$Planes = @('all'))
+    $canonical = @('azure', 'entra', 'intune', 'm365', 'power-platform')
+    $lower = @($Planes | Where-Object { $_ } | ForEach-Object { "$_".ToLowerInvariant() })
+    if ($lower.Count -eq 0 -or $lower -contains 'all') { return $canonical }
+    foreach ($p in $lower) {
+        if ($canonical -notcontains $p) { throw "Unknown control plane '$p'." }
+    }
+    return @($canonical | Where-Object { $lower -contains $_ })
+}
+
+function Test-AvdReadOnlyToken {
+    <#
+    .SYNOPSIS
+        Runtime read-only guard: inspects a JWT access token's scp and roles claims and refuses to run
+        if any .ReadWrite.*, .Write.*, .Manage.*, or Directory.AccessAsUser.All scope is present.
+    #>
+    param([AllowEmptyString()][string]$Token)
+    if ([string]::IsNullOrWhiteSpace($Token)) { return $true }
+    $parts = $Token.Trim() -split '\.'
+    if ($parts.Count -lt 2) { throw 'Invalid JWT format passed to Test-AvdReadOnlyToken.' }
+    $payloadB64 = $parts[1].Replace('-', '+').Replace('_', '/')
+    switch ($payloadB64.Length % 4) {
+        2 { $payloadB64 += '==' }
+        3 { $payloadB64 += '=' }
+    }
+    $json = [System.Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($payloadB64))
+    $claims = $json | ConvertFrom-Json
+    $scopes = @()
+    $scp = Get-RebuildValue $claims 'scp'
+    if ($scp) { $scopes += @("$scp" -split '\s+' | Where-Object { $_ }) }
+    $roles = Get-RebuildValue $claims 'roles'
+    if ($roles) { $scopes += @($roles | ForEach-Object { "$_" } | Where-Object { $_ }) }
+    foreach ($s in $scopes) {
+        if ($s -match '(\.ReadWrite(\.|$)|\.Write(\.|$)|\.Manage(\.|$)|Directory\.AccessAsUser\.All)') {
+            throw "Refusing token with write-capable scope or role '$s'. Only read-only (.Read.All) scopes are permitted."
+        }
+    }
+    return $true
+}
+
+function Get-AvdStateEntra {
+    <#
+    .SYNOPSIS
+        Read-only Entra ID plane collector (Graph v1.0 groups, Conditional Access policies, servicePrincipals, subscribedSkus).
+    #>
+    param(
+        [Parameter(Mandatory)][scriptblock]$Invoker,
+        [string]$Token = ''
+    )
+    $null = Test-AvdReadOnlyToken -Token $Token
+    $endpoints = [ordered]@{
+        groups                    = 'https://graph.microsoft.com/v1.0/groups'
+        conditionalAccessPolicies = 'https://graph.microsoft.com/v1.0/identity/conditionalAccess/policies'
+        servicePrincipals         = 'https://graph.microsoft.com/v1.0/servicePrincipals'
+        subscribedSkus            = 'https://graph.microsoft.com/v1.0/subscribedSkus'
+    }
+    $data = [ordered]@{}
+    foreach ($k in $endpoints.Keys) {
+        $r = Invoke-RebuildRestRead -Path $endpoints[$k] -Invoker $Invoker
+        if ($r.Status -eq 'failed') {
+            if ($r.Error -match 'HTTP (401|403)') {
+                return @{ Status = 'unconsented'; Reason = 'insufficient-scope'; Data = @{} }
+            }
+            return @{ Status = 'partial'; Reason = 'insufficient-scope'; Data = $data }
+        }
+        $data[$k] = @($r.Items)
+    }
+    return @{ Status = 'collected'; Data = $data }
+}
+
+function Get-AvdStateIntune {
+    <#
+    .SYNOPSIS
+        Read-only Intune plane collector (deviceManagement settings, MDM auto-enrollment, Settings Catalog, managedDevices).
+    #>
+    param(
+        [Parameter(Mandatory)][scriptblock]$Invoker,
+        [string]$Token = ''
+    )
+    $null = Test-AvdReadOnlyToken -Token $Token
+    $endpoints = [ordered]@{
+        settings              = 'https://graph.microsoft.com/v1.0/deviceManagement/settings'
+        mdmPolicies           = 'https://graph.microsoft.com/v1.0/policies/mobileDeviceManagementPolicies'
+        configurationPolicies = 'https://graph.microsoft.com/beta/deviceManagement/configurationPolicies'
+        managedDevices        = 'https://graph.microsoft.com/v1.0/deviceManagement/managedDevices'
+    }
+    $data = [ordered]@{}
+    foreach ($k in $endpoints.Keys) {
+        $r = Invoke-RebuildRestRead -Path $endpoints[$k] -Invoker $Invoker
+        if ($r.Status -eq 'none' -and $k -eq 'settings') {
+            return @{ Status = 'skipped'; Reason = 'no-license'; Data = @{} }
+        }
+        if ($r.Status -eq 'failed') {
+            if ($r.Error -match 'HTTP (401|403)') {
+                return @{ Status = 'unconsented'; Reason = 'insufficient-scope'; Data = @{} }
+            }
+            return @{ Status = 'skipped'; Reason = 'no-license'; Data = @{} }
+        }
+        $data[$k] = @($r.Items)
+    }
+    return @{ Status = 'collected'; Data = $data }
+}
+
+function Get-AvdStateM365 {
+    <#
+    .SYNOPSIS
+        Read-only Microsoft 365 plane collector (Intune Settings Catalog M365/OneDrive/Teams policies + optional Teams VDI policy).
+    #>
+    param(
+        [Parameter(Mandatory)][scriptblock]$Invoker,
+        [scriptblock]$TeamsInvoker = $null,
+        [string]$Token = ''
+    )
+    $null = Test-AvdReadOnlyToken -Token $Token
+    $r = Invoke-RebuildRestRead -Path 'https://graph.microsoft.com/beta/deviceManagement/configurationPolicies' -Invoker $Invoker
+    if ($r.Status -eq 'failed') {
+        if ($r.Error -match 'HTTP (401|403)') {
+            return @{ Status = 'unconsented'; Reason = 'insufficient-scope'; Data = @{} }
+        }
+        return @{ Status = 'skipped'; Reason = 'no-license'; Data = @{} }
+    }
+    $data = [ordered]@{
+        configurationPolicies = @($r.Items)
+        teamsVdiPolicies      = @()
+    }
+    if ($null -eq $TeamsInvoker) {
+        return @{ Status = 'partial'; Reason = 'teams-ps-unavailable'; Data = $data }
+    }
+    try {
+        $teams = @(& $TeamsInvoker 'Get-CsTeamsVdiPolicy')
+        $data['teamsVdiPolicies'] = $teams
+        return @{ Status = 'collected'; Data = $data }
+    } catch {
+        return @{ Status = 'partial'; Reason = 'teams-ps-unavailable'; Data = $data }
+    }
+}
+
+function Get-AvdStatePowerPlatform {
+    <#
+    .SYNOPSIS
+        Read-only Power Platform plane collector (BAP environments and DLP policies, plus optional Dataverse solutions/workflows).
+    #>
+    param(
+        [Parameter(Mandatory)][scriptblock]$Invoker,
+        [string]$Token = ''
+    )
+    $null = Test-AvdReadOnlyToken -Token $Token
+    $envRead = Invoke-RebuildRestRead -Path 'https://api.bap.microsoft.com/providers/Microsoft.BusinessAppPlatform/scopes/admin/environments?api-version=2023-06-01' -Invoker $Invoker
+    if ($envRead.Status -eq 'failed') {
+        if ($envRead.Error -match 'HTTP (401|403)') {
+            return @{ Status = 'unconsented'; Reason = 'insufficient-scope'; Data = @{} }
+        }
+        return @{ Status = 'skipped'; Reason = 'bap-unavailable'; Data = @{} }
+    }
+    if ($envRead.Status -eq 'none') {
+        return @{ Status = 'skipped'; Reason = 'bap-unavailable'; Data = @{} }
+    }
+    $dlpRead = Invoke-RebuildRestRead -Path 'https://api.bap.microsoft.com/providers/Microsoft.BusinessAppPlatform/scopes/admin/apiPolicies?api-version=2016-11-01' -Invoker $Invoker
+    $data = [ordered]@{
+        environments = @($envRead.Items)
+        dlpPolicies  = $(if ($dlpRead.Status -eq 'ok') { @($dlpRead.Items) } else { @() })
+        solutions    = @()
+        workflows    = @()
+    }
+    return @{ Status = 'collected'; Data = $data }
 }
 
 function Get-RebuildFileName {
@@ -627,4 +816,5 @@ function Get-RebuildDataset {
 }
 
 Export-ModuleMember -Function Get-RebuildValue, Get-RebuildScope, Get-RebuildFileName, Get-RebuildQuery, Get-RebuildRestPath,
-    ConvertTo-RebuildSafeObject, Get-RebuildSecretFinding, Invoke-RebuildGraphQuery, Invoke-RebuildRestRead, Get-RebuildEvidence, Get-RebuildDataset
+    ConvertTo-RebuildSafeObject, Get-RebuildSecretFinding, Invoke-RebuildGraphQuery, Invoke-RebuildRestRead, Get-RebuildEvidence, Get-RebuildDataset,
+    Resolve-AvdPlanes, Test-AvdReadOnlyToken, Get-AvdStateEntra, Get-AvdStateIntune, Get-AvdStateM365, Get-AvdStatePowerPlatform

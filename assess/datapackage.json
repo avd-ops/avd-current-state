@@ -2,8 +2,8 @@
   "$schema": "https://datapackage.org/profiles/2.0/datapackage.json",
   "name": "avd-assess",
   "title": "avd-assess: the AVD assessment map",
-  "version": "1.0.0",
-  "created": "2026-10-21T19:36:39-05:00",
+  "version": "1.1.0",
+  "created": "2026-10-27T16:57:09-05:00",
   "homepage": "https://github.com/avd-ops/avd-assess",
   "description": "Personal project, not for production, as is; not affiliated with the author's employer, Liquidware or Microsoft.",
   "licenses": [
@@ -19,8 +19,8 @@
     }
   ],
   "avdAssess": {
-    "commit": "052c6ea36250ecc8624d258de360fe4072729683",
-    "tag": "v1.0.0",
+    "commit": "cfcc3026b968c3c15a4150b8c7160891a138d3f0",
+    "tag": "v1.1.0",
     "profile": "avd-assess-bundle/v1"
   },
   "resources": [
@@ -45,24 +45,24 @@
       "path": "README.md",
       "format": "md",
       "mediatype": "text/markdown",
-      "bytes": 13078,
-      "hash": "sha256:694f4c20a1d0d9dee9fd1e1b96c24a3d6bb93343c8e4ab5929f9628897b93a6e"
+      "bytes": 13750,
+      "hash": "sha256:c30590fc3064767344e50f8e07896e0649391b5fcf1f24959bb2b2291063e833"
     },
     {
       "name": "contracts-readme-md",
       "path": "contracts/README.md",
       "format": "md",
       "mediatype": "text/markdown",
-      "bytes": 5429,
-      "hash": "sha256:a8eb2ba91eb0693b1ee26d93984493f4eef82cf5e379eceea63b4a0548c621da"
+      "bytes": 5662,
+      "hash": "sha256:10fe4ffa45b7dd87a6556aa269f287b0c9c991cd656372caf71464991edffe48"
     },
     {
       "name": "example-assess-assessment",
       "path": "contracts/examples/assess/assessment.example.json",
       "format": "json",
       "mediatype": "application/json",
-      "bytes": 2224,
-      "hash": "sha256:5eacd525c2021d5aa501bbbc6adb75e77c476f31a0deed95bd313898f8b8399a",
+      "bytes": 2853,
+      "hash": "sha256:5b1e51c559ca4634154e0eb22314d2f8151a1e2d3fa4eae13e7a640ec47cd8b4",
       "schemaString": "avd-assessment/v1",
       "jsonSchema": "contracts/schemas/assessment.schema.json"
     },
@@ -91,8 +91,8 @@
       "path": "contracts/examples/assess/intake.example.json",
       "format": "json",
       "mediatype": "application/json",
-      "bytes": 526,
-      "hash": "sha256:ca9695d3b749a470a483667bb7469aeaa7afa0f948f74e668adbf458dc5da01b",
+      "bytes": 599,
+      "hash": "sha256:89d6ffc59debbca448e2b04635241acffa0ec90e89bd6476cce3603700530760",
       "schemaString": "avd-intake/v1",
       "jsonSchema": "contracts/schemas/intake.schema.json"
     },
@@ -111,8 +111,8 @@
       "path": "contracts/examples/assess/method.example.json",
       "format": "json",
       "mediatype": "application/json",
-      "bytes": 3963,
-      "hash": "sha256:027e59873233093e410679dea1cdbbe50650bbf81310dfd81b14b5776647079c",
+      "bytes": 4011,
+      "hash": "sha256:e3b13b292cc52805987f20dcd71d936c2a9212ef8949bfbbd7e2ed245f9d6429",
       "schemaString": "avd-assess-method/v1",
       "jsonSchema": "contracts/schemas/assess-method.schema.json"
     },
@@ -121,8 +121,8 @@
       "path": "contracts/examples/assess/plan.example.json",
       "format": "json",
       "mediatype": "application/json",
-      "bytes": 1622,
-      "hash": "sha256:572c2aecdb516e30dd3c652f7114463b4f07651aa3c742dbcd1b461b9b076525",
+      "bytes": 1772,
+      "hash": "sha256:7efc2b8a106b0e01619c748e7968eaaa746e01991519141ae9aa11613b852be3",
       "schemaString": "avd-remediation-plan/v1",
       "jsonSchema": "contracts/schemas/remediation-plan.schema.json"
     },
@@ -135,6 +135,16 @@
       "hash": "sha256:e8fa0dba9f45a9b2ff4dee4fc3092eb82829ae6859a437df4a075af2bc20bece",
       "schemaString": "avd-assessment-review/v1",
       "jsonSchema": "contracts/schemas/assessment-review.schema.json"
+    },
+    {
+      "name": "example-checks-catalog",
+      "path": "contracts/examples/checks/catalog.example.json",
+      "format": "json",
+      "mediatype": "application/json",
+      "bytes": 2263,
+      "hash": "sha256:9b12872b4f79c92792c2dfd1efb5c5340d5cc91d4a2f31d6990d6df86c69bab3",
+      "schemaString": "avd-check-catalog/v1",
+      "jsonSchema": "contracts/schemas/check-catalog.schema.json"
     },
     {
       "name": "example-run-record-cost",
@@ -170,8 +180,8 @@
       "path": "contracts/fact-register.json",
       "format": "json",
       "mediatype": "application/json",
-      "bytes": 62361,
-      "hash": "sha256:2ea4516b0d837d540f418bb85ceedfef34d0896849e9b6cd565788b7ebfade57",
+      "bytes": 71429,
+      "hash": "sha256:edd6ad6ee9e222687e6b904ff04a2f9db61c0c5ac39b5d0cfff5e1c3f6123915",
       "schemaString": "avd-fact-register/v1",
       "jsonSchema": "contracts/schemas/fact-register.schema.json",
       "idPaths": [
@@ -228,16 +238,16 @@
       "path": "contracts/schemas/assess-method.schema.json",
       "format": "json",
       "mediatype": "application/json",
-      "bytes": 9802,
-      "hash": "sha256:634ccfb59179e0b193c1c2bef036fd6d6959a89fd70d9adb912f3252039c973b"
+      "bytes": 10093,
+      "hash": "sha256:24632b2cab478a2c686392e2310c027bb13d3375a6cb5edad1caaa47cc3e7b53"
     },
     {
       "name": "schema-assess-security-review",
       "path": "contracts/schemas/assess-security-review.schema.json",
       "format": "json",
       "mediatype": "application/json",
-      "bytes": 6813,
-      "hash": "sha256:af7ea452477904d7cab739806f3ae7bb1f5271ddcdb08f897e4c6c7ad4f6d654"
+      "bytes": 6893,
+      "hash": "sha256:b460b7968597e303ca78f15a82665d7a70e8da83a6de39532a48b1508f1b49f5"
     },
     {
       "name": "schema-assessment-review",
@@ -252,16 +262,24 @@
       "path": "contracts/schemas/assessment.schema.json",
       "format": "json",
       "mediatype": "application/json",
-      "bytes": 5696,
-      "hash": "sha256:656912465d1608351ce9723c70525822b4c6c838e88c9411810cde214e90300f"
+      "bytes": 7170,
+      "hash": "sha256:113d355e5a3d1ae35b921e817a8395cfb192e3a96410c772440c04f76cfbc3bf"
+    },
+    {
+      "name": "schema-check-catalog",
+      "path": "contracts/schemas/check-catalog.schema.json",
+      "format": "json",
+      "mediatype": "application/json",
+      "bytes": 12927,
+      "hash": "sha256:7d04ba2eeb4333104ca3ba45f5a8548407c3ca5fa7af47ae73a3dda411c0ccb4"
     },
     {
       "name": "schema-current-state-facts",
       "path": "contracts/schemas/current-state-facts.schema.json",
       "format": "json",
       "mediatype": "application/json",
-      "bytes": 14392,
-      "hash": "sha256:746fb4bc4d50673bacf9ef83e62fa3cce9fc0bb83fecfe693c82642cf08047d5"
+      "bytes": 18826,
+      "hash": "sha256:37f04c8048dbc29a048829ef4e6a46173e081c89c5753e116ea003e5573ec5fd"
     },
     {
       "name": "schema-fact-register",
@@ -276,16 +294,16 @@
       "path": "contracts/schemas/intake.schema.json",
       "format": "json",
       "mediatype": "application/json",
-      "bytes": 7493,
-      "hash": "sha256:711a6b4aed23c45d39be5d22d4d4d3702679ff29d576f93f2e1606d0f9152f76"
+      "bytes": 7994,
+      "hash": "sha256:6009ad6b31da792fd736f40bb89cfcf1883ae669fbf21e92c4b81713d633c191"
     },
     {
       "name": "schema-remediation-plan",
       "path": "contracts/schemas/remediation-plan.schema.json",
       "format": "json",
       "mediatype": "application/json",
-      "bytes": 5638,
-      "hash": "sha256:60ad3d0dc2f20e98762ba4298957fa299f02d2d64cad91be5e35dc9dd070c50a"
+      "bytes": 5884,
+      "hash": "sha256:e6eac145014877abffe652d9373972427d64d24f346b27dd37a711e98fba6ed7"
     },
     {
       "name": "schema-run-cost",
@@ -490,8 +508,8 @@
       "path": "gaps/identity-scope.md",
       "format": "md",
       "mediatype": "text/markdown",
-      "bytes": 5641,
-      "hash": "sha256:ef48341ee36a5d66ccdee7b032300f49363a607fb8aa704e585897c3c75543c5"
+      "bytes": 5953,
+      "hash": "sha256:698573f10c175046976d385892e0301d94440ebbea5a3fc890057b607be7e950"
     },
     {
       "name": "gap-insights-facts",
@@ -514,8 +532,8 @@
       "path": "gaps/intune-scope.md",
       "format": "md",
       "mediatype": "text/markdown",
-      "bytes": 10009,
-      "hash": "sha256:99ff1622b1c60fe52e15d2646acd89e8a48a79732d47fe8197f9b7aaaf8cf620"
+      "bytes": 11059,
+      "hash": "sha256:0d8dedaf44fac99e1d736e7e20a5bc494f29131b10b4ed0b395867db40fbd760"
     },
     {
       "name": "gap-logon-target",
@@ -524,6 +542,14 @@
       "mediatype": "text/markdown",
       "bytes": 876,
       "hash": "sha256:3f4c47803d5d96bc53825b40cd1d1fa753175f86c6dd61a38a1274589f0e9ff6"
+    },
+    {
+      "name": "gap-m365-scope",
+      "path": "gaps/m365-scope.md",
+      "format": "md",
+      "mediatype": "text/markdown",
+      "bytes": 2765,
+      "hash": "sha256:34b52d542ed5c64f38e8b691331f3b9069021e4c4f899eb72a32ab9001c6ac61"
     },
     {
       "name": "gap-monitoring-scope",
@@ -542,6 +568,14 @@
       "hash": "sha256:a22d4f83816ee958d464e4d5fd79231e7b9ac2f0e2657a2e893fa8f89ab6ae7b"
     },
     {
+      "name": "gap-power-platform-scope",
+      "path": "gaps/power-platform-scope.md",
+      "format": "md",
+      "mediatype": "text/markdown",
+      "bytes": 2875,
+      "hash": "sha256:0eda333d26932c55781665783da9bfcf9e83c88a75c82e4c7cee2a72716740f7"
+    },
+    {
       "name": "gap-reliability-scope",
       "path": "gaps/reliability-scope.md",
       "format": "md",
@@ -554,8 +588,8 @@
       "path": "gaps/remediation-plan.md",
       "format": "md",
       "mediatype": "text/markdown",
-      "bytes": 6475,
-      "hash": "sha256:a0579d13066c9274d92abd419df0d7c50b6d6f870d744f947ce2ac66bfdf7838"
+      "bytes": 6723,
+      "hash": "sha256:b3ab4af35965232a311f5707a13008e591910bde319ac2aa4e7212c62b44cbdb"
     },
     {
       "name": "gap-remote-protocols-scope",
@@ -578,8 +612,8 @@
       "path": "gaps/scoring.md",
       "format": "md",
       "mediatype": "text/markdown",
-      "bytes": 1142,
-      "hash": "sha256:9bddb676d7aede8c50d83d169096f1a0a76851f941d929fbce24a000b34e0b9f"
+      "bytes": 1477,
+      "hash": "sha256:57acaeb4a27cb92397d932003d4eecb0424ac0c824e1e8a2b99ddcc5f3ef5afe"
     },
     {
       "name": "gap-security-agents-scope",
@@ -682,8 +716,8 @@
       "path": "index.json",
       "format": "json",
       "mediatype": "application/json",
-      "bytes": 416653,
-      "hash": "sha256:c3f347094b25673b1a5379d7083a15c0dfcc220c6edb6fdbc0d3b1d545130c98",
+      "bytes": 424071,
+      "hash": "sha256:745a756e011bb6b98f4f7b41e062d87c8235eb0eebbb3408b7490ffb151ccc14",
       "schemaString": "avd-assess-index/v1",
       "jsonSchema": "contracts/schemas/assess-index.schema.json",
       "idPaths": [
@@ -698,8 +732,8 @@
       "path": "map.json",
       "format": "json",
       "mediatype": "application/json",
-      "bytes": 257996,
-      "hash": "sha256:0b1cd3b68afa25a338dfde75affe41c78a49b234b6762e2a0298c82bdbec9dcd",
+      "bytes": 258197,
+      "hash": "sha256:9d970eb2dace7e7b919d15029911996c7e7a0992c70e8ebf7545dee1357a0c2c",
       "schemaString": "avd-assess-map/v1",
       "jsonSchema": "contracts/schemas/assess-map.schema.json",
       "idPaths": [
@@ -715,8 +749,8 @@
       "path": "method.json",
       "format": "json",
       "mediatype": "application/json",
-      "bytes": 26647,
-      "hash": "sha256:995318b0ce9907dc04f23abdbbaa83ada3ff94bb333f1744a269cb2cbb355d76",
+      "bytes": 51488,
+      "hash": "sha256:64de9cfeda4b59cdc061f1d0981f1f457f5a77925afe9c175683edabf3c38dad",
       "schemaString": "avd-assess-method/v1",
       "jsonSchema": "contracts/schemas/assess-method.schema.json",
       "idPaths": [
@@ -728,8 +762,8 @@
       "path": "methods/assessment.md",
       "format": "md",
       "mediatype": "text/markdown",
-      "bytes": 3607,
-      "hash": "sha256:b773beb8f5e18b2c62d9fe4061f7534ac00b138f021b584a987b4538b5d1b7e9"
+      "bytes": 4455,
+      "hash": "sha256:bbb666c60c86e5588e2c3385d23e6bb4f1ec487630bf02ed81f3b34a3b1f36a8"
     },
     {
       "name": "method-baseline-profile",
@@ -756,6 +790,14 @@
       "hash": "sha256:34f3fdefa2c39b51b164c6f2a63ff3405e50ede0ae037bc2d34c4ba1cf60db5b"
     },
     {
+      "name": "method-entra",
+      "path": "methods/entra.md",
+      "format": "md",
+      "mediatype": "text/markdown",
+      "bytes": 4039,
+      "hash": "sha256:f46f90c4b142a352265a619937b01912061692026442920910c2d0d3d5395eb7"
+    },
+    {
       "name": "method-finops",
       "path": "methods/finops.md",
       "format": "md",
@@ -768,8 +810,16 @@
       "path": "methods/intune.md",
       "format": "md",
       "mediatype": "text/markdown",
-      "bytes": 5267,
-      "hash": "sha256:8d7a3a25af3bfc1376c1c11fcfccba0c32501c66883d237cfa3dc8d7859ce288"
+      "bytes": 5133,
+      "hash": "sha256:7ff220f54c788b731b5ce1a1896cbb8304c2982a8610d51c3b6702b8df0a61d7"
+    },
+    {
+      "name": "method-m365",
+      "path": "methods/m365.md",
+      "format": "md",
+      "mediatype": "text/markdown",
+      "bytes": 2687,
+      "hash": "sha256:aef57bd4214d63b53c6a62f4d63dc0e3ea78ff4d592ab03d8e6d5626134170c1"
     },
     {
       "name": "method-network",
@@ -778,6 +828,14 @@
       "mediatype": "text/markdown",
       "bytes": 7756,
       "hash": "sha256:7c1f5d8551b57900c69137fe4c9bbddf343122375838bdd76b694816087a69fa"
+    },
+    {
+      "name": "method-power-platform",
+      "path": "methods/power-platform.md",
+      "format": "md",
+      "mediatype": "text/markdown",
+      "bytes": 2500,
+      "hash": "sha256:efab07aa8aa4ca9c9cb69f221a35020d906ee758af8b7fb349ae7345b19fa11c"
     },
     {
       "name": "method-reliability",
@@ -792,8 +850,8 @@
       "path": "methods/remediation.md",
       "format": "md",
       "mediatype": "text/markdown",
-      "bytes": 3349,
-      "hash": "sha256:83aae3314a4fc115418ebbb2c4fce473334cf238c4bf541a0d6c5fa6a20f3ea6"
+      "bytes": 3511,
+      "hash": "sha256:ddd0c508d93fe699f48c0eeeddd2c2afd4ff0fa4373c999c7d31426946ee2cbd"
     },
     {
       "name": "method-remote-protocols",
@@ -816,8 +874,8 @@
       "path": "methods/scoring.md",
       "format": "md",
       "mediatype": "text/markdown",
-      "bytes": 1333,
-      "hash": "sha256:09590ca302fb0c3e37f203d9b2d902eae1e4d1fc57b87a9efbd97c4efcbb7577"
+      "bytes": 1663,
+      "hash": "sha256:6540168bf3900523b93e6a9323100dea0b45ece34e531f6f68d0beff9c93a3e8"
     },
     {
       "name": "method-security",
@@ -856,8 +914,8 @@
       "path": "security-review.json",
       "format": "json",
       "mediatype": "application/json",
-      "bytes": 56428,
-      "hash": "sha256:5481d740eabb33078a028877aafc15d7cee3b4b6fc37f26ed65875a615a1e9a0",
+      "bytes": 69070,
+      "hash": "sha256:f77042a007c933b3a59c3ca7d3deddaa14d964f76aa6b8bf814894f97b6f8b73",
       "schemaString": "avd-assess-security-review/v1",
       "jsonSchema": "contracts/schemas/assess-security-review.schema.json",
       "idPaths": [

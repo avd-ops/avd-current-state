@@ -260,16 +260,25 @@ Describe 'Get-AvdAssessScore' {
       @{ check = 'asm-defender-servers'; outcome = 'unknown' }         # security, medium
       @{ check = 'asm-files-smb-gcm'; outcome = 'unknown' })           # security, medium
     $security = @(Get-AvdAssessScore -Method $script:method -Result $rows | Where-Object { $_.pillar -eq 'security' })[0]
-    $security.checks | Should -Be 5
+    $security.checks | Should -Be 13
     $security.assessed | Should -Be 3
     $security.score | Should -Be 0.5
-    $security.coverage | Should -Be 0.6
+    $security.coverage | Should -Be 0.231
   }
 
   It 'scores null with nothing assessed, and lists pillars in name order' {
     $scores = @(Get-AvdAssessScore -Method $script:method -Result @())
-    @($scores.pillar) | Should -Be @('cost', 'operations', 'reliability', 'security')
+    @($scores.pillar) | Should -Be @('cost', 'operations', 'performance', 'reliability', 'security')
     foreach ($s in $scores) { $s.score | Should -BeNullOrEmpty; $s.coverage | Should -Be 0 }
+  }
+
+  It 'excludes not-applicable checks from pillar and plane coverage denominators' {
+    $intakeOptOut = ConvertTo-Doc @{ schema = 'avd-intake/v1'; estate = 'est-0a1b2c3d'; answeredOn = '2026-10-21'; m365PlaneScope = 'not-used'; powerPlatformPlaneScope = 'not-used' }
+    $rep = New-TestReport -Intake $intakeOptOut
+    @($rep.results | Where-Object { $_.plane -eq 'm365' } | ForEach-Object outcome) | Should -Be @('not-applicable', 'not-applicable', 'not-applicable')
+    @($rep.results | Where-Object { $_.plane -eq 'power-platform' } | ForEach-Object outcome) | Should -Be @('not-applicable', 'not-applicable', 'not-applicable')
+    $rep.planes.'m365'.notApplicable | Should -Be 3
+    $rep.planes.'power-platform'.notApplicable | Should -Be 3
   }
 }
 

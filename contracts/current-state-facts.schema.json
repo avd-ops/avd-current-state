@@ -22,12 +22,44 @@
     "hostPoolId": { "type": "string", "pattern": "^hp-[0-9a-f]{8}$" },
     "storageId": { "type": "string", "pattern": "^st-[0-9a-f]{8}$" },
     "vmSize": { "type": "string", "pattern": "^Standard_[A-Za-z0-9_]{1,40}$" },
-    "imagePart": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$" }
+    "imagePart": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$" },
+    "planeCollectionState": {
+      "type": "object",
+      "required": ["status"],
+      "additionalProperties": false,
+      "properties": {
+        "status": {
+          "enum": ["collected", "partial", "skipped", "unconsented"]
+        },
+        "reason": {
+          "enum": [
+            "not-selected",
+            "insufficient-scope",
+            "no-license",
+            "teams-ps-unavailable",
+            "bap-unavailable",
+            "not-applicable-intake"
+          ]
+        }
+      }
+    }
   },
   "properties": {
     "schema": { "const": "avd-current-state-facts/v1" },
     "estate": { "type": "string", "pattern": "^est-[0-9a-f]{8}$", "description": "Keyed pseudonym of the tenant" },
     "generatedUtc": { "$ref": "#/$defs/utc" },
+    "planesCollected": {
+      "type": "object",
+      "required": ["azure", "entra", "intune", "m365", "power-platform"],
+      "additionalProperties": false,
+      "properties": {
+        "azure": { "$ref": "#/$defs/planeCollectionState" },
+        "entra": { "$ref": "#/$defs/planeCollectionState" },
+        "intune": { "$ref": "#/$defs/planeCollectionState" },
+        "m365": { "$ref": "#/$defs/planeCollectionState" },
+        "power-platform": { "$ref": "#/$defs/planeCollectionState" }
+      }
+    },
     "producer": {
       "type": "object",
       "required": ["name", "version"],
@@ -81,6 +113,9 @@
                 "maxSessionLimit": { "type": ["integer", "null"], "minimum": 0 },
                 "validationEnvironment": { "$ref": "#/$defs/flag" },
                 "startVmOnConnect": { "$ref": "#/$defs/flag" },
+                "entraSso": { "enum": ["enabled", "disabled"] },
+                "directUserAssignments": { "$ref": "#/$defs/count" },
+                "intuneOrphans": { "$ref": "#/$defs/count" },
                 "rdpProperties": { "type": "array", "items": { "type": "string", "pattern": "^[a-z][a-z0-9 ]{1,40}$" }, "description": "Property names only, never values" },
                 "appGroups": { "$ref": "#/$defs/countMap" },
                 "redirection": {
@@ -114,7 +149,16 @@
                     "osVersions": { "$ref": "#/$defs/countMap" },
                     "updateStates": { "$ref": "#/$defs/countMap" },
                     "trustedLaunch": { "$ref": "#/$defs/count", "description": "Hosts whose VM is Trusted launch with Secure Boot and vTPM on" },
-                    "notTrustedLaunch": { "$ref": "#/$defs/count", "description": "Hosts whose VM was read and lacks Trusted launch, Secure Boot or vTPM" }
+                    "notTrustedLaunch": { "$ref": "#/$defs/count", "description": "Hosts whose VM was read and lacks Trusted launch, Secure Boot or vTPM" },
+                    "entraJoined": { "$ref": "#/$defs/count" },
+                    "domainJoined": { "$ref": "#/$defs/count" },
+                    "intuneEnrollRequested": { "$ref": "#/$defs/count" },
+                    "intuneManaged": { "$ref": "#/$defs/count" },
+                    "intuneCompliant": { "$ref": "#/$defs/count" },
+                    "intuneNoncompliant": { "$ref": "#/$defs/count" },
+                    "intuneSyncStale": { "$ref": "#/$defs/count" },
+                    "intuneConfigErrors": { "$ref": "#/$defs/count" },
+                    "intuneBaselineApplied": { "$ref": "#/$defs/count" }
                   }
                 },
                 "vmSizes": { "$ref": "#/$defs/countMap" },
@@ -222,8 +266,68 @@
             "description": "Defender for Cloud plan tier by plan name (VirtualMachines, StorageAccounts, ...)",
             "propertyNames": { "pattern": "^[A-Za-z][A-Za-z0-9]{1,40}$" },
             "additionalProperties": { "enum": ["Free", "Standard"] }
+          },
+          "powerPlatform": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "enterprisePoliciesCount": { "$ref": "#/$defs/count" },
+              "vnetInjectedSubnets": { "$ref": "#/$defs/count" }
+            }
           }
         }
+      }
+    },
+    "entra": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "userGroupsAssigned": { "$ref": "#/$defs/count" },
+        "dynamicHostGroups": { "$ref": "#/$defs/count" },
+        "caPoliciesTargetingAvd": { "$ref": "#/$defs/countMap" },
+        "caAvdRequiresMfa": { "enum": ["enforced", "report-only", "none"] },
+        "caAvdRequiresCompliantDevice": { "enum": ["enforced", "report-only", "none"] },
+        "caAvdSignInFrequencyConfigured": { "type": "boolean" },
+        "caAvdBreakGlassExcluded": { "type": "boolean" },
+        "kerberosStoragePrincipalsReady": { "$ref": "#/$defs/count" },
+        "skuAvdEligibleAvailable": { "$ref": "#/$defs/count" }
+      }
+    },
+    "intune": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "noPolicyMeansNoncompliant": { "type": "boolean" },
+        "mdmAutoEnrollmentScope": { "enum": ["all", "some", "none"] },
+        "multiSessionCatalogProfiles": { "$ref": "#/$defs/count" },
+        "fslogixProfileConfigured": { "type": "boolean" },
+        "rdpShortpathConfigured": { "type": "boolean" },
+        "sessionTimeLimitsConfigured": { "type": "boolean" },
+        "multiSessionUpdateRingAssigned": { "type": "boolean" }
+      }
+    },
+    "m365": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "oneDriveSilentConfigEnabled": { "type": "boolean" },
+        "oneDriveKfmState": { "enum": ["enforced", "prompt", "none"] },
+        "oneDriveFilesOnDemandEnabled": { "type": "boolean" },
+        "m365AppsSharedComputerActivation": { "type": "boolean" },
+        "outlookCachedModeConfigured": { "type": "boolean" },
+        "teamsMediaOptimizationState": { "enum": ["enabled", "disabled"] },
+        "mmrConfigured": { "type": "boolean" }
+      }
+    },
+    "powerPlatform": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "dedicatedEnvironments": { "$ref": "#/$defs/count" },
+        "dlpPoliciesCoveringAvdEnv": { "$ref": "#/$defs/count" },
+        "dlpDefaultGroupClassification": { "enum": ["Blocked", "Confidential", "General"] },
+        "avdDay2SolutionsDeployed": { "$ref": "#/$defs/count" },
+        "avdDay2FlowsActive": { "$ref": "#/$defs/countMap" }
       }
     },
     "validations": {
