@@ -1,9 +1,9 @@
 {
   "description": "Byte-identical copies of avd-assess's method (contract C20: method.json and index.json) and its PowerShell bundle verifier, from release `release` (docs/distribution-spec.md there, section 9). The assess run (lib/AvdAssess.psm1) reads only these copies; nothing is fetched at run time, so the copies here are the only source and the run never needs the network or assess.avd-ops.dev. Each must match the file at commit; `manifest` is the SHA-256 of the release's datapackage.json, vendored beside them, which pins every file in the release (tests/Assess.Tests.ps1 checks the hashes and runs the verifier). Update the files, datapackage.json, commit, release, manifest and the hashes in one PR, after checking the release's attestation.",
   "source": "https://github.com/avd-ops/avd-assess",
-  "commit": "cfcc3026b968c3c15a4150b8c7160891a138d3f0",
-  "release": "v1.1.0",
-  "manifest": "5ce754ad9aba97cc6dae2abac4cd3c5d0a2f8519e14a47b7b4e554eede3a93be",
+  "commit": "5c5696cc5050ba216dbe6a8268a4c0a7592b177d",
+  "release": "v2.0.0",
+  "manifest": "f1b8843e892ab877d813fb1260fc8ee43abd061990fa7bc8e447f100c9ed52e1",
   "files": {
     "method.json": "64de9cfeda4b59cdc061f1d0981f1f457f5a77925afe9c175683edabf3c38dad",
     "index.json": "745a756e011bb6b98f4f7b41e062d87c8235eb0eebbb3408b7490ffb151ccc14",

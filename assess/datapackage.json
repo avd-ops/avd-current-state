@@ -2,8 +2,8 @@
   "$schema": "https://datapackage.org/profiles/2.0/datapackage.json",
   "name": "avd-assess",
   "title": "avd-assess: the AVD assessment map",
-  "version": "1.1.0",
-  "created": "2026-10-27T16:57:09-05:00",
+  "version": "2.0.0",
+  "created": "2026-10-27T17:34:01-05:00",
   "homepage": "https://github.com/avd-ops/avd-assess",
   "description": "Personal project, not for production, as is; not affiliated with the author's employer, Liquidware or Microsoft.",
   "licenses": [
@@ -19,8 +19,8 @@
     }
   ],
   "avdAssess": {
-    "commit": "cfcc3026b968c3c15a4150b8c7160891a138d3f0",
-    "tag": "v1.1.0",
+    "commit": "5c5696cc5050ba216dbe6a8268a4c0a7592b177d",
+    "tag": "v2.0.0",
     "profile": "avd-assess-bundle/v1"
   },
   "resources": [
