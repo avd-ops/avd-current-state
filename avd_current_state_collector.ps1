@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-    AVD Current State Collector — inventories Azure Commercial environments from an
+    AVD Current State Collector -- inventories Azure Commercial environments from an
     Azure Virtual Desktop perspective and produces a portable evidence package.
 
 .DESCRIPTION
@@ -45,9 +45,9 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
-# ─────────────────────────────────────────────
+# ---------------------------------------------
 # region Cloud Shell Detection
-# ─────────────────────────────────────────────
+# ---------------------------------------------
 $script:IsCloudShell = $false
 if ($env:AZUREPS_HOST_ENVIRONMENT -like 'cloud-shell*' -or $env:ACC_CLOUD -eq 'true') {
     $script:IsCloudShell = $true
@@ -62,9 +62,9 @@ if ($env:AZUREPS_HOST_ENVIRONMENT -like 'cloud-shell*' -or $env:ACC_CLOUD -eq 't
 }
 # endregion
 
-# ─────────────────────────────────────────────
+# ---------------------------------------------
 # region Constants
-# ─────────────────────────────────────────────
+# ---------------------------------------------
 $script:Timestamp       = Get-Date -Format 'yyyyMMddTHHmmss'
 $script:PackageName     = "avd-current-state-$script:Timestamp"
 $script:RootDir         = Join-Path $OutputPath $script:PackageName
@@ -73,9 +73,9 @@ $script:Warnings        = [System.Collections.Generic.List[string]]::new()
 $script:SubscriptionResults = [System.Collections.Generic.List[psobject]]::new()
 # endregion
 
-# ─────────────────────────────────────────────
+# ---------------------------------------------
 # region Helper Functions
-# ─────────────────────────────────────────────
+# ---------------------------------------------
 
 function Write-Log {
     param([string]$Message, [ValidateSet('INFO','WARN','ERROR')][string]$Level = 'INFO')
@@ -90,7 +90,7 @@ function Safe-Export-Csv {
     param([string]$Path, [object[]]$Data, [string]$DatasetName)
     try {
         if ($null -eq $Data -or $Data.Count -eq 0) {
-            Write-Log "No data for $DatasetName — skipping CSV export." -Level INFO
+            Write-Log "No data for $DatasetName -- skipping CSV export." -Level INFO
             return 0
         }
         $Data | Export-Csv -Path $Path -NoTypeInformation -Encoding UTF8 -Force
@@ -105,7 +105,7 @@ function Safe-Export-Json {
     param([string]$Path, [object]$Data, [string]$DatasetName)
     try {
         if ($null -eq $Data) {
-            Write-Log "No data for $DatasetName — skipping JSON export." -Level INFO
+            Write-Log "No data for $DatasetName -- skipping JSON export." -Level INFO
             return
         }
         $json = $Data | ConvertTo-Json -Depth 10 -WarningAction SilentlyContinue
@@ -158,7 +158,7 @@ function Safe-Collect {
         $result = & $Collector
         if ($null -eq $result) { $result = @() }
         if ($result -isnot [System.Array]) { $result = @($result) }
-        Write-Log "  $DatasetName — $($result.Count) item(s)."
+        Write-Log "  $DatasetName -- $($result.Count) item(s)."
         return $result
     } catch {
         Write-Log "  $DatasetName collection failed: $($_.Exception.Message)" -Level WARN
@@ -169,7 +169,7 @@ function Safe-Collect {
 function Ensure-Module {
     param([string]$ModuleName)
     if (-not (Get-Module -ListAvailable -Name $ModuleName)) {
-        Write-Log "Module $ModuleName not found — installing from PSGallery ..."
+        Write-Log "Module $ModuleName not found -- installing from PSGallery ..."
         Install-Module -Name $ModuleName -Scope CurrentUser -Repository PSGallery -Force -AllowClobber
     }
     Import-Module $ModuleName -ErrorAction Stop
@@ -260,7 +260,7 @@ function Read-RebuildEvidence {
     Write-Log "  Reading the resource list through Resource Graph ..."
     try {
         $rows['*'] = @(Invoke-RebuildGraphQuery -Query 'resources | project id, name, type, location, tags | order by id asc' -SubscriptionId $SubscriptionId -Invoker $graph)
-        Write-Log "  Resource list — $($rows['*'].Count) item(s)."
+        Write-Log "  Resource list -- $($rows['*'].Count) item(s)."
     } catch {
         $rows['*'] = @()
         Write-Log "  Resource list read failed: $($_.Exception.Message)" -Level WARN
@@ -307,17 +307,17 @@ function Write-RebuildMap {
 
 # endregion
 
-# ─────────────────────────────────────────────
+# ---------------------------------------------
 # region Module Bootstrap
-# ─────────────────────────────────────────────
+# ---------------------------------------------
 
-Write-Log '═══════════════════════════════════════════════════'
+Write-Log '==================================================='
 Write-Log ' AVD Current State Collector'
-Write-Log '═══════════════════════════════════════════════════'
+Write-Log '==================================================='
 Write-Log "Run timestamp : $script:Timestamp"
 Write-Log "Output target : $script:RootDir"
 if ($script:IsCloudShell) {
-    Write-Log "Environment   : Azure Cloud Shell detected — output defaults to ~/clouddrive for persistence."
+    Write-Log "Environment   : Azure Cloud Shell detected -- output defaults to ~/clouddrive for persistence."
 }
 
 # Resource Graph and REST go through Invoke-AzRestMethod (Az.Accounts). Az.Resources keeps the
@@ -350,13 +350,13 @@ Write-Log "Rebuild scope : $(@($script:RebuildScope.resourceGraph).Count) Resour
 
 # endregion
 
-# ─────────────────────────────────────────────
+# ---------------------------------------------
 # region Authentication
-# ─────────────────────────────────────────────
+# ---------------------------------------------
 
 $context = Get-AzContext -ErrorAction SilentlyContinue
 if (-not $context) {
-    Write-Log 'No active Azure context — launching interactive login (AzureCloud) ...'
+    Write-Log 'No active Azure context -- launching interactive login (AzureCloud) ...'
     try {
         Connect-AzAccount -Environment AzureCloud -ErrorAction Stop | Out-Null
         $context = Get-AzContext
@@ -369,9 +369,9 @@ Write-Log "Authenticated as $($context.Account.Id) in tenant $($context.Tenant.I
 
 # endregion
 
-# ─────────────────────────────────────────────
+# ---------------------------------------------
 # region Subscription Discovery
-# ─────────────────────────────────────────────
+# ---------------------------------------------
 
 Write-Log 'Discovering subscriptions ...'
 # @() because one typed subscription object has no .Count under Set-StrictMode (first real run, 2026-10-21).
@@ -407,9 +407,9 @@ if ($SubscriptionNames -and $SubscriptionNames.Count -gt 0) {
 
 # endregion
 
-# ─────────────────────────────────────────────
+# ---------------------------------------------
 # region Create Output Structure
-# ─────────────────────────────────────────────
+# ---------------------------------------------
 
 New-Item -ItemType Directory -Path $script:RootDir -Force | Out-Null
 
@@ -422,9 +422,9 @@ Write-Log "Recorded Az module versions."
 
 # endregion
 
-# ─────────────────────────────────────────────
+# ---------------------------------------------
 # region Per-Subscription Collection
-# ─────────────────────────────────────────────
+# ---------------------------------------------
 
 $grandTotals = @{}
 
@@ -432,7 +432,7 @@ if ($script:SelectedPlanes -contains 'azure') {
 foreach ($sub in $targetSubs) {
     $subName = $sub.Name
     $subId   = $sub.Id
-    Write-Log "───────────────────────────────────────────────"
+    Write-Log "-----------------------------------------------"
     Write-Log "Subscription: $subName ($subId)"
 
     # Switch context
@@ -449,7 +449,7 @@ foreach ($sub in $targetSubs) {
 
     # Access validation
     if (-not (Test-SubscriptionAccess -SubscriptionId $subId)) {
-        Write-Log "Read access validation failed for '$subName' — skipping." -Level WARN
+        Write-Log "Read access validation failed for '$subName' -- skipping." -Level WARN
         $script:SubscriptionResults.Add([pscustomobject]@{
             SubscriptionName = $subName; SubscriptionId = $subId
             Status = 'AccessDenied'; Reason = 'Lightweight read validation failed.'
@@ -465,19 +465,19 @@ foreach ($sub in $targetSubs) {
     # Store counts for this subscription
     $subCounts = @{}
 
-    # ── Resource Graph and REST reads (docs/rebuild-fidelity-spec.md) ──
+    # -- Resource Graph and REST reads (docs/rebuild-fidelity-spec.md) --
     # One read per resource type in rebuild/scope.json. The full objects go to rebuild/, and the
     # datasets below are built from the same rows, so the two never disagree.
     $rows = Read-RebuildEvidence -SubscriptionId $subId -SubDir $subDir
 
-    # ── Core Resources ──
+    # -- Core Resources --
     $resourceGroups = Safe-Collect 'ResourceGroups' { Get-RebuildDataset -Name 'resource-groups' -Rows $rows }
     $subCounts['ResourceGroups'] = (Export-Dataset -SubDir $subDir -Name 'resource-groups' -Data $resourceGroups)
 
     $armResources = Safe-Collect 'ARMResources' { Get-RebuildDataset -Name 'arm-resources' -Rows $rows }
     $subCounts['ARMResources'] = (Export-Dataset -SubDir $subDir -Name 'arm-resources' -Data $armResources)
 
-    # ── Networking ──
+    # -- Networking --
     $vnets = Safe-Collect 'VirtualNetworks' { Get-RebuildDataset -Name 'virtual-networks' -Rows $rows }
     $subCounts['VirtualNetworks'] = (Export-Dataset -SubDir $subDir -Name 'virtual-networks' -Data $vnets)
 
@@ -496,30 +496,30 @@ foreach ($sub in $targetSubs) {
     $publicIPs = Safe-Collect 'PublicIPs' { Get-RebuildDataset -Name 'public-ips' -Rows $rows }
     $subCounts['PublicIPs'] = (Export-Dataset -SubDir $subDir -Name 'public-ips' -Data $publicIPs)
 
-    # ── Compute ──
+    # -- Compute --
     $vms = Safe-Collect 'VirtualMachines' { Get-RebuildDataset -Name 'virtual-machines' -Rows $rows }
     $subCounts['VirtualMachines'] = (Export-Dataset -SubDir $subDir -Name 'virtual-machines' -Data $vms)
 
     $vmExtensions = Safe-Collect 'VMExtensions' { Get-RebuildDataset -Name 'vm-extensions' -Rows $rows }
     $subCounts['VMExtensions'] = (Export-Dataset -SubDir $subDir -Name 'vm-extensions' -Data $vmExtensions)
 
-    # ── Storage ──
+    # -- Storage --
     $storageAccounts = Safe-Collect 'StorageAccounts' { Get-RebuildDataset -Name 'storage-accounts' -Rows $rows }
     $subCounts['StorageAccounts'] = (Export-Dataset -SubDir $subDir -Name 'storage-accounts' -Data $storageAccounts)
 
-    # ── Key Vault ──
+    # -- Key Vault --
     $keyVaults = Safe-Collect 'KeyVaults' { Get-RebuildDataset -Name 'key-vaults' -Rows $rows }
     $subCounts['KeyVaults'] = (Export-Dataset -SubDir $subDir -Name 'key-vaults' -Data $keyVaults)
 
-    # ── Log Analytics ──
+    # -- Log Analytics --
     $logAnalytics = Safe-Collect 'LogAnalyticsWorkspaces' { Get-RebuildDataset -Name 'log-analytics-workspaces' -Rows $rows }
     $subCounts['LogAnalyticsWorkspaces'] = (Export-Dataset -SubDir $subDir -Name 'log-analytics-workspaces' -Data $logAnalytics)
 
-    # ── Recovery Services ──
+    # -- Recovery Services --
     $recVaults = Safe-Collect 'RecoveryServicesVaults' { Get-RebuildDataset -Name 'recovery-services-vaults' -Rows $rows }
     $subCounts['RecoveryServicesVaults'] = (Export-Dataset -SubDir $subDir -Name 'recovery-services-vaults' -Data $recVaults)
 
-    # ── Private Endpoints ──
+    # -- Private Endpoints --
     $privateEndpoints = Safe-Collect 'PrivateEndpoints' { Get-RebuildDataset -Name 'private-endpoints' -Rows $rows }
     $subCounts['PrivateEndpoints'] = (Export-Dataset -SubDir $subDir -Name 'private-endpoints' -Data $privateEndpoints)
 
@@ -527,7 +527,7 @@ foreach ($sub in $targetSubs) {
     # inherited from management groups, and Get-AzRoleAssignment adds display names from Graph.
     # Their full Resource Graph rows are saved under rebuild/ as well.
 
-    # ── Policy Assignments ──
+    # -- Policy Assignments --
     $policyAssignments = Safe-Collect 'PolicyAssignments' {
         Get-AzPolicyAssignment -ErrorAction SilentlyContinue |
             Select-Object @{N='DisplayName';E={ Get-PropValue $_ @('DisplayName','Properties.DisplayName') '' }},
@@ -539,32 +539,32 @@ foreach ($sub in $targetSubs) {
     }
     $subCounts['PolicyAssignments'] = (Export-Dataset -SubDir $subDir -Name 'policy-assignments' -Data $policyAssignments)
 
-    # ── Role Assignments ──
+    # -- Role Assignments --
     $roleAssignments = Safe-Collect 'RoleAssignments' {
         Get-AzRoleAssignment -ErrorAction SilentlyContinue |
             Select-Object DisplayName, SignInName, RoleDefinitionName, Scope, ObjectType, ObjectId
     }
     $subCounts['RoleAssignments'] = (Export-Dataset -SubDir $subDir -Name 'role-assignments' -Data $roleAssignments)
 
-    # ── Rebuild map: the landing zone parameters this estate maps to (docs/rebuild-fidelity-spec.md) ──
+    # -- Rebuild map: the landing zone parameters this estate maps to (docs/rebuild-fidelity-spec.md) --
     Write-RebuildMap -SubscriptionId $subId -SubDir $subDir -Rows $rows -RoleAssignments @($roleAssignments)
 
-    # ── AVD Host Pools ──
+    # -- AVD Host Pools --
     $hostPools = Safe-Collect 'AVDHostPools' { Get-RebuildDataset -Name 'avd-host-pools' -Rows $rows }
     $subCounts['AVDHostPools'] = (Export-Dataset -SubDir $subDir -Name 'avd-host-pools' -Data $hostPools)
 
-    # ── AVD Workspaces ──
+    # -- AVD Workspaces --
     $avdWorkspaces = Safe-Collect 'AVDWorkspaces' { Get-RebuildDataset -Name 'avd-workspaces' -Rows $rows }
     $subCounts['AVDWorkspaces'] = (Export-Dataset -SubDir $subDir -Name 'avd-workspaces' -Data $avdWorkspaces)
 
-    # ── AVD Application Groups ──
+    # -- AVD Application Groups --
     $appGroups = Safe-Collect 'AVDApplicationGroups' { Get-RebuildDataset -Name 'avd-application-groups' -Rows $rows }
     $subCounts['AVDApplicationGroups'] = (Export-Dataset -SubDir $subDir -Name 'avd-application-groups' -Data $appGroups)
 
-    # ── AVD Session Hosts ──
+    # -- AVD Session Hosts --
     $sessionHosts = Safe-Collect 'AVDSessionHosts' { Get-RebuildDataset -Name 'avd-session-hosts' -Rows $rows }
     $subCounts['AVDSessionHosts'] = (Export-Dataset -SubDir $subDir -Name 'avd-session-hosts' -Data $sessionHosts)
-    # ── Record subscription outcome ──
+    # -- Record subscription outcome --
     $script:SubscriptionResults.Add([pscustomobject]@{
         SubscriptionName = $subName
         SubscriptionId   = $subId
@@ -625,16 +625,16 @@ foreach ($plane in @('entra', 'intune', 'm365', 'power-platform')) {
 
 # endregion
 
-# ─────────────────────────────────────────────
+# ---------------------------------------------
 # region Summary Generation
-# ─────────────────────────────────────────────
+# ---------------------------------------------
 
 Write-Log 'Generating summary ...'
 
 $summaryLines = [System.Collections.Generic.List[string]]::new()
 function Add-Line { param([string]$L='') $summaryLines.Add($L) }
 
-Add-Line "# AVD Current State — Collection Summary"
+Add-Line "# AVD Current State -- Collection Summary"
 Add-Line ""
 Add-Line "**Generated:** $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss') UTC"
 Add-Line "**Identity:** $($context.Account.Id)"
@@ -713,7 +713,7 @@ foreach ($sr in $script:SubscriptionResults) {
     } else {
         Add-Line "### $($sr.SubscriptionName) *(skipped)*"
         Add-Line "- **Subscription ID:** $($sr.SubscriptionId)"
-        Add-Line "- **Status:** $($sr.Status) — $($sr.Reason)"
+        Add-Line "- **Status:** $($sr.Status) -- $($sr.Reason)"
         Add-Line ""
     }
 }
@@ -781,7 +781,7 @@ Add-Line ""
 Add-Line "1. This package provides a factual snapshot of the Azure environment as discovered by the collector identity at the time of execution."
 Add-Line "2. All AVD-specific resources (host pools, workspaces, application groups, session hosts) and supporting platform components (networking, storage, identity, monitoring) are inventoried."
 Add-Line "3. Review the per-subscription CSV and JSON files for detailed resource-level evidence."
-Add-Line "4. Any subscriptions that were skipped due to access issues are noted above — expand permissions and re-run if coverage is incomplete."
+Add-Line "4. Any subscriptions that were skipped due to access issues are noted above -- expand permissions and re-run if coverage is incomplete."
 Add-Line "5. Pair this inventory with a design workshop or assessment to translate current state into actionable recommendations."
 Add-Line ""
 
@@ -821,9 +821,9 @@ if (Test-Path -LiteralPath $reportModule) {
 
 # endregion
 
-# ─────────────────────────────────────────────
+# ---------------------------------------------
 # region Manifest
-# ─────────────────────────────────────────────
+# ---------------------------------------------
 
 $manifestFiles = Get-ChildItem -Path $script:RootDir -Recurse -File |
     Select-Object @{N='RelativePath';E={ $_.FullName.Replace($script:RootDir + [IO.Path]::DirectorySeparatorChar, '') }},
@@ -852,9 +852,9 @@ Write-Log "Manifest written."
 
 # endregion
 
-# ─────────────────────────────────────────────
+# ---------------------------------------------
 # region ZIP Package
-# ─────────────────────────────────────────────
+# ---------------------------------------------
 
 $zipPath = Join-Path $OutputPath "$script:PackageName.zip"
 Write-Log "Creating ZIP archive: $zipPath"
@@ -868,20 +868,20 @@ try {
 
 # endregion
 
-# ─────────────────────────────────────────────
+# ---------------------------------------------
 # region Final Output
-# ─────────────────────────────────────────────
+# ---------------------------------------------
 
-Write-Log '═══════════════════════════════════════════════════'
+Write-Log '==================================================='
 Write-Log ' Collection Complete'
-Write-Log '═══════════════════════════════════════════════════'
+Write-Log '==================================================='
 Write-Log "Evidence folder : $script:RootDir"
 Write-Log "ZIP archive     : $zipPath"
 Write-Log "Summary         : $summaryPath"
 if ($summaryHtmlPath) { Write-Log "HTML summary    : $summaryHtmlPath" }
 Write-Log "Subscriptions   : $($collectedSubs.Count) collected, $($skippedSubs.Count) skipped"
 Write-Log "Warnings        : $($script:Warnings.Count)"
-Write-Log '═══════════════════════════════════════════════════'
+Write-Log '==================================================='
 
 # The assessment portal's state line (docs/assessment-portal-spec.md, section 3): counts and the package
 # folder's name only, never a name or an ID.
