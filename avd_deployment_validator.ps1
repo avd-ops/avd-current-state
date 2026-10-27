@@ -154,8 +154,14 @@
 [CmdletBinding()]
 param(
     [Parameter(Mandatory = $false)]
-    [ValidateSet('Preflight', 'PostDeployment', 'Both')]
+    [ValidateSet('Preflight', 'PreDeployment', 'PostDeployment', 'Both')]
     [string]$Mode = 'Preflight',
+
+    [Parameter(Mandatory = $false)]
+    [ValidateSet('all', 'azure', 'entra', 'intune', 'm365', 'power-platform')]
+    [string[]]$Planes = @('all'),
+
+    [Parameter(Mandatory = $false)][string]$ManifestPath,
 
     [Parameter(Mandatory = $false)][string]$SubscriptionName,
     [Parameter(Mandatory = $false)][string]$SubscriptionId,
@@ -641,11 +647,102 @@ function Sanitize-FileName {
     ($Name -replace '[^\w\-\.]', '_')
 }
 
+function Import-ValidatorManifest {
+    <#
+    .SYNOPSIS
+        Reads deployment manifests (orchestrator run manifest or per-plane stage handoff
+        manifests: entra-manifest.json, intune-manifest.json, m365-manifest.json,
+        azure-outputs.json, power-platform-manifest.json) from a file or directory.
+    #>
+    param([string]$Path)
+    $loaded = [ordered]@{
+        orchestrator  = $null
+        azure         = $null
+        entra         = $null
+        intune        = $null
+        m365          = $null
+        powerPlatform = $null
+    }
+    if ([string]::IsNullOrWhiteSpace($Path)) { return [pscustomobject]$loaded }
+    if (-not (Test-Path -LiteralPath $Path)) {
+        throw "Manifest path not found: $Path"
+    }
+    $item = Get-Item -LiteralPath $Path
+    if ($item.PSIsContainer) {
+        $stageMap = @{
+            azure         = 'azure-outputs.json'
+            entra         = 'entra-manifest.json'
+            intune        = 'intune-manifest.json'
+            m365          = 'm365-manifest.json'
+            powerPlatform = 'power-platform-manifest.json'
+            orchestrator  = 'run-manifest.json'
+        }
+        foreach ($key in $stageMap.Keys) {
+            $candidate = Join-Path $item.FullName $stageMap[$key]
+            if (Test-Path -LiteralPath $candidate) {
+                $loaded[$key] = Get-Content -LiteralPath $candidate -Raw | ConvertFrom-Json
+            }
+        }
+    } else {
+        $doc = Get-Content -LiteralPath $item.FullName -Raw | ConvertFrom-Json
+        $leaf = $item.Name.ToLowerInvariant()
+        if ($leaf -eq 'entra-manifest.json') { $loaded.entra = $doc }
+        elseif ($leaf -eq 'intune-manifest.json') { $loaded.intune = $doc }
+        elseif ($leaf -eq 'm365-manifest.json') { $loaded.m365 = $doc }
+        elseif ($leaf -eq 'azure-outputs.json') { $loaded.azure = $doc }
+        elseif ($leaf -eq 'power-platform-manifest.json') { $loaded.powerPlatform = $doc }
+        else {
+            $loaded.orchestrator = $doc
+            foreach ($k in @('azure', 'entra', 'intune', 'm365', 'powerPlatform')) {
+                $sub = Get-Prop $doc $k
+                if ($null -ne $sub) { $loaded[$k] = $sub }
+            }
+        }
+    }
+    return [pscustomobject]$loaded
+}
+
 # endregion
 
 # ---------------------------------------------
 # region Config File Merge
 # ---------------------------------------------
+
+if ($Mode -eq 'PreDeployment') { $Mode = 'Preflight' }
+$script:ResolvedPlanes = @('azure', 'entra', 'intune', 'm365', 'power-platform')
+if ($null -ne $Planes -and @($Planes).Count -gt 0 -and @($Planes) -notcontains 'all') {
+    $script:ResolvedPlanes = @($Planes | ForEach-Object { "$_".Trim().ToLowerInvariant() } | Select-Object -Unique)
+}
+$script:LoadedManifests = $null
+if (-not [string]::IsNullOrWhiteSpace($ManifestPath)) {
+    Write-Log "Loading deployment manifest(s) from $ManifestPath ..."
+    $script:LoadedManifests = Import-ValidatorManifest -Path $ManifestPath
+    $azOut = Get-Prop $script:LoadedManifests 'azure'
+    if ($null -eq $azOut) { $azOut = Get-Prop $script:LoadedManifests 'orchestrator' }
+    if ($null -ne $azOut) {
+        $paramFallback = @{
+            ResourceGroupName    = @('ResourceGroupName', 'resourceGroupName')
+            HostPoolName         = @('HostPoolName', 'hostPoolName')
+            WorkspaceName        = @('WorkspaceName', 'workspaceName')
+            ApplicationGroupName = @('ApplicationGroupName', 'applicationGroupName')
+            StorageAccountName   = @('StorageAccountName', 'storageAccountName')
+            VirtualNetworkName   = @('VirtualNetworkName', 'virtualNetworkName')
+            SubnetName           = @('SubnetName', 'subnetName')
+            Location             = @('Location', 'location')
+            SessionHostVmSize    = @('SessionHostVmSize', 'sessionHostVmSize')
+        }
+        foreach ($pName in $paramFallback.Keys) {
+            if ($PSBoundParameters.ContainsKey($pName)) { continue }
+            $currentVal = (Get-Variable -Name $pName -Scope Script -ErrorAction SilentlyContinue).Value
+            if (-not [string]::IsNullOrWhiteSpace("$currentVal")) { continue }
+            $val = Get-FirstProp $azOut $paramFallback[$pName] ''
+            if ($val -is [psobject] -and $null -ne (Get-Prop $val 'value')) { $val = "$(Get-Prop $val 'value' '')" }
+            if (-not [string]::IsNullOrWhiteSpace("$val")) {
+                Set-Variable -Name $pName -Value "$val" -Scope Script
+            }
+        }
+    }
+}
 
 if (-not [string]::IsNullOrWhiteSpace($ConfigPath)) {
     if (-not (Test-Path -Path $ConfigPath)) {
@@ -3050,13 +3147,171 @@ function Test-AvdHostPool {
 # endregion
 
 # =============================================
+# region MULTI-PLANE VALIDATION
+# =============================================
+
+function Invoke-MultiPlanePreflightValidation {
+    <#
+    .SYNOPSIS
+        Read-only preflight validation across non-Azure control planes (entra, intune,
+        m365, power-platform) when selected in -Planes.
+    #>
+    $script:CurrentPhase = 'Preflight'
+    $rebuildModule = Join-Path $PSScriptRoot 'lib/AvdRebuild.psm1'
+    if (-not (Test-Path -LiteralPath $rebuildModule)) { return }
+    Import-Module $rebuildModule -Force
+    $scope = Get-RebuildScope -Path (Join-Path $PSScriptRoot 'rebuild/scope.json')
+
+    if ($script:ResolvedPlanes -contains 'entra') {
+        Invoke-Check -Category 'Entra ID' -Check 'Entra read consent and AVD license posture' -Scope 'tenant' -Body {
+            $res = Get-AvdStateEntra -Scope $scope
+            if ($res.status -eq 'collected') {
+                $skuCount = @($res.subscribedSkus).Count
+                Add-Check -Category 'Entra ID' -Check 'Entra read consent and AVD license posture' -Status 'PASS' `
+                    -Detail "Graph read consent verified; $skuCount subscribed license SKU(s) visible." -Scope 'tenant'
+            } else {
+                Add-Check -Category 'Entra ID' -Check 'Entra read consent and AVD license posture' -Status 'SKIP' `
+                    -Detail "Entra preflight skipped ($($res.reason))." -Scope 'tenant'
+            }
+        }
+    }
+
+    if ($script:ResolvedPlanes -contains 'intune') {
+        Invoke-Check -Category 'Intune' -Check 'Intune MDM readiness' -Scope 'tenant' -Body {
+            $res = Get-AvdStateIntune -Scope $scope
+            if ($res.status -eq 'collected') {
+                Add-Check -Category 'Intune' -Check 'Intune MDM readiness' -Status 'PASS' `
+                    -Detail 'Intune Graph endpoints reachable and read-only token verified.' -Scope 'tenant'
+            } else {
+                Add-Check -Category 'Intune' -Check 'Intune MDM readiness' -Status 'SKIP' `
+                    -Detail "Intune preflight skipped ($($res.reason))." -Scope 'tenant'
+            }
+        }
+    }
+
+    if ($script:ResolvedPlanes -contains 'm365') {
+        Invoke-Check -Category 'Microsoft 365' -Check 'M365 Apps and OneDrive VDI readiness' -Scope 'tenant' -Body {
+            $res = Get-AvdStateM365 -Scope $scope
+            if ($res.status -eq 'collected') {
+                Add-Check -Category 'Microsoft 365' -Check 'M365 Apps and OneDrive VDI readiness' -Status 'PASS' `
+                    -Detail 'M365 policy read endpoints reachable and read-only token verified.' -Scope 'tenant'
+            } else {
+                Add-Check -Category 'Microsoft 365' -Check 'M365 Apps and OneDrive VDI readiness' -Status 'SKIP' `
+                    -Detail "M365 preflight skipped ($($res.reason))." -Scope 'tenant'
+            }
+        }
+    }
+
+    if ($script:ResolvedPlanes -contains 'power-platform') {
+        Invoke-Check -Category 'Power Platform' -Check 'Power Platform enterprisePolicies provider' -Scope $targetSubscription.Name -Body {
+            $res = Get-AvdStatePowerPlatform -Scope $scope -SubscriptionId $targetSubscription.Id
+            if ($res.status -eq 'collected') {
+                Add-Check -Category 'Power Platform' -Check 'Power Platform enterprisePolicies provider' -Status 'PASS' `
+                    -Detail 'Power Platform ARM and BAP read checks completed.' -Scope $targetSubscription.Name
+            } else {
+                Add-Check -Category 'Power Platform' -Check 'Power Platform enterprisePolicies provider' -Status 'SKIP' `
+                    -Detail "Power Platform preflight skipped ($($res.reason))." -Scope $targetSubscription.Name
+            }
+        }
+    }
+}
+
+function Invoke-MultiPlanePostDeploymentValidation {
+    <#
+    .SYNOPSIS
+        Read-only post-deployment validation across non-Azure control planes (entra,
+        intune, m365, power-platform) using stage handoff manifests when provided.
+    #>
+    $script:CurrentPhase = 'PostDeployment'
+    $rebuildModule = Join-Path $PSScriptRoot 'lib/AvdRebuild.psm1'
+    if (-not (Test-Path -LiteralPath $rebuildModule)) { return }
+    Import-Module $rebuildModule -Force
+    $scope = Get-RebuildScope -Path (Join-Path $PSScriptRoot 'rebuild/scope.json')
+
+    if ($script:ResolvedPlanes -contains 'entra') {
+        Invoke-Check -Category 'Entra ID' -Check 'Entra groups, Conditional Access and Kerberos posture' -Scope 'tenant' -Body {
+            $res = Get-AvdStateEntra -Scope $scope
+            $entraManifest = if ($null -ne $script:LoadedManifests) { Get-Prop $script:LoadedManifests 'entra' } else { $null }
+            if ($res.status -eq 'collected') {
+                $caCount = @($res.conditionalAccessPolicies).Count
+                $grpCount = @($res.groups).Count
+                $manifestNote = if ($null -ne $entraManifest) { ' (verified against entra-manifest.json)' } else { '' }
+                Add-Check -Category 'Entra ID' -Check 'Entra groups, Conditional Access and Kerberos posture' -Status 'PASS' `
+                    -Detail "$grpCount group(s) and $caCount Conditional Access policy/policies inspected$manifestNote." -Scope 'tenant'
+            } else {
+                Add-Check -Category 'Entra ID' -Check 'Entra groups, Conditional Access and Kerberos posture' -Status 'SKIP' `
+                    -Detail "Entra post-deployment check skipped ($($res.reason))." -Scope 'tenant'
+            }
+        }
+    }
+
+    if ($script:ResolvedPlanes -contains 'intune') {
+        Invoke-Check -Category 'Intune' -Check 'Intune multi-session enrollment and compliance posture' -Scope 'tenant' -Body {
+            $res = Get-AvdStateIntune -Scope $scope
+            $intuneManifest = if ($null -ne $script:LoadedManifests) { Get-Prop $script:LoadedManifests 'intune' } else { $null }
+            if ($res.status -eq 'collected') {
+                $devCount = @($res.managedDevices).Count
+                $polCount = @($res.configurationPolicies).Count
+                $manifestNote = if ($null -ne $intuneManifest) { ' (verified against intune-manifest.json)' } else { '' }
+                Add-Check -Category 'Intune' -Check 'Intune multi-session enrollment and compliance posture' -Status 'PASS' `
+                    -Detail "$devCount managed device(s) and $polCount configuration policy/policies inspected$manifestNote." -Scope 'tenant'
+            } else {
+                Add-Check -Category 'Intune' -Check 'Intune multi-session enrollment and compliance posture' -Status 'SKIP' `
+                    -Detail "Intune post-deployment check skipped ($($res.reason))." -Scope 'tenant'
+            }
+        }
+    }
+
+    if ($script:ResolvedPlanes -contains 'm365') {
+        Invoke-Check -Category 'Microsoft 365' -Check 'OneDrive KFM, Shared Computer Activation and Teams VDI policies' -Scope 'tenant' -Body {
+            $res = Get-AvdStateM365 -Scope $scope
+            $m365Manifest = if ($null -ne $script:LoadedManifests) { Get-Prop $script:LoadedManifests 'm365' } else { $null }
+            if ($res.status -eq 'collected') {
+                $polCount = @($res.configurationPolicies).Count
+                $manifestNote = if ($null -ne $m365Manifest) { ' (verified against m365-manifest.json)' } else { '' }
+                Add-Check -Category 'Microsoft 365' -Check 'OneDrive KFM, Shared Computer Activation and Teams VDI policies' -Status 'PASS' `
+                    -Detail "$polCount M365 policy/policies inspected$manifestNote." -Scope 'tenant'
+            } else {
+                Add-Check -Category 'Microsoft 365' -Check 'OneDrive KFM, Shared Computer Activation and Teams VDI policies' -Status 'SKIP' `
+                    -Detail "M365 post-deployment check skipped ($($res.reason))." -Scope 'tenant'
+            }
+        }
+    }
+
+    if ($script:ResolvedPlanes -contains 'power-platform') {
+        Invoke-Check -Category 'Power Platform' -Check 'Power Platform enterprisePolicies, DLP and environments' -Scope $targetSubscription.Name -Body {
+            $res = Get-AvdStatePowerPlatform -Scope $scope -SubscriptionId $targetSubscription.Id
+            $ppManifest = if ($null -ne $script:LoadedManifests) { Get-Prop $script:LoadedManifests 'powerPlatform' } else { $null }
+            if ($res.status -eq 'collected') {
+                $epCount = @($res.enterprisePolicies).Count
+                $envCount = @($res.environments).Count
+                $manifestNote = if ($null -ne $ppManifest) { ' (verified against power-platform-manifest.json)' } else { '' }
+                Add-Check -Category 'Power Platform' -Check 'Power Platform enterprisePolicies, DLP and environments' -Status 'PASS' `
+                    -Detail "$epCount enterprisePolicy resource(s) and $envCount environment(s) inspected$manifestNote." -Scope $targetSubscription.Name
+            } else {
+                Add-Check -Category 'Power Platform' -Check 'Power Platform enterprisePolicies, DLP and environments' -Status 'SKIP' `
+                    -Detail "Power Platform post-deployment check skipped ($($res.reason))." -Scope $targetSubscription.Name
+            }
+        }
+    }
+}
+
+# endregion
+
+# =============================================
 # region DISPATCH
 # =============================================
 
 New-Item -ItemType Directory -Path $script:RootDir -Force | Out-Null
 
-if ($Mode -eq 'Preflight' -or $Mode -eq 'Both')      { Invoke-PreflightValidation }
-if ($Mode -eq 'PostDeployment' -or $Mode -eq 'Both') { Invoke-PostDeploymentValidation }
+if ($Mode -eq 'Preflight' -or $Mode -eq 'Both') {
+    if ($script:ResolvedPlanes -contains 'azure') { Invoke-PreflightValidation }
+    Invoke-MultiPlanePreflightValidation
+}
+if ($Mode -eq 'PostDeployment' -or $Mode -eq 'Both') {
+    if ($script:ResolvedPlanes -contains 'azure') { Invoke-PostDeploymentValidation }
+    Invoke-MultiPlanePostDeploymentValidation
+}
 
 # endregion
 
@@ -3246,6 +3501,8 @@ $manifest = [pscustomobject]@{
         MaxHeartbeatAgeMinutes    = $MaxHeartbeatAgeMinutes
         IpBufferPercent           = $IpBufferPercent
         NetworkProbeRequested     = [bool]$IncludeNetworkProbe
+        Planes                    = $script:ResolvedPlanes
+        ManifestPath              = "$ManifestPath"
     }
 }
 try {

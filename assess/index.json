@@ -737,7 +737,7 @@
       "pillars": [
         "scaling"
       ],
-      "notes": "The prerequisites and the meaning of each schedule field. The concepts page (ref:avd-autoscale) says what autoscale is for; this one says what a correct plan needs.",
+      "notes": "The prerequisites and the meaning of each schedule field. The concepts page (ref:avd-autoscale) says what autoscale is for; this one says what a correct plan needs. Its subscription-scope rule for the power role is contested by ref:troubleshoot-autoscale#role-scope-containing-pool (obs:power-role-at-resource-group-scope).",
       "claims": [
         {
           "id": "max-session-limit-required",
@@ -2095,6 +2095,28 @@
         {
           "id": "all-apps-conflicts",
           "says": "Policies on all cloud apps also hit AVD; check them for device compliance (which Entra joined hosts may not meet), location rules (the IP differs between the two apps) and blocks on the Windows 365 app that Windows App also signs in to.",
+          "kind": "published"
+        }
+      ]
+    },
+    {
+      "id": "avd-multimedia-redirection",
+      "title": "Multimedia redirection for Azure Virtual Desktop",
+      "url": "https://learn.microsoft.com/azure/virtual-desktop/multimedia-redirection-intro",
+      "pin": "Learn git_commit_id a5a6107238e1f12e2f22cbfb5d0dd011696b5540, updated_at 2026-10-20",
+      "read": "2026-10-27",
+      "license": "Microsoft Learn content (link only)",
+      "areas": [
+        "collection",
+        "assessment"
+      ],
+      "pillars": [
+        "protocol"
+      ],
+      "claims": [
+        {
+          "id": "mmr-browser-video",
+          "says": "Multimedia redirection redirects video playback and audio calls from Edge or Chrome inside the remote session to the local device for faster rendering and lower session host CPU consumption.",
           "kind": "published"
         }
       ]
@@ -6154,6 +6176,39 @@
       ]
     },
     {
+      "id": "onedrive-vdi",
+      "title": "Use the sync app on virtual desktops (OneDrive VDI support)",
+      "url": "https://learn.microsoft.com/sharepoint/sync-vdi-support",
+      "pin": "Learn git_commit_id 9d9b5cecc7cff8124eb11f6cad601b8168f5e30d, updated_at 2026-10-15",
+      "read": "2026-10-27",
+      "license": "Microsoft Learn content (link only)",
+      "areas": [
+        "collection",
+        "assessment"
+      ],
+      "pillars": [
+        "images",
+        "profiles"
+      ],
+      "claims": [
+        {
+          "id": "silent-config-and-kfm",
+          "says": "Silent account configuration signs users in to OneDrive automatically on virtual desktops, and Known Folder Move redirects Desktop, Documents and Pictures into OneDrive so user files survive outside the profile container.",
+          "kind": "published"
+        },
+        {
+          "id": "files-on-demand-vdi",
+          "says": "Files On-Demand is supported on Windows 10 and Windows 11 virtual desktops with FSLogix profile containers and keeps un-opened files online-only so they do not bloat the profile VHDX.",
+          "kind": "published"
+        },
+        {
+          "id": "per-machine-install",
+          "says": "On virtual desktops shared by multiple users, install the OneDrive sync app per machine (/allusers) in the image.",
+          "kind": "published"
+        }
+      ]
+    },
+    {
       "id": "perfmon-troubleshooting",
       "title": "Troubleshoot issues using Performance Monitor (Windows Server)",
       "url": "https://learn.microsoft.com/troubleshoot/windows-server/support-tools/troubleshoot-issues-performance-monitor",
@@ -6247,6 +6302,67 @@
         {
           "id": "tag-definitions",
           "says": "Built-in tag definitions require a tag on resources or inherit a missing tag from the resource group.",
+          "kind": "published"
+        }
+      ]
+    },
+    {
+      "id": "power-platform-dlp",
+      "title": "Data loss prevention policies in Power Platform",
+      "url": "https://learn.microsoft.com/power-platform/admin/wp-data-loss-prevention",
+      "pin": "Learn git_commit_id 1441cc222fef2a8af2d4b618da57831455284c20, updated_at 2026-10-16",
+      "read": "2026-10-27",
+      "license": "Microsoft Learn content (link only)",
+      "areas": [
+        "collection",
+        "assessment"
+      ],
+      "pillars": [
+        "governance",
+        "security-posture"
+      ],
+      "claims": [
+        {
+          "id": "environment-coverage",
+          "says": "Every Power Platform environment running operational automation should be covered by at least one data loss prevention policy that separates business connectors from non-business and blocked connectors.",
+          "kind": "guidance"
+        },
+        {
+          "id": "default-group-blocked",
+          "says": "Setting the default connector group to Blocked ensures newly added connectors in Power Platform are blocked until an administrator explicitly classifies them.",
+          "kind": "guidance"
+        },
+        {
+          "id": "connector-groups",
+          "says": "Power Platform DLP policies classify connectors into Business, Non-Business and Blocked groups to prevent flows from combining operational connectors with unapproved external endpoints.",
+          "kind": "published"
+        }
+      ]
+    },
+    {
+      "id": "power-platform-vnet",
+      "title": "Virtual Network support overview for Power Platform",
+      "url": "https://learn.microsoft.com/power-platform/admin/vnet-support-overview",
+      "pin": "Learn git_commit_id c998a642c96d92bafb78d5c9350b26eea0f4c9d0, updated_at 2026-10-05",
+      "read": "2026-10-27",
+      "license": "Microsoft Learn content (link only)",
+      "areas": [
+        "collection",
+        "assessment"
+      ],
+      "pillars": [
+        "networking-azure",
+        "governance"
+      ],
+      "claims": [
+        {
+          "id": "enterprise-policy-subnet",
+          "says": "A Microsoft.PowerPlatform/enterprisePolicies resource links a Power Platform environment to delegated Azure virtual network subnets so Dataverse and Power Platform components reach private endpoints without public exposure.",
+          "kind": "published"
+        },
+        {
+          "id": "delegated-subnet-egress",
+          "says": "Subnets used for Power Platform Virtual Network injection are delegated to Microsoft.PowerPlatform/enterprisePolicies in the environment's supported regions.",
           "kind": "published"
         }
       ]
@@ -7692,6 +7808,30 @@
       ]
     },
     {
+      "id": "troubleshoot-autoscale",
+      "title": "Troubleshoot autoscale issues in Azure Virtual Desktop",
+      "url": "https://learn.microsoft.com/troubleshoot/azure/virtual-desktop/troubleshoot-autoscale",
+      "pin": "Learn git_commit_id dc42685e97f5937c6a2b267667a03a169494a603, updated_at 2026-05-01",
+      "read": "2026-10-22",
+      "license": "Microsoft Learn content (link only)",
+      "areas": [
+        "assessment",
+        "collection"
+      ],
+      "pillars": [
+        "scaling",
+        "diagnostics"
+      ],
+      "notes": "Disagrees with ref:autoscale-plan#role-at-subscription on the scope the power role needs; both are cited until a run settles it (obs:power-role-at-resource-group-scope).",
+      "claims": [
+        {
+          "id": "role-scope-containing-pool",
+          "says": "Autoscale can't start or stop hosts without the power on and off role, which the page says can be granted on the host pool, its resource group or the subscription.",
+          "kind": "published"
+        }
+      ]
+    },
+    {
       "id": "troubleshoot-entra-joined",
       "title": "Troubleshoot connections to Microsoft Entra joined VMs",
       "url": "https://learn.microsoft.com/troubleshoot/azure/virtual-desktop/troubleshoot-azure-ad-connections",
@@ -9025,6 +9165,17 @@
       "date": "2026-10-20"
     },
     {
+      "id": "power-role-at-resource-group-scope",
+      "claim": "ref:autoscale-plan#role-at-subscription",
+      "verdict": "not-yet-tested",
+      "observed": "Microsoft's pages disagree on the scope autoscale's power role needs. The scaling plan page says anything below the subscription stops autoscale working; the autoscale troubleshooting page accepts the host pool, its resource group or the subscription (ref:troubleshoot-autoscale#role-scope-containing-pool). The landing zone assigns the role on its control plane and session host resource groups only. avd-landing-zone tracks the test as its issue 101. No run has yet read the autoscale diagnostics to show whether that works; if it does, this becomes a disagrees verdict for the brain's upstream list.",
+      "evidence": [
+        "https://github.com/avd-ops/avd-landing-zone/blob/62f1e3460c2654b122238b4b8f92a1002f7aea2f/bicep/modules/controlPlane.bicep",
+        "https://github.com/avd-ops/avd-landing-zone/blob/62f1e3460c2654b122238b4b8f92a1002f7aea2f/bicep/modules/sessionHosts.bicep"
+      ],
+      "date": "2026-10-22"
+    },
+    {
       "id": "premium-ssd-os-disk-default",
       "claim": "ref:avd-deploy-host-pool#premium-ssd-os-disk",
       "verdict": "not-yet-tested",
@@ -9330,12 +9481,20 @@
       "title": "a logon time target"
     },
     {
+      "id": "m365-scope",
+      "title": "what a Microsoft 365 VDI productivity assessment can judge, and from where"
+    },
+    {
       "id": "monitoring-scope",
       "title": "monitoring, operations, scaling and power"
     },
     {
       "id": "network-scope",
       "title": "what a network assessment covers, what it can measure, and which repo does what"
+    },
+    {
+      "id": "power-platform-scope",
+      "title": "what a Power Platform day-2 automation assessment can judge, and from where"
     },
     {
       "id": "reliability-scope",

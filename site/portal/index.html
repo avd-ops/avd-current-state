@@ -148,6 +148,9 @@
   <section class="wz-stage" id="stage-collect" data-step="collect" aria-labelledby="collect-title">
     <h2 id="collect-title">Collect the inventory</h2>
     <p class="purpose">Run one read-only command, then paste its output here.</p>
+    <div class="days gap" id="planes" role="group" aria-label="Control planes to collect">
+      <label><input type="checkbox" value="azure" checked> Azure</label><label><input type="checkbox" value="entra" checked> Entra ID</label><label><input type="checkbox" value="intune" checked> Intune</label><label><input type="checkbox" value="m365" checked> Microsoft 365</label><label><input type="checkbox" value="power-platform" checked> Power Platform</label>
+    </div>
     <div class="slot">
       <div class="stop" id="collect-run">
         <p class="runline">For <strong class="runin-where">Cloud Shell, PowerShell</strong><button type="button" class="linkbtn" data-runin-change>Change</button></p>
@@ -256,6 +259,7 @@
     </div>
     <div id="review-body" class="hidden">
       <div class="result-line" id="review-summary"></div>
+      <div class="result-line" id="review-planes"></div>
       <div class="row">
         <label class="switch"><input type="checkbox" id="hide-pass" checked><span><strong>Hide passing checks</strong></span></label>
         <label class="field"><span>Reviewed on</span><input type="text" id="reviewedOn" autocomplete="off" placeholder="2026-10-21"></label>
@@ -293,7 +297,7 @@
       <div class="table-wrap findings-wrap">
         <table class="findings">
           <caption>The plan, in priority order: gap, warn, unknown; then severity</caption>
-          <thead><tr><th scope="col">Order</th><th scope="col">Check</th><th scope="col">Outcome</th><th scope="col">Change</th><th scope="col">Why</th></tr></thead>
+          <thead><tr><th scope="col">Order</th><th scope="col">Plane</th><th scope="col">Check</th><th scope="col">Outcome</th><th scope="col">Change</th><th scope="col">Why</th></tr></thead>
           <tbody id="plan-items"></tbody>
         </table>
       </div>

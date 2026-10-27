@@ -341,7 +341,7 @@ function Add-KnownNamesFrom {
 # region Facts
 
 function Get-SubscriptionFact {
-    param([string]$Directory, [string]$SubscriptionId, [string]$CollectedUtc)
+    param([string]$Directory, [string]$SubscriptionId, [string]$CollectedUtc, [object[]]$ManagedDevices = $null)
 
     $ds = @{}
     foreach ($n in @('resource-groups', 'arm-resources', 'virtual-networks', 'subnets', 'nsgs', 'nsg-rules',
@@ -363,6 +363,9 @@ function Get-SubscriptionFact {
             if ($rid) { $rbById[$rid] = $row }
         }
     }
+    $extRows = @(Read-JsonFile -Path (Join-Path $rebuild 'resources/microsoft.compute-virtualmachines-extensions.json'))
+    $epFile = Join-Path $rebuild 'resources/microsoft.powerplatform-enterprisepolicies.json'
+    $epRows = if (Test-Path -LiteralPath $epFile) { @(Read-JsonFile -Path $epFile) } else { $null }
     $fileServices = @{}
     foreach ($read in @(Read-JsonFile -Path (Join-Path $rebuild 'rest/file-services.json'))) {
         if ("$(Get-Prop $read 'status' '')" -ne 'ok') { continue }
@@ -417,6 +420,15 @@ function Get-SubscriptionFact {
         }
         $limit = Get-Prop $hp 'MaxSessionLimit'
         if ($null -ne $limit -and "$limit" -match '^\d+$') { $entry.maxSessionLimit = [int]"$limit" }
+        $rawRdp = "$(Get-Prop $hp 'CustomRdpProperty' '')"
+        if ($null -ne (Get-Prop $hp 'CustomRdpProperty')) {
+            $entry.entraSso = if ($rawRdp -match '(?i)(^|;)enablerdsaadauth:i:1($|;)') { 'enabled' } else { 'disabled' }
+        }
+        if ($ds['role-assignments'].Count -gt 0) {
+            $entry.directUserAssignments = [int]@($ds['role-assignments'] | Where-Object {
+                    "$(Get-Prop $_ 'RoleDefinitionName' '')" -eq 'Desktop Virtualization User' -and "$(Get-Prop $_ 'ObjectType' '')" -eq 'User'
+                }).Count
+        }
         $hostPools += $entry
         $hpByName["$(Get-Prop $hp 'Name' '')".ToLowerInvariant()] = $entry
         if ($id) { $hpById[$id.ToLowerInvariant()] = $entry }
@@ -476,6 +488,62 @@ function Get-SubscriptionFact {
             $trusted = @($rbVms | Where-Object { Test-TrustedLaunch $_ }).Count
             $entry.sessionHosts.trustedLaunch = $trusted
             $entry.sessionHosts.notTrustedLaunch = $rbVms.Count - $trusted
+        }
+        if ($extRows.Count -gt 0 -or $ds['vm-extensions'].Count -gt 0) {
+            $hostVmNames = @{}
+            foreach ($h in $hosts) {
+                $vmId = "$(Get-Prop $h 'ResourceId' '')"
+                if ($vmId) { $hostVmNames[(($vmId -split '/')[-1]).ToLowerInvariant()] = $true }
+            }
+            $entraJoined = 0; $domainJoined = 0; $intuneEnroll = 0
+            if ($extRows.Count -gt 0) {
+                foreach ($ext in $extRows) {
+                    $extId = "$(Get-Prop $ext 'id' '')"
+                    $parts = $extId -split '/'
+                    $vmName = if ($parts.Count -gt 8) { $parts[8].ToLowerInvariant() } else { '' }
+                    if (-not $hostVmNames.ContainsKey($vmName)) { continue }
+                    $extType = "$(Get-PathValue $ext 'properties.type' '')"
+                    if ($extType -eq 'AADLoginForWindows') {
+                        $entraJoined++
+                        if ("$(Get-PathValue $ext 'properties.settings.mdmId' '')" -ne '') { $intuneEnroll++ }
+                    } elseif ($extType -eq 'JsonADDomainExtension') {
+                        $domainJoined++
+                    }
+                }
+            } else {
+                foreach ($ext in $ds['vm-extensions']) {
+                    $vmName = "$(Get-Prop $ext 'VMName' '')".ToLowerInvariant()
+                    if (-not $hostVmNames.ContainsKey($vmName)) { continue }
+                    $extType = "$(Get-Prop $ext 'ExtensionType' '')"
+                    if ($extType -eq 'AADLoginForWindows') { $entraJoined++ }
+                    elseif ($extType -eq 'JsonADDomainExtension') { $domainJoined++ }
+                }
+            }
+            $entry.sessionHosts.entraJoined = [int]$entraJoined
+            $entry.sessionHosts.domainJoined = [int]$domainJoined
+            $entry.sessionHosts.intuneEnrollRequested = [int]$intuneEnroll
+        }
+        if ($null -ne $ManagedDevices) {
+            $hostShortNames = @{}
+            foreach ($h in $hosts) {
+                $leaf = ("$(Get-Prop $h 'Name' '')" -split '/')[-1]
+                $short = ($leaf -split '\.')[0].ToLowerInvariant()
+                if ($short) { $hostShortNames[$short] = $true }
+            }
+            $matched = @($ManagedDevices | Where-Object { $hostShortNames.ContainsKey("$(Get-Prop $_ 'deviceName' '')".ToLowerInvariant()) })
+            $entry.sessionHosts.intuneManaged = [int]$matched.Count
+            $entry.sessionHosts.intuneCompliant = [int]@($matched | Where-Object { "$(Get-Prop $_ 'complianceState' '')" -eq 'compliant' }).Count
+            $entry.sessionHosts.intuneNoncompliant = [int]@($matched | Where-Object { "$(Get-Prop $_ 'complianceState' '')" -eq 'noncompliant' }).Count
+            $entry.sessionHosts.intuneSyncStale = [int]@($matched | Where-Object {
+                    $sync = ConvertTo-Utc (Get-Prop $_ 'lastSyncDateTime')
+                    $collected -and $sync -and (($collected - [datetime]::Parse($sync, [Globalization.CultureInfo]::InvariantCulture, [Globalization.DateTimeStyles]::RoundtripKind).ToUniversalTime()).TotalDays -gt 7)
+                }).Count
+            $entry.sessionHosts.intuneConfigErrors = [int]@($matched | Where-Object { [int](Get-Prop $_ 'configurationErrorCount' 0) -gt 0 }).Count
+            $entry.sessionHosts.intuneBaselineApplied = [int]@($matched | Where-Object { Test-True (Get-Prop $_ 'baselineApplied') }).Count
+            $entry.intuneOrphans = [int]@($ManagedDevices | Where-Object {
+                    $dn = "$(Get-Prop $_ 'deviceName' '')".ToLowerInvariant()
+                    $dn -and -not $hostShortNames.ContainsKey($dn) -and [bool](Get-Prop $_ 'isAvdSessionHost' $false)
+                }).Count
         }
         $entry.vmSizes = Get-CountMap @($vms | ForEach-Object { Get-Prop $_ 'VMSize' }) '^Standard_[A-Za-z0-9_]{1,40}$'
         $images = @{}
@@ -593,7 +661,154 @@ function Get-SubscriptionFact {
         }
     }
     if ($null -ne $defenderPlans) { $result.defenderPlans = $defenderPlans }
+    $ppDelegated = @($ds['subnets'] | Where-Object { "$(Get-Prop $_ 'Delegations' '')" -match '(?i)Microsoft\.PowerPlatform/enterprisePolicies' }).Count
+    if ($null -ne $epRows -or $ppDelegated -gt 0) {
+        $result.powerPlatform = [ordered]@{
+            enterprisePoliciesCount = $(if ($null -ne $epRows) { [int]$epRows.Count } else { 0 })
+            vnetInjectedSubnets     = [int]$ppDelegated
+        }
+    }
     return $result
+}
+
+function Get-EntraFact {
+    param([string]$PackageDir, [int]$GroupRoleAssignments = 0)
+    $dir = Join-Path $PackageDir 'entra'
+    if (-not (Test-Path -LiteralPath $dir)) { return $null }
+    $groups = @(Read-Dataset -Directory $dir -Name 'groups')
+    $caPolicies = @(Read-Dataset -Directory $dir -Name 'conditionalAccessPolicies')
+    $sps = @(Read-Dataset -Directory $dir -Name 'servicePrincipals')
+    $skus = @(Read-Dataset -Directory $dir -Name 'subscribedSkus')
+    foreach ($row in @($groups + $caPolicies + $sps)) {
+        Add-KnownName (Get-Prop $row 'displayName')
+        Add-KnownName (Get-Prop $row 'id')
+    }
+    $dynamicGroups = @($groups | Where-Object { @(Get-Prop $_ 'groupTypes' @()) -contains 'DynamicMembership' }).Count
+    $avdAppIds = @('9cdead84-a844-4324-93f2-b2e6bb768d07', 'a4a365df-50f1-4397-bc59-1a1564b8bb9c', '270efc09-cd0d-444b-a71f-39af4910ec45', '00cb2876-7ebd-4aa4-9cc9-d28bd4d359a9')
+    $avdCa = @($caPolicies | Where-Object {
+            $incApps = @(Get-PathValue $_ 'conditions.applications.includeApplications' @())
+            $incApps -contains 'All' -or @($incApps | Where-Object { $avdAppIds -contains "$_" }).Count -gt 0
+        })
+    $caStates = Get-CountMap @($avdCa | ForEach-Object { Get-Prop $_ 'state' }) '^[A-Za-z]{2,40}$'
+    $mfaEnforced = @($avdCa | Where-Object { "$(Get-Prop $_ 'state' '')" -eq 'enabled' -and (@(Get-PathValue $_ 'grantControls.builtInControls' @()) -contains 'mfa' -or $null -ne (Get-PathValue $_ 'grantControls.authenticationStrength')) }).Count
+    $mfaReportOnly = @($avdCa | Where-Object { "$(Get-Prop $_ 'state' '')" -eq 'enabledForReportingButNotEnforced' -and (@(Get-PathValue $_ 'grantControls.builtInControls' @()) -contains 'mfa' -or $null -ne (Get-PathValue $_ 'grantControls.authenticationStrength')) }).Count
+    $compEnforced = @($avdCa | Where-Object { "$(Get-Prop $_ 'state' '')" -eq 'enabled' -and @(Get-PathValue $_ 'grantControls.builtInControls' @()) -contains 'compliantDevice' }).Count
+    $compReportOnly = @($avdCa | Where-Object { "$(Get-Prop $_ 'state' '')" -eq 'enabledForReportingButNotEnforced' -and @(Get-PathValue $_ 'grantControls.builtInControls' @()) -contains 'compliantDevice' }).Count
+    $sifConfigured = @($avdCa | Where-Object { Test-True (Get-PathValue $_ 'sessionControls.signInFrequency.isEnabled') }).Count -gt 0
+    $breakGlassExcluded = $avdCa.Count -gt 0 -and @($avdCa | Where-Object {
+            @(Get-PathValue $_ 'conditions.users.excludeUsers' @()).Count -eq 0 -and @(Get-PathValue $_ 'conditions.users.excludeGroups' @()).Count -eq 0
+        }).Count -eq 0
+    $kerberosReady = @($sps | Where-Object { Test-True (Get-Prop $_ 'kerberosReady') -or "$(Get-Prop $_ 'servicePrincipalType' '')" -eq 'StorageAccountKerberos' }).Count
+    $eligibleSeats = 0
+    foreach ($sku in $skus) {
+        $enabled = [int](Get-PathValue $sku 'prepaidUnits.enabled' 0)
+        $consumed = [int](Get-Prop $sku 'consumedUnits' 0)
+        if ($enabled -gt $consumed) { $eligibleSeats += ($enabled - $consumed) }
+    }
+    return [ordered]@{
+        userGroupsAssigned             = [int]$GroupRoleAssignments
+        dynamicHostGroups              = [int]$dynamicGroups
+        caPoliciesTargetingAvd         = $caStates
+        caAvdRequiresMfa               = $(if ($mfaEnforced -gt 0) { 'enforced' } elseif ($mfaReportOnly -gt 0) { 'report-only' } else { 'none' })
+        caAvdRequiresCompliantDevice   = $(if ($compEnforced -gt 0) { 'enforced' } elseif ($compReportOnly -gt 0) { 'report-only' } else { 'none' })
+        caAvdSignInFrequencyConfigured = [bool]$sifConfigured
+        caAvdBreakGlassExcluded        = [bool]$breakGlassExcluded
+        kerberosStoragePrincipalsReady = [int]$kerberosReady
+        skuAvdEligibleAvailable        = [int]$eligibleSeats
+    }
+}
+
+function Get-IntuneFact {
+    param([string]$PackageDir)
+    $dir = Join-Path $PackageDir 'intune'
+    if (-not (Test-Path -LiteralPath $dir)) { return $null }
+    $settings = @(Read-Dataset -Directory $dir -Name 'settings')
+    $mdm = @(Read-Dataset -Directory $dir -Name 'mdmPolicies')
+    $profiles = @(Read-Dataset -Directory $dir -Name 'configurationPolicies')
+    foreach ($row in @($mdm + $profiles)) {
+        Add-KnownName (Get-Prop $row 'name')
+        Add-KnownName (Get-Prop $row 'displayName')
+        Add-KnownName (Get-Prop $row 'id')
+    }
+    $firstSetting = $settings | Select-Object -First 1
+    $secureByDefault = Test-True (Get-Prop $firstSetting 'secureByDefault' $true)
+    $firstMdm = $mdm | Select-Object -First 1
+    $mdmScopeRaw = "$(Get-Prop $firstMdm 'appliesTo' 'none')".ToLowerInvariant()
+    $mdmScope = if ($mdmScopeRaw -in @('all', 'some', 'none')) { $mdmScopeRaw } else { 'none' }
+    $multiSession = @($profiles | Where-Object { "$(Get-Prop $_ 'technologies' '')" -match 'windowsEnterpriseMultiSession|mdm' })
+    $fslogix = @($profiles | Where-Object { Test-True (Get-Prop $_ 'fslogixConfigured') -or "$(Get-Prop $_ 'category' '')" -eq 'fslogix' }).Count -gt 0
+    $shortpath = @($profiles | Where-Object { Test-True (Get-Prop $_ 'rdpShortpathConfigured') -or "$(Get-Prop $_ 'category' '')" -eq 'rdpShortpath' }).Count -gt 0
+    $timeLimits = @($profiles | Where-Object { Test-True (Get-Prop $_ 'sessionTimeLimitsConfigured') -or "$(Get-Prop $_ 'category' '')" -eq 'sessionTimeLimits' }).Count -gt 0
+    $updateRing = @($profiles | Where-Object { Test-True (Get-Prop $_ 'multiSessionUpdateRingAssigned') -or "$(Get-Prop $_ 'category' '')" -eq 'updateRing' }).Count -gt 0
+    return [ordered]@{
+        noPolicyMeansNoncompliant      = [bool]$secureByDefault
+        mdmAutoEnrollmentScope         = $mdmScope
+        multiSessionCatalogProfiles    = [int]$multiSession.Count
+        fslogixProfileConfigured       = [bool]$fslogix
+        rdpShortpathConfigured         = [bool]$shortpath
+        sessionTimeLimitsConfigured    = [bool]$timeLimits
+        multiSessionUpdateRingAssigned = [bool]$updateRing
+    }
+}
+
+function Get-M365Fact {
+    param([string]$PackageDir)
+    $dir = Join-Path $PackageDir 'm365'
+    if (-not (Test-Path -LiteralPath $dir)) { return $null }
+    $profiles = @(Read-Dataset -Directory $dir -Name 'configurationPolicies')
+    $teams = @(Read-Dataset -Directory $dir -Name 'teamsVdiPolicies')
+    foreach ($row in @($profiles + $teams)) {
+        Add-KnownName (Get-Prop $row 'name')
+        Add-KnownName (Get-Prop $row 'displayName')
+        Add-KnownName (Get-Prop $row 'id')
+    }
+    $silent = @($profiles | Where-Object { Test-True (Get-Prop $_ 'oneDriveSilentConfigEnabled') }).Count -gt 0
+    $kfm = if (@($profiles | Where-Object { "$(Get-Prop $_ 'oneDriveKfmState' '')" -eq 'enforced' }).Count -gt 0) { 'enforced' }
+        elseif (@($profiles | Where-Object { "$(Get-Prop $_ 'oneDriveKfmState' '')" -eq 'prompt' }).Count -gt 0) { 'prompt' } else { 'none' }
+    $fod = @($profiles | Where-Object { Test-True (Get-Prop $_ 'oneDriveFilesOnDemandEnabled') }).Count -gt 0
+    $sca = @($profiles | Where-Object { Test-True (Get-Prop $_ 'm365AppsSharedComputerActivation') }).Count -gt 0
+    $outlook = @($profiles | Where-Object { Test-True (Get-Prop $_ 'outlookCachedModeConfigured') }).Count -gt 0
+    $teamsOpt = if (@($profiles | Where-Object { "$(Get-Prop $_ 'teamsMediaOptimizationState' '')" -eq 'enabled' }).Count -gt 0 -or
+        @($teams | Where-Object { "$(Get-Prop $_ 'VdiMediaOptimization' '')" -eq 'Enabled' }).Count -gt 0) { 'enabled' } else { 'disabled' }
+    $mmr = @($profiles | Where-Object { Test-True (Get-Prop $_ 'mmrConfigured') }).Count -gt 0
+    return [ordered]@{
+        oneDriveSilentConfigEnabled      = [bool]$silent
+        oneDriveKfmState                 = $kfm
+        oneDriveFilesOnDemandEnabled     = [bool]$fod
+        m365AppsSharedComputerActivation = [bool]$sca
+        outlookCachedModeConfigured      = [bool]$outlook
+        teamsMediaOptimizationState      = $teamsOpt
+        mmrConfigured                    = [bool]$mmr
+    }
+}
+
+function Get-PowerPlatformFact {
+    param([string]$PackageDir)
+    $dir = Join-Path $PackageDir 'power-platform'
+    if (-not (Test-Path -LiteralPath $dir)) { return $null }
+    $envs = @(Read-Dataset -Directory $dir -Name 'environments')
+    $dlp = @(Read-Dataset -Directory $dir -Name 'dlpPolicies')
+    $solutions = @(Read-Dataset -Directory $dir -Name 'solutions')
+    $workflows = @(Read-Dataset -Directory $dir -Name 'workflows')
+    foreach ($row in @($envs + $dlp + $solutions + $workflows)) {
+        Add-KnownName (Get-Prop $row 'name')
+        Add-KnownName (Get-Prop $row 'displayName')
+        Add-KnownName (Get-Prop $row 'id')
+    }
+    $dedicated = @($envs | Where-Object { "$(Get-PathValue $_ 'properties.environmentSku' '')" -ne 'Default' -and "$(Get-Prop $_ 'type' '')" -ne 'Default' }).Count
+    $defaultClass = 'General'
+    if ($dlp.Count -gt 0) {
+        $rawClass = "$(Get-Prop ($dlp | Select-Object -First 1) 'defaultConnectorsClassification' 'General')"
+        if ($rawClass -in @('Blocked', 'Confidential', 'General')) { $defaultClass = $rawClass }
+    }
+    $flowStates = Get-CountMap @($workflows | ForEach-Object { Get-Prop $_ 'state' }) '^[A-Za-z]{2,40}$'
+    return [ordered]@{
+        dedicatedEnvironments         = [int]$dedicated
+        dlpPoliciesCoveringAvdEnv     = [int]$dlp.Count
+        dlpDefaultGroupClassification = $defaultClass
+        avdDay2SolutionsDeployed      = [int]$solutions.Count
+        avdDay2FlowsActive            = $flowStates
+    }
 }
 
 function Get-ValidationFact {
@@ -809,7 +1024,9 @@ try {
 
     # Latest collector run per subscription
     $latestSub = @{}
+    $latestCollectorPkg = $null
     foreach ($p in @($packages | Where-Object Kind -eq 'collector')) {
+        $latestCollectorPkg = $p
         Add-KnownName (Get-Prop $p.Manifest 'Identity')
         foreach ($sub in @(Get-Prop $p.Manifest 'SubscriptionDetails' @())) {
             Add-KnownName (Get-Prop $sub 'SubscriptionName')
@@ -819,15 +1036,31 @@ try {
         }
     }
 
+    $managedDevices = $null
+    if ($null -ne $latestCollectorPkg) {
+        $mdFile = Join-Path $latestCollectorPkg.Directory 'intune/managedDevices.json'
+        if (Test-Path -LiteralPath $mdFile) {
+            $managedDevices = @(Read-JsonFile -Path $mdFile)
+            foreach ($md in $managedDevices) {
+                Add-KnownName (Get-Prop $md 'deviceName')
+                Add-KnownName (Get-Prop $md 'id')
+            }
+        }
+    }
+
     $subscriptions = @()
     $targetsBySub = @{}
+    $groupRoleAssignments = 0
     foreach ($id in ($latestSub.Keys | Sort-Object)) {
         $p = $latestSub[$id].Package
         $subName = "$(Get-Prop $latestSub[$id].Subscription 'SubscriptionName' '')"
         # Same folder naming as the collector's Sanitize-FolderName
         $folder = Join-Path $p.Directory ($subName -replace '[^\w\-\.\s]', '_' -replace '\s+', '_')
         if (-not (Test-Path -LiteralPath $folder)) { Write-FactsLog "A subscription folder is missing from $($p.Name); skipped." -Level WARN; continue }
-        $facts = Get-SubscriptionFact -Directory $folder -SubscriptionId $id -CollectedUtc $p.GeneratedUtc
+        $facts = Get-SubscriptionFact -Directory $folder -SubscriptionId $id -CollectedUtc $p.GeneratedUtc -ManagedDevices $managedDevices
+        foreach ($ra in @(Read-Dataset -Directory $folder -Name 'role-assignments')) {
+            if ("$(Get-Prop $ra 'RoleDefinitionName' '')" -eq 'Desktop Virtualization User' -and "$(Get-Prop $ra 'ObjectType' '')" -eq 'Group') { $groupRoleAssignments++ }
+        }
 
         $targets = @{}
         foreach ($hp in @(Read-Dataset -Directory $folder -Name 'avd-host-pools')) { $targets["$(Get-Prop $hp 'Name' '')".ToLowerInvariant()] = Get-Pseudonym 'hp' (Get-Prop $hp 'Id' '') }
@@ -860,6 +1093,7 @@ try {
     }
 
     $usedNames = @{}
+    if ($null -ne $latestCollectorPkg) { $usedNames[$latestCollectorPkg.Name] = $true }
     foreach ($v in $latestSub.Values) { $usedNames[$v.Package.Name] = $true }
     foreach ($v in $latestVal.Values) { $usedNames[$v.Name] = $true }
     $sources = @($packages | Where-Object { $usedNames.ContainsKey($_.Name) } | ForEach-Object {
@@ -867,15 +1101,41 @@ try {
         })
 
     $snapshot = [ordered]@{
-        schema         = 'avd-current-state-facts/v1'
-        estate         = Get-Pseudonym 'est' $tenants[0]
-        generatedUtc   = (Get-Date).ToUniversalTime().ToString("yyyy-MM-dd'T'HH:mm:ss'Z'")
-        producer       = [ordered]@{ name = 'avd_current_state_facts.ps1'; version = $script:FactsVersion }
-        sources        = $sources
-        subscriptions  = $subscriptions
-        validations    = $validations
-        redactedValues = $script:RedactedValues
+        schema       = 'avd-current-state-facts/v1'
+        estate       = Get-Pseudonym 'est' $tenants[0]
+        generatedUtc = (Get-Date).ToUniversalTime().ToString("yyyy-MM-dd'T'HH:mm:ss'Z'")
     }
+    if ($null -ne $latestCollectorPkg -and $null -ne (Get-Prop $latestCollectorPkg.Manifest 'PlanesCollected')) {
+        $rawPlanes = Get-Prop $latestCollectorPkg.Manifest 'PlanesCollected'
+        $pc = [ordered]@{}
+        $validStatuses = @('collected', 'partial', 'skipped', 'unconsented')
+        $validReasons = @('not-selected', 'insufficient-scope', 'no-license', 'teams-ps-unavailable', 'bap-unavailable', 'not-applicable-intake')
+        foreach ($pn in @('azure', 'entra', 'intune', 'm365', 'power-platform')) {
+            $pObj = Get-Prop $rawPlanes $pn
+            $st = "$(Get-Prop $pObj 'status' 'skipped')"
+            if ($st -notin $validStatuses) { $st = 'skipped' }
+            $entry = [ordered]@{ status = $st }
+            $rsn = "$(Get-Prop $pObj 'reason' '')"
+            if ($rsn -and $rsn -in $validReasons) { $entry.reason = $rsn }
+            $pc[$pn] = $entry
+        }
+        $snapshot.planesCollected = $pc
+    }
+    $snapshot.producer = [ordered]@{ name = 'avd_current_state_facts.ps1'; version = $script:FactsVersion }
+    $snapshot.sources = $sources
+    $snapshot.subscriptions = $subscriptions
+    if ($null -ne $latestCollectorPkg) {
+        $entraFact = Get-EntraFact -PackageDir $latestCollectorPkg.Directory -GroupRoleAssignments $groupRoleAssignments
+        if ($null -ne $entraFact) { $snapshot.entra = $entraFact }
+        $intuneFact = Get-IntuneFact -PackageDir $latestCollectorPkg.Directory
+        if ($null -ne $intuneFact) { $snapshot.intune = $intuneFact }
+        $m365Fact = Get-M365Fact -PackageDir $latestCollectorPkg.Directory
+        if ($null -ne $m365Fact) { $snapshot.m365 = $m365Fact }
+        $ppFact = Get-PowerPlatformFact -PackageDir $latestCollectorPkg.Directory
+        if ($null -ne $ppFact) { $snapshot.powerPlatform = $ppFact }
+    }
+    $snapshot.validations = $validations
+    $snapshot.redactedValues = $script:RedactedValues
 
     if ($assessInput -and $assessInput.Intake -and "$(Get-Prop $assessInput.Intake 'estate' '')" -cne $snapshot.estate) {
         throw "The intake is for another estate than these packages ($($snapshot.estate)). Use the intake.json the Discover stage wrote for this estate."

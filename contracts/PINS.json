@@ -1,14 +1,15 @@
 {
   "description": "Byte-identical copies of avd-assess's foundation contract files (contracts/README.md there), from release `release`. Each must match the file at commit; `manifest` is the SHA-256 of the release's datapackage.json, vendored at assess/datapackage.json (tests/Facts.Tests.ps1 checks the hashes, tests/Assess.Tests.ps1 runs the verifier). Update the files, commit, release, manifest and the hashes in one PR.",
   "source": "https://github.com/avd-ops/avd-assess",
-  "commit": "052c6ea36250ecc8624d258de360fe4072729683",
-  "release": "v1.0.0",
-  "manifest": "42915880835f7a2af45e906959d2afcb63f71638fb2d73c602841669e36b9edf",
+  "commit": "cfcc3026b968c3c15a4150b8c7160891a138d3f0",
+  "release": "v1.1.0",
+  "manifest": "5ce754ad9aba97cc6dae2abac4cd3c5d0a2f8519e14a47b7b4e554eede3a93be",
   "files": {
-    "fact-register.json": "2ea4516b0d837d540f418bb85ceedfef34d0896849e9b6cd565788b7ebfade57",
-    "current-state-facts.schema.json": "746fb4bc4d50673bacf9ef83e62fa3cce9fc0bb83fecfe693c82642cf08047d5",
-    "intake.schema.json": "711a6b4aed23c45d39be5d22d4d4d3702679ff29d576f93f2e1606d0f9152f76",
-    "assess-method.schema.json": "634ccfb59179e0b193c1c2bef036fd6d6959a89fd70d9adb912f3252039c973b",
-    "assessment.schema.json": "656912465d1608351ce9723c70525822b4c6c838e88c9411810cde214e90300f"
+    "fact-register.json": "edd6ad6ee9e222687e6b904ff04a2f9db61c0c5ac39b5d0cfff5e1c3f6123915",
+    "current-state-facts.schema.json": "37f04c8048dbc29a048829ef4e6a46173e081c89c5753e116ea003e5573ec5fd",
+    "intake.schema.json": "6009ad6b31da792fd736f40bb89cfcf1883ae669fbf21e92c4b81713d633c191",
+    "assess-method.schema.json": "24632b2cab478a2c686392e2310c027bb13d3375a6cb5edad1caaa47cc3e7b53",
+    "assessment.schema.json": "113d355e5a3d1ae35b921e817a8395cfb192e3a96410c772440c04f76cfbc3bf",
+    "remediation-plan.schema.json": "e6eac145014877abffe652d9373972427d64d24f346b27dd37a711e98fba6ed7"
   }
 }

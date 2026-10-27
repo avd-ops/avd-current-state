@@ -9,9 +9,26 @@
   "$defs": {
     "utc": { "type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$" },
     "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
-    "outcome": { "enum": ["pass", "warn", "gap", "unknown"] },
+    "outcome": { "enum": ["pass", "warn", "gap", "unknown", "not-applicable"] },
     "factId": { "type": "string", "pattern": "^(c11|c12|intake|liquidware)\\.[A-Za-z0-9.]{2,80}$" },
-    "pillar": { "enum": ["reliability", "security", "cost", "operations", "performance"] }
+    "pillar": { "enum": ["reliability", "security", "cost", "operations", "performance"] },
+    "plane": { "enum": ["azure", "entra", "intune", "m365", "power-platform"] },
+    "planeSummary": {
+      "type": "object",
+      "required": ["score", "coverage", "pass", "warn", "gap", "unknown"],
+      "additionalProperties": false,
+      "properties": {
+        "checks": { "type": "integer", "minimum": 0 },
+        "assessed": { "type": "integer", "minimum": 0 },
+        "score": { "type": ["number", "null"], "minimum": 0, "maximum": 1 },
+        "coverage": { "type": "number", "minimum": 0, "maximum": 1 },
+        "pass": { "type": "integer", "minimum": 0 },
+        "warn": { "type": "integer", "minimum": 0 },
+        "gap": { "type": "integer", "minimum": 0 },
+        "unknown": { "type": "integer", "minimum": 0 },
+        "notApplicable": { "type": "integer", "minimum": 0 }
+      }
+    }
   },
   "properties": {
     "$schema": { "type": "string" },
@@ -62,6 +79,7 @@
         "additionalProperties": false,
         "properties": {
           "check": { "type": "string", "pattern": "^asm-[a-z0-9-]{3,60}$" },
+          "plane": { "$ref": "#/$defs/plane" },
           "outcome": { "$ref": "#/$defs/outcome" },
           "facts": { "type": "array", "uniqueItems": true, "items": { "$ref": "#/$defs/factId" }, "description": "The check's facts that the inputs actually had" },
           "subjects": {
@@ -89,10 +107,23 @@
         "properties": {
           "pillar": { "$ref": "#/$defs/pillar" },
           "checks": { "type": "integer", "minimum": 0 },
-          "assessed": { "type": "integer", "minimum": 0, "description": "Checks whose outcome isn't unknown" },
+          "assessed": { "type": "integer", "minimum": 0, "description": "Checks whose outcome isn't unknown or not-applicable" },
+          "notApplicable": { "type": "integer", "minimum": 0 },
           "score": { "type": ["number", "null"], "minimum": 0, "maximum": 1, "description": "null when nothing in the pillar could be assessed" },
           "coverage": { "type": "number", "minimum": 0, "maximum": 1 }
         }
+      }
+    },
+    "planes": {
+      "type": "object",
+      "description": "Secondary rollup by target-state control plane (methods/scoring.md); Test-AssessmentReport recomputes it",
+      "additionalProperties": false,
+      "properties": {
+        "azure": { "$ref": "#/$defs/planeSummary" },
+        "entra": { "$ref": "#/$defs/planeSummary" },
+        "intune": { "$ref": "#/$defs/planeSummary" },
+        "m365": { "$ref": "#/$defs/planeSummary" },
+        "power-platform": { "$ref": "#/$defs/planeSummary" }
       }
     },
     "decisions": {

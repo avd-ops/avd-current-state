@@ -5,13 +5,14 @@
   "basis": {
     "assessment": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
     "review": "e6c6a1d9b36f01463c795a58fcaee53e69224e234372f891645101719b4925e6",
-    "method": 4,
+    "method": 5,
     "landingZoneCommit": "ae6e80b574cccde570d0053d4c62b519d31052a8"
   },
   "items": [
     {
       "order": 1,
       "check": "asm-files-private-endpoint",
+      "plane": "azure",
       "outcome": "gap",
       "pillar": "security",
       "severity": "medium",
@@ -21,12 +22,14 @@
       "source": "unreviewed",
       "change": {
         "kind": "lz-setting",
+        "plane": "azure",
         "name": "profile-storage-private-endpoint"
       }
     },
     {
       "order": 2,
       "check": "asm-files-zone-redundant",
+      "plane": "azure",
       "outcome": "warn",
       "pillar": "reliability",
       "severity": "high",
@@ -37,6 +40,7 @@
       "source": "review-fix",
       "change": {
         "kind": "lz-parameter",
+        "plane": "azure",
         "name": "profileStorageSku",
         "to": "Premium_ZRS"
       }
@@ -44,6 +48,7 @@
     {
       "order": 3,
       "check": "asm-pooled-host-redundancy",
+      "plane": "azure",
       "outcome": "warn",
       "pillar": "reliability",
       "severity": "medium",
@@ -53,6 +58,7 @@
       "source": "unreviewed",
       "change": {
         "kind": "lz-parameter",
+        "plane": "azure",
         "name": "sessionHostCount",
         "to": 2
       }
@@ -60,6 +66,7 @@
     {
       "order": 4,
       "check": "asm-personal-start-vm-on-connect",
+      "plane": "azure",
       "outcome": "warn",
       "pillar": "cost",
       "severity": "low",
@@ -69,6 +76,7 @@
       "source": "unreviewed",
       "change": {
         "kind": "lz-parameter",
+        "plane": "azure",
         "name": "startVmOnConnect",
         "to": true
       }
@@ -76,6 +84,7 @@
     {
       "order": 5,
       "check": "asm-defender-servers",
+      "plane": "azure",
       "outcome": "unknown",
       "pillar": "security",
       "severity": "medium",
@@ -86,6 +95,7 @@
       "source": "unreviewed",
       "change": {
         "kind": "manual",
+        "plane": "azure",
         "code": "collect-evidence"
       }
     }

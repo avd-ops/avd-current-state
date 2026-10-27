@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
     AVD Current State Collector — inventories Azure Commercial environments from an
     Azure Virtual Desktop perspective and produces a portable evidence package.
@@ -35,7 +35,11 @@ param(
     [string[]]$SubscriptionNames,
 
     [Parameter(Mandatory = $false)]
-    [string]$OutputPath = (Get-Location).Path
+    [string]$OutputPath = (Get-Location).Path,
+
+    [Parameter(Mandatory = $false)]
+    [ValidateSet('all', 'azure', 'entra', 'intune', 'm365', 'power-platform')]
+    [string[]]$Planes = @('all')
 )
 
 Set-StrictMode -Version Latest
@@ -339,6 +343,9 @@ $script:RebuildWithheld = [System.Collections.Generic.List[psobject]]::new()
 $script:RebuildCoverage = [System.Collections.Generic.List[psobject]]::new()
 $script:RebuildRest     = @{}
 $script:LzParameters    = Get-Content -Raw -Path (Join-Path $PSScriptRoot 'rebuild/lz-parameters.json') | ConvertFrom-Json
+$script:SelectedPlanes  = Resolve-AvdPlanes -Planes $Planes
+$script:PlanesCollected = [ordered]@{}
+Write-Log "Planes target : $($script:SelectedPlanes -join ', ')"
 Write-Log "Rebuild scope : $(@($script:RebuildScope.resourceGraph).Count) Resource Graph types, $(@($script:RebuildScope.rest).Count) REST reads (landing zone $($script:RebuildScope.landingZoneCommit.Substring(0, 7)))."
 
 # endregion
@@ -421,6 +428,7 @@ Write-Log "Recorded Az module versions."
 
 $grandTotals = @{}
 
+if ($script:SelectedPlanes -contains 'azure') {
 foreach ($sub in $targetSubs) {
     $subName = $sub.Name
     $subId   = $sub.Id
@@ -571,6 +579,49 @@ foreach ($sub in $targetSubs) {
 
     Write-Log "Subscription '$subName' collection complete."
 }
+}
+
+$collectedSubs = @($script:SubscriptionResults | Where-Object { $_.Status -eq 'Collected' })
+$skippedSubs   = @($script:SubscriptionResults | Where-Object { $_.Status -ne 'Collected' })
+
+if ($script:SelectedPlanes -notcontains 'azure') {
+    $script:PlanesCollected['azure'] = [ordered]@{ status = 'skipped'; reason = 'not-selected' }
+} elseif ($collectedSubs.Count -gt 0 -and $skippedSubs.Count -eq 0) {
+    $script:PlanesCollected['azure'] = [ordered]@{ status = 'collected' }
+} elseif ($collectedSubs.Count -gt 0) {
+    $script:PlanesCollected['azure'] = [ordered]@{ status = 'partial'; reason = 'insufficient-scope' }
+} else {
+    $script:PlanesCollected['azure'] = [ordered]@{ status = 'unconsented'; reason = 'insufficient-scope' }
+}
+
+$planeRestInvoker = {
+    param($uri)
+    $r = Invoke-AzRestMethod -Method GET -Uri $uri
+    @{ StatusCode = $r.StatusCode; Content = $r.Content }
+}
+
+foreach ($plane in @('entra', 'intune', 'm365', 'power-platform')) {
+    if ($script:SelectedPlanes -notcontains $plane) {
+        $script:PlanesCollected[$plane] = [ordered]@{ status = 'skipped'; reason = 'not-selected' }
+        continue
+    }
+    Write-Log "Collecting plane: $plane ..."
+    $res = switch ($plane) {
+        'entra'          { Get-AvdStateEntra -Invoker $planeRestInvoker }
+        'intune'         { Get-AvdStateIntune -Invoker $planeRestInvoker }
+        'm365'           { Get-AvdStateM365 -Invoker $planeRestInvoker }
+        'power-platform' { Get-AvdStatePowerPlatform -Invoker $planeRestInvoker }
+    }
+    $planeState = [ordered]@{ status = $res.Status }
+    if ($res.ContainsKey('Reason') -and $res.Reason) { $planeState['reason'] = $res.Reason }
+    $script:PlanesCollected[$plane] = $planeState
+    if ($res.Data -and $res.Data.Keys.Count -gt 0) {
+        $planeDir = Join-Path $script:RootDir $plane
+        foreach ($dsKey in $res.Data.Keys) {
+            $null = Write-RebuildFile -Path (Join-Path $planeDir "$dsKey.json") -Data @($res.Data[$dsKey]) -Label "$plane/$dsKey"
+        }
+    }
+}
 
 # endregion
 
@@ -579,9 +630,6 @@ foreach ($sub in $targetSubs) {
 # ─────────────────────────────────────────────
 
 Write-Log 'Generating summary ...'
-
-$collectedSubs = @($script:SubscriptionResults | Where-Object { $_.Status -eq 'Collected' })
-$skippedSubs   = @($script:SubscriptionResults | Where-Object { $_.Status -ne 'Collected' })
 
 $summaryLines = [System.Collections.Generic.List[string]]::new()
 function Add-Line { param([string]$L='') $summaryLines.Add($L) }
@@ -787,6 +835,7 @@ $manifest = [pscustomobject]@{
     GeneratedUtc     = (Get-Date).ToUniversalTime().ToString('o')
     Identity         = $context.Account.Id
     TenantId         = $context.Tenant.Id
+    PlanesCollected  = $script:PlanesCollected
     SubscriptionsTargeted  = $targetSubs.Count
     SubscriptionsCollected = $collectedSubs.Count
     SubscriptionsSkipped   = $skippedSubs.Count

@@ -79,6 +79,15 @@
     $(id).value = state.settings[id] || '';
     $(id).addEventListener('input', () => { state.settings[id] = $(id).value; save(); renderCommands(); });
   }
+  if (Array.isArray(state.settings.planes) && state.settings.planes.length) {
+    for (const i of document.querySelectorAll('#planes input')) i.checked = state.settings.planes.includes(i.value);
+  }
+  for (const i of document.querySelectorAll('#planes input')) {
+    i.addEventListener('change', () => {
+      state.settings.planes = [...document.querySelectorAll('#planes input:checked')].map((el) => el.value);
+      save(); renderCommands();
+    });
+  }
   $('reset').addEventListener('click', () => {
     if (!window.confirm('Clear the saved progress, answers, notes and settings from this browser?')) return;
     try { localStorage.removeItem(KEY); } catch (e) { /* nothing saved */ }
@@ -339,7 +348,7 @@
   // The report summary (C21 holds no names), the hash, the decisions and the private finding notes stay in this
   // browser; the files themselves are read and dropped.
   const rv = () => (state.review = state.review || { assessment: null, sha256: '', rows: [], notes: {}, built: false, file: '', prior: '' });
-  const OUTCOME_WORD = { pass: 'Pass', warn: 'Warn', gap: 'Gap', unknown: 'Unknown' };
+  const OUTCOME_WORD = { pass: 'Pass', warn: 'Warn', gap: 'Gap', unknown: 'Unknown', 'not-applicable': 'N/A' };
   const DISPOSITIONS = [['fix', 'Fix'], ['accept', 'Accept'], ['defer', 'Defer']];
   let priorReview = null;
 
@@ -414,22 +423,37 @@
       el('span', { className: 'muted', textContent: `${r.assessment.estate}, ${r.rows.length} checks:` }),
       ...['gap', 'warn', 'unknown', 'pass'].map((o) => el('span', { className: `outcome o-${o}`, textContent: `${c[o]} ${OUTCOME_WORD[o]}` })),
       el('span', { className: 'muted', textContent: `${decided} decided` }));
+    const planeBox = $('review-planes');
+    if (planeBox) {
+      planeBox.replaceChildren();
+      if (r.assessment.planes) {
+        planeBox.append(el('span', { className: 'muted', textContent: 'Control planes:' }));
+        for (const p of core.PLANES) {
+          const ps = r.assessment.planes[p];
+          if (!ps) continue;
+          const label = core.PLANE_LABELS[p] || p;
+          const pct = ps.score !== null && ps.score !== undefined ? `${Math.round(ps.score * 100)}%` : 'not assessed';
+          planeBox.append(el('span', { className: 'muted', textContent: `${label}: ${pct}` }));
+        }
+      }
+    }
     const hide = $('hide-pass').checked;
     const body = $('findings');
     body.replaceChildren();
     r.rows.forEach((row, i) => {
       const tr = el('tr');
-      if (hide && row.outcome === 'pass' && !row.disposition) tr.className = 'hidden-pass';
+      if (hide && (row.outcome === 'pass' || row.outcome === 'not-applicable') && !row.disposition) tr.className = 'hidden-pass';
       const name = `d-${i}`;
       const title = core.checkTitle(row.check);
-      const check = el('td', { className: 'check' }, [el('strong', { textContent: title }), el('code', { textContent: row.check })]);
+      const check = el('td', { className: 'check' }, [el('strong', { textContent: title }), el('code', { textContent: row.parentPlane || row.plane ? `${row.check} (${core.PLANE_LABELS[row.plane] || row.plane})` : row.check })]);
       if (row.carriedForward) check.append(el('span', { className: 'carried', textContent: 'Carried forward: take a second look' }));
       const outcome = el('td', {}, [el('span', { className: `outcome o-${row.outcome}`, textContent: OUTCOME_WORD[row.outcome] })]);
       outcome.dataset.label = 'Outcome';
+      const isNa = row.outcome === 'not-applicable';
       const seg = el('div', { className: 'segmented' });
       seg.setAttribute('role', 'radiogroup'); seg.setAttribute('aria-label', `Decision for ${title}`);
       for (const [v, label] of DISPOSITIONS) {
-        const input = el('input', { type: 'radio', name, value: v, checked: row.disposition === v });
+        const input = el('input', { type: 'radio', name, value: v, checked: row.disposition === v, disabled: isNa });
         input.addEventListener('change', () => {
           row.disposition = v; row.carriedForward = false;
           if (!core.REASONS[v].includes(row.reason)) row.reason = core.REASONS[v].length === 1 ? core.REASONS[v][0] : '';
@@ -529,13 +553,14 @@
     $('plan-summary').replaceChildren(el('span', { className: 'muted', textContent: `${plan.estate}: ${plan.items.length} to change, ${skipped.length} left out, method version ${plan.basis.method}` }));
     for (const it of plan.items) {
       const title = core.titleOf(it.check, catalog);
+      const planeCell = el('td', { textContent: core.PLANE_LABELS[it.plane] || it.plane || 'Azure' }); planeCell.dataset.label = 'Plane';
       const check = el('td', { className: 'check' }, [el('strong', { textContent: title }), el('code', { textContent: it.check })]);
       if (it.source === 'unreviewed') check.append(el('span', { className: 'carried', textContent: 'Not reviewed' }));
       const outcome = el('td', {}, [el('span', { className: `outcome o-${it.outcome}`, textContent: `${OUTCOME_WORD[it.outcome]}, ${it.severity}` })]); outcome.dataset.label = 'Outcome';
       const change = el('td', {}, [changeCell(it.change)]); change.dataset.label = 'Change';
       const why = el('td', {}, it.claims.map((c) => el('code', { textContent: c }))); why.dataset.label = 'Why';
       const order = el('td', { textContent: String(it.order) }); order.dataset.label = 'Order';
-      body.append(el('tr', {}, [order, check, outcome, change, why]));
+      body.append(el('tr', {}, [order, planeCell, check, outcome, change, why]));
     }
     if (skipped.length) {
       $('plan-skipped').append(el('p', { className: 'label', textContent: 'Left out' }), el('ul', {}, skipped.map((s) => el('li', { textContent: `${core.titleOf(s.check, catalog)} (${s.check}, ${OUTCOME_WORD[s.outcome]}): ${core.skippedWhy(s)}` }))));

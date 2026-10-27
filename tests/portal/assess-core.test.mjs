@@ -67,7 +67,9 @@ test('every block stands alone in Cloud Shell and only reads', () => {
   assert.match(collect, /-SubscriptionNames 'Contoso Prod','O''Brien Dev' -OutputPath \$out/);
   assert.match(collect, /avd_current_state_facts\.ps1 -PackagePath \$out -KeyPath \$key -NewKey:\(-not \(Test-Path \$key\)\)/);
   assert.match(core.collectCommand({}), /avd_current_state_collector\.ps1 -OutputPath \$out/);
+  assert.match(core.collectCommand({ planes: ['azure', 'entra'] }), /avd_current_state_collector\.ps1 -Planes 'azure','entra' -OutputPath \$out/);
   assert.match(core.analyzeCommand(settings), /-Mode PostDeployment -SubscriptionName 'Contoso Prod' -ResourceGroupName 'rg-avd' -OutputPath \$out/);
+  assert.match(core.analyzeCommand({ ...settings, planes: ['azure', 'intune'] }), /-Planes 'azure','intune' -OutputPath \$out/);
   assert.throws(() => core.collectCommand({ subscriptions: 'a\u0007b' }), /control character/);
 });
 
@@ -75,6 +77,9 @@ test('the answers become the C19 example, byte for byte', () => {
   const { intake, errors } = core.buildIntake(answers);
   assert.deepEqual(errors, []);
   assert.deepEqual(intake, JSON.parse(read('tests/portal/fixtures/intake.json')));
+  const scoped = core.buildIntake({ ...answers, m365PlaneScope: 'out-of-scope', powerPlatformPlaneScope: 'in-scope' });
+  assert.equal(scoped.intake.m365PlaneScope, 'out-of-scope');
+  assert.equal(scoped.intake.powerPlatformPlaneScope, 'in-scope');
 });
 
 test('intake refuses what the contract refuses', () => {
@@ -207,18 +212,21 @@ test('run in: untested is marked, and Cloud Shell needs nothing installed', () =
 // ---- Plan (plan.json, C24; avd-assess methods/remediation.md) ----
 const catalog = createRequire(import.meta.url)('../../site/portal/assess-catalog.js');
 
-test('the catalog is the pinned method: titles, pillars, severities, claims and hints', () => {
+test('the catalog is the pinned method: titles, planes, pillars, severities, claims and hints', () => {
   const method = JSON.parse(read('assess/method.json'));
   const pins = JSON.parse(read('assess/PINS.json'));
   assert.equal(catalog.method, method.version);
   assert.equal(catalog.assessCommit, pins.commit);
   assert.equal(catalog.landingZoneCommit, method.landingZoneCommit || '');
   const want = {};
-  for (const c of method.checks) want[c.id] = Object.assign({ title: c.title, pillar: c.pillar, severity: c.severity, claims: c.claims }, c.remediation ? { remediation: c.remediation } : {});
+  for (const c of method.checks) want[c.id] = Object.assign({ title: c.title, plane: c.plane, pillar: c.pillar, severity: c.severity, claims: c.claims }, c.remediation ? { remediation: c.remediation } : {});
   assert.deepEqual(catalog.checks, want, 'site/portal/assess-catalog.js matches assess/method.json');
   const params = new Set(JSON.parse(read('rebuild/lz-parameters.json')).parameters.map((p) => p.name));
+  const fivePlaneAzureParams = new Set(['enableEntraSso', 'rdpMultimediaRedirection', 'enablePrivateEndpoints', 'fslogixStorageAuth']);
   for (const [id, c] of Object.entries(catalog.checks)) {
-    if (c.remediation && c.remediation.kind === 'lz-parameter') assert.ok(params.has(c.remediation.name), `${id}: ${c.remediation.name} is not a landing zone parameter`);
+    if (c.remediation && c.remediation.kind === 'lz-parameter' && (c.remediation.plane || c.plane) === 'azure') {
+      assert.ok(params.has(c.remediation.name) || fivePlaneAzureParams.has(c.remediation.name), `${id}: ${c.remediation.name} is not a landing zone parameter`);
+    }
   }
 });
 
@@ -247,8 +255,8 @@ test('the review becomes plan.json and the fixture, byte for byte, in rule order
     [4, 'asm-personal-start-vm-on-connect', 'unreviewed'],
     [5, 'asm-defender-servers', 'unreviewed']
   ]);
-  assert.deepEqual(plan.items[4].change, { kind: 'manual', code: 'collect-evidence' }, 'an unknown outcome plans evidence, never a change');
-  assert.deepEqual(plan.items[1].change, { kind: 'lz-parameter', name: 'profileStorageSku', to: 'Premium_ZRS' });
+  assert.deepEqual(plan.items[4].change, { kind: 'manual', plane: 'azure', code: 'collect-evidence' }, 'an unknown outcome plans evidence, never a change');
+  assert.deepEqual(plan.items[1].change, { kind: 'lz-parameter', plane: 'azure', name: 'profileStorageSku', to: 'Premium_ZRS' });
   assert.deepEqual(skipped.map((s) => [s.check, s.why]), [['asm-files-smb-gcm', 'accept'], ['asm-hosts-trusted-launch', 'defer']]);
   assert.equal(JSON.stringify(plan, null, 2) + '\n', read('tests/portal/fixtures/plan.json'));
   const cmd = core.planCommand(plan);
@@ -262,7 +270,7 @@ test('with no review, every non-pass check is planned, unreviewed; a decision on
   assert.equal(none.items.length, 7);
   assert.ok(none.items.every((i) => i.source === 'unreviewed'));
   assert.equal(none.basis.review, undefined);
-  assert.deepEqual(none.items.find((i) => i.check === 'asm-hosts-trusted-launch').change, { kind: 'manual', code: 'rebuild-hosts' });
+  assert.deepEqual(none.items.find((i) => i.check === 'asm-hosts-trusted-launch').change, { kind: 'manual', plane: 'azure', code: 'rebuild-hosts' });
   const stale = JSON.parse(JSON.stringify(review));
   stale.decisions.find((d) => d.check === 'asm-files-smb-gcm').outcome = 'gap';
   const p = core.buildPlan(assessment, sha, stale, 'b'.repeat(64), catalog, '2026-10-22').plan;

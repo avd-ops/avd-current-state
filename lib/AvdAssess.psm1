@@ -14,7 +14,7 @@
 
 Set-StrictMode -Version Latest
 
-$script:Rank = @{ gap = 3; warn = 2; unknown = 1; pass = 0 }
+$script:Rank = @{ gap = 3; warn = 2; unknown = 1; pass = 0; 'not-applicable' = -1 }
 $script:SubjectId = '^(est|sub|hp|st)-[0-9a-f]{8}$'
 
 function Get-AssessProp {
@@ -79,6 +79,37 @@ function Get-AssessPointerValue {
     return $current
 }
 
+function Get-AssessSubjectList {
+    # Like Get-AssessPointerValue, but pairs each subject with its nearest ancestor's pseudonym ID
+    # (starting from $Estate), so /subscriptions/*/powerPlatform inherits sub-xxxxxxxx and /entra uses est-xxxxxxxx,
+    # while array items (*) always take their own item's id property so invalid pseudonyms are still caught.
+    param([object]$Node, [string]$Pointer, [string]$Estate)
+    $current = @([pscustomobject]@{ Value = $Node; Id = $Estate })
+    foreach ($seg in ($Pointer.Trim('/') -split '/')) {
+        if ($seg -eq '') { continue }
+        $next = New-Object System.Collections.Generic.List[object]
+        foreach ($n in $current) {
+            if ($null -eq $n.Value) { continue }
+            if ($seg -eq '*') {
+                foreach ($item in @($n.Value)) {
+                    if ($null -ne $item) {
+                        $next.Add([pscustomobject]@{ Value = $item; Id = "$(Get-AssessProp $item 'id')" })
+                    }
+                }
+            } else {
+                $step = Get-AssessStep $n.Value $seg
+                if ($step.Found) {
+                    $ownId = Get-AssessProp $step.Value 'id'
+                    $id = if ($null -ne $ownId) { "$ownId" } else { $n.Id }
+                    $next.Add([pscustomobject]@{ Value = $step.Value; Id = $id })
+                }
+            }
+        }
+        $current = $next.ToArray()
+    }
+    return $current
+}
+
 function Get-AssessPropertyValue {
     # A subject's property by a relative path (a/b), and whether it was there at all.
     param([object]$Subject, [string]$Path)
@@ -96,11 +127,15 @@ function Test-AssessNumber {
 }
 
 function Test-AssessEqual {
-    # Equality between a fact value and a rule scalar: booleans only equal booleans, numbers compare
-    # as numbers, strings compare ignoring case (Azure's enums are case-insensitive).
+    # Equality between a fact value and a rule scalar: booleans only equal booleans (or enabled/disabled enums),
+    # numbers compare as numbers, strings compare ignoring case (Azure's enums are case-insensitive).
     param($Actual, $Expected)
     if ($null -eq $Expected) { return $null -eq $Actual }
-    if ($Expected -is [bool]) { return ($Actual -is [bool]) -and ($Actual -eq $Expected) }
+    if ($Expected -is [bool]) {
+        if ($Actual -is [bool]) { return $Actual -eq $Expected }
+        if ($Actual -is [string] -and $Actual -in @('enabled', 'disabled')) { return ($Actual -eq 'enabled') -eq $Expected }
+        return $false
+    }
     if (Test-AssessNumber $Expected) { return (Test-AssessNumber $Actual) -and ([double]$Actual -eq [double]$Expected) }
     if ($Actual -is [string]) { return [string]::Equals($Actual, [string]$Expected, [System.StringComparison]::OrdinalIgnoreCase) }
     return $false
@@ -211,6 +246,30 @@ function Invoke-AvdAssessCheck {
         if ($why) { throw "Check $(Get-AssessProp $Check 'id'), property $($t.Property): $why." }
     }
 
+    $plane = "$(Get-AssessProp $Check 'plane')"
+    if (($plane -eq 'm365' -and "$(Get-AssessProp $Intake 'm365PlaneScope')" -eq 'not-used') -or
+        ($plane -eq 'power-platform' -and "$(Get-AssessProp $Intake 'powerPlatformPlaneScope')" -eq 'not-used')) {
+        $row = [ordered]@{ check = "$(Get-AssessProp $Check 'id')" }
+        if ($plane) { $row.plane = $plane }
+        $row.outcome = 'not-applicable'
+        $row.facts = [string[]]@()
+        $row.subjects = @()
+        return $row
+    }
+
+    $planesCollected = Get-AssessProp $Snapshot 'planesCollected'
+    if ($plane -and $null -ne $planesCollected) {
+        $planeState = Get-AssessProp $planesCollected $plane
+        if ($null -ne $planeState -and "$(Get-AssessProp $planeState 'status')" -in @('skipped', 'unconsented')) {
+            $row = [ordered]@{ check = "$(Get-AssessProp $Check 'id')" }
+            $row.plane = $plane
+            $row.outcome = 'unknown'
+            $row.facts = [string[]]@()
+            $row.subjects = @()
+            return $row
+        }
+    }
+
     $intakeOnly = Test-AssessIntakeOnly $Check
     $root = if ($intakeOnly) { $Intake } else { $Snapshot }
     $estate = "$(Get-AssessProp $Snapshot 'estate')"
@@ -218,7 +277,8 @@ function Invoke-AvdAssessCheck {
 
     $subjects = New-Object System.Collections.Generic.List[object]
     if ($null -ne $root) {
-        foreach ($s in @(Get-AssessPointerValue -Node $root -Pointer "$(Get-AssessProp $rule 'each')")) {
+        foreach ($entry in @(Get-AssessSubjectList -Node $root -Pointer "$(Get-AssessProp $rule 'each')" -Estate $estate)) {
+            $s = $entry.Value
             # Every where test runs, so a test that excludes the subject wins over one that can't be
             # applied, whatever the order of the tests.
             $outcome = $null
@@ -239,7 +299,7 @@ function Invoke-AvdAssessCheck {
                 }
                 $outcome = Get-AssessWorst @($results)
             }
-            $id = if ($intakeOnly) { $estate } else { "$(Get-AssessProp $s 'id')" }
+            $id = if ($intakeOnly) { $estate } else { $entry.Id }
             $subjects.Add([ordered]@{ id = $id; outcome = $outcome })
         }
     }
@@ -250,12 +310,12 @@ function Invoke-AvdAssessCheck {
         if (Test-AssessFactPresent -Fact "$f" -Path $paths -Snapshot $Snapshot -Intake $Intake) { $had.Add("$f") }
     }
 
-    [ordered]@{
-        check    = "$(Get-AssessProp $Check 'id')"
-        outcome  = Get-AssessWorst @($subjects | ForEach-Object { $_.outcome })
-        facts    = $had.ToArray()
-        subjects = $subjects.ToArray()
-    }
+    $outRow = [ordered]@{ check = "$(Get-AssessProp $Check 'id')" }
+    if ($plane) { $outRow.plane = $plane }
+    $outRow.outcome = Get-AssessWorst @($subjects | ForEach-Object { $_.outcome })
+    $outRow.facts = $had.ToArray()
+    $outRow.subjects = $subjects.ToArray()
+    return $outRow
 }
 
 function Get-AvdAssessScore {
@@ -263,8 +323,8 @@ function Get-AvdAssessScore {
     .SYNOPSIS
         The method's scoring (severity-weighted/v1) over C21 result rows: per pillar, the passing severity
         weight over the assessed weight (a warn counts warnFactor) and coverage, the share of checks that
-        aren't unknown. A pillar with nothing assessed scores null. The same rules as the brain's
-        Get-AssessScore, so its Test-AssessmentReport recomputes the same numbers. Only builds data.
+        aren't unknown or not-applicable. A pillar with nothing assessed scores null. The same rules as the
+        brain's Get-AssessScore, so its Test-AssessmentReport recomputes the same numbers. Only builds data.
     #>
     [CmdletBinding()]
     param(
@@ -277,22 +337,70 @@ function Get-AvdAssessScore {
     $weights = Get-AssessProp $scoring 'weights'
     $warnFactor = [double](Get-AssessProp $scoring 'warnFactor')
     foreach ($g in @(@(Get-AssessProp $Method 'checks') | Group-Object { Get-AssessProp $_ 'pillar' } | Sort-Object Name)) {
-        $assessed = 0; $weight = 0.0; $passed = 0.0
+        $assessed = 0; $notApplicable = 0; $weight = 0.0; $passed = 0.0
         foreach ($c in $g.Group) {
             $o = $outcome["$(Get-AssessProp $c 'id')"]
+            if ($o -eq 'not-applicable') { $notApplicable++; continue }
             if (-not $o -or $o -eq 'unknown') { continue }
             $w = [double](Get-AssessProp $weights "$(Get-AssessProp $c 'severity')")
             $assessed++; $weight += $w
             if ($o -eq 'pass') { $passed += $w } elseif ($o -eq 'warn') { $passed += $w * $warnFactor }
         }
+        $denom = $g.Count - $notApplicable
         [ordered]@{
             pillar   = $g.Name
             checks   = [int]$g.Count
             assessed = [int]$assessed
             score    = if ($weight) { [Math]::Round($passed / $weight, 3) } else { $null }
-            coverage = [Math]::Round($assessed / $g.Count, 3)
+            coverage = if ($denom -gt 0) { [Math]::Round($assessed / $denom, 3) } else { 0 }
         }
     }
+}
+
+function Get-AvdAssessPlaneScore {
+    <#
+    .SYNOPSIS
+        Secondary rollup by target-state control plane (methods/scoring.md) over C21 result rows.
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)][object]$Method,
+        [Parameter(Mandatory = $true)][AllowEmptyCollection()][object[]]$Result
+    )
+    $outcome = @{}
+    foreach ($r in $Result) { $outcome["$(Get-AssessProp $r 'check')"] = "$(Get-AssessProp $r 'outcome')" }
+    $scoring = Get-AssessProp $Method 'scoring'
+    $weights = Get-AssessProp $scoring 'weights'
+    $warnFactor = [double](Get-AssessProp $scoring 'warnFactor')
+    $planes = [ordered]@{}
+    foreach ($p in @('azure', 'entra', 'intune', 'm365', 'power-platform')) {
+        $group = @(@(Get-AssessProp $Method 'checks') | Where-Object { "$(Get-AssessProp $_ 'plane')" -eq $p })
+        $pass = 0; $warn = 0; $gap = 0; $unknown = 0; $notApplicable = 0
+        $assessed = 0; $weight = 0.0; $passed = 0.0
+        foreach ($c in $group) {
+            $o = $outcome["$(Get-AssessProp $c 'id')"]
+            if ($o -eq 'not-applicable') { $notApplicable++; continue }
+            if (-not $o -or $o -eq 'unknown') { $unknown++; continue }
+            $w = [double](Get-AssessProp $weights "$(Get-AssessProp $c 'severity')")
+            $assessed++; $weight += $w
+            if ($o -eq 'pass') { $pass++; $passed += $w }
+            elseif ($o -eq 'warn') { $warn++; $passed += $w * $warnFactor }
+            elseif ($o -eq 'gap') { $gap++ }
+        }
+        $denom = $group.Count - $notApplicable
+        $planes[$p] = [ordered]@{
+            checks        = [int]$group.Count
+            assessed      = [int]$assessed
+            score         = if ($weight) { [Math]::Round($passed / $weight, 3) } else { $null }
+            coverage      = if ($denom -gt 0) { [Math]::Round($assessed / $denom, 3) } else { 0 }
+            pass          = [int]$pass
+            warn          = [int]$warn
+            gap           = [int]$gap
+            unknown       = [int]$unknown
+            notApplicable = [int]$notApplicable
+        }
+    }
+    return $planes
 }
 
 function Get-AvdAssessDecision {
@@ -394,8 +502,9 @@ function Get-AvdAssessment {
         inputs       = $inputs
         results      = $results
         pillars      = @(Get-AvdAssessScore -Method $Method -Result $results)
+        planes       = Get-AvdAssessPlaneScore -Method $Method -Result $results
         decisions    = @(Get-AvdAssessDecision -Method $Method -Snapshot $Snapshot -Intake $Intake -Register $Register)
     }
 }
 
-Export-ModuleMember -Function Invoke-AvdAssessCheck, Get-AvdAssessScore, Get-AvdAssessDecision, Get-AvdAssessment
+Export-ModuleMember -Function Invoke-AvdAssessCheck, Get-AvdAssessScore, Get-AvdAssessPlaneScore, Get-AvdAssessDecision, Get-AvdAssessment
