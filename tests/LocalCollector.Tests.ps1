@@ -283,7 +283,9 @@ Describe 'Synthetic profile tree, junction/reparse guard and bundle zip generati
     $man = Get-Content -LiteralPath $devOut.manifestPath -Raw | ConvertFrom-Json
     $man.schemaVersion | Should -Be 'avd-local-manifest/v1'
     $man.containsPersonalData | Should -BeTrue
-    @($man.files | Where-Object { $_.sourcePath -eq '%USERPROFILE%\Downloads\comments.txt' }).Count | Should -Be 1
+    # The run's own separator: the TestDrive profile is a forward-slash path on Linux and macOS.
+    $expectedSource = Join-Path (Join-Path '%USERPROFILE%' 'Downloads') 'comments.txt'
+    @($man.files | Where-Object { $_.sourcePath -eq $expectedSource }).Count | Should -Be 1
 
     $hostDir = Join-Path $TestDrive 'host-out'
     $hostOut = Invoke-AvdLocalCollector -Mode Host -OutputPath $hostDir `
