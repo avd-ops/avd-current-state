@@ -1,0 +1,884 @@
+{
+  "schema": "avd-assess-endpoints/v1",
+  "version": 1,
+  "cloud": "azure-public",
+  "readAt": {
+    "avd-required-fqdn": "05df299786103f3d5886146cf73fab142cda335a",
+    "avd-fabric-ips": "9df01472230d01bf9bb36b02e508abd74e4dc029",
+    "avd-url-check-tool": "c0f1884420aae53e640ac0be2683cc30b519e621",
+    "rdp-shortpath": "41dcc5bdc9210cae5b9151f9851568b917ad77db"
+  },
+  "lists": [
+    {
+      "id": "client",
+      "title": "End-user devices",
+      "claim": "ref:avd-required-fqdn#client-list",
+      "dimension": "network.client",
+      "source": {
+        "claim": "ref:avd-required-fqdn#client-list",
+        "url": "https://learn.microsoft.com/azure/virtual-desktop/required-fqdn-endpoint",
+        "pin": "Learn git_commit_id 05df299786103f3d5886146cf73fab142cda335a, updated_at 2026-09-22"
+      }
+    },
+    {
+      "id": "host",
+      "title": "Session hosts",
+      "claim": "ref:avd-required-fqdn#host-list",
+      "dimension": "network.required-endpoints",
+      "source": {
+        "claim": "ref:avd-required-fqdn#host-list",
+        "url": "https://learn.microsoft.com/azure/virtual-desktop/required-fqdn-endpoint",
+        "pin": "Learn git_commit_id 05df299786103f3d5886146cf73fab142cda335a, updated_at 2026-09-22"
+      }
+    },
+    {
+      "id": "platform",
+      "title": "Azure platform addresses on session hosts",
+      "claim": "ref:avd-fabric-ips#two-platform-ips",
+      "dimension": "network.required-endpoints",
+      "source": {
+        "claim": "ref:avd-fabric-ips#two-platform-ips",
+        "url": "https://learn.microsoft.com/azure/virtual-desktop/azurecommunicationips",
+        "pin": "Learn git_commit_id 9df01472230d01bf9bb36b02e508abd74e4dc029, updated_at 2026-05-25"
+      }
+    }
+  ],
+  "endpoints": [
+    {
+      "id": "client.service",
+      "list": "client",
+      "kind": "wildcard",
+      "host": "*.service.windows.cloud.microsoft",
+      "protocol": "tcp",
+      "port": 443,
+      "purpose": "service",
+      "verdict": "required",
+      "probeFrom": [],
+      "source": {
+        "claim": "ref:avd-required-fqdn#client-list",
+        "url": "https://learn.microsoft.com/azure/virtual-desktop/required-fqdn-endpoint",
+        "pin": "Learn git_commit_id 05df299786103f3d5886146cf73fab142cda335a, updated_at 2026-09-22"
+      }
+    },
+    {
+      "id": "client.windows-cloud",
+      "list": "client",
+      "kind": "wildcard",
+      "host": "*.windows.cloud.microsoft",
+      "protocol": "tcp",
+      "port": 443,
+      "purpose": "service",
+      "verdict": "required",
+      "probeFrom": [],
+      "source": {
+        "claim": "ref:avd-required-fqdn#client-list",
+        "url": "https://learn.microsoft.com/azure/virtual-desktop/required-fqdn-endpoint",
+        "pin": "Learn git_commit_id 05df299786103f3d5886146cf73fab142cda335a, updated_at 2026-09-22"
+      }
+    },
+    {
+      "id": "client.windows-static",
+      "list": "client",
+      "kind": "wildcard",
+      "host": "*.windows.static.microsoft",
+      "protocol": "tcp",
+      "port": 443,
+      "purpose": "service",
+      "verdict": "required",
+      "probeFrom": [],
+      "source": {
+        "claim": "ref:avd-required-fqdn#client-list",
+        "url": "https://learn.microsoft.com/azure/virtual-desktop/required-fqdn-endpoint",
+        "pin": "Learn git_commit_id 05df299786103f3d5886146cf73fab142cda335a, updated_at 2026-09-22"
+      }
+    },
+    {
+      "id": "client.sign-in",
+      "list": "client",
+      "kind": "fqdn",
+      "host": "login.microsoftonline.com",
+      "protocol": "tcp",
+      "port": 443,
+      "purpose": "sign-in",
+      "verdict": "required",
+      "probeFrom": [
+        "browser",
+        "device"
+      ],
+      "source": {
+        "claim": "ref:avd-required-fqdn#client-list",
+        "url": "https://learn.microsoft.com/azure/virtual-desktop/required-fqdn-endpoint",
+        "pin": "Learn git_commit_id 05df299786103f3d5886146cf73fab142cda335a, updated_at 2026-09-22"
+      }
+    },
+    {
+      "id": "client.relay",
+      "list": "client",
+      "kind": "range",
+      "protocol": "udp",
+      "port": 3478,
+      "purpose": "relay",
+      "verdict": "informational",
+      "probeFrom": [],
+      "note": "Relayed RDP (TURN). Not probeable from a browser; the device-side network test or a STUN check against the pack's own server says more (ref:rdp-shortpath#turn-range).",
+      "source": {
+        "claim": "ref:avd-required-fqdn#client-list",
+        "url": "https://learn.microsoft.com/azure/virtual-desktop/required-fqdn-endpoint",
+        "pin": "Learn git_commit_id 05df299786103f3d5886146cf73fab142cda335a, updated_at 2026-09-22"
+      }
+    },
+    {
+      "id": "client.wvd",
+      "list": "client",
+      "kind": "wildcard",
+      "host": "*.wvd.microsoft.com",
+      "protocol": "tcp",
+      "port": 443,
+      "purpose": "service",
+      "verdict": "required",
+      "probeFrom": [],
+      "note": "Feed, broker and gateway. No concrete name is listed at the pin; older names are not probed (avd-linecheck spec Q5).",
+      "source": {
+        "claim": "ref:avd-required-fqdn#client-list",
+        "url": "https://learn.microsoft.com/azure/virtual-desktop/required-fqdn-endpoint",
+        "pin": "Learn git_commit_id 05df299786103f3d5886146cf73fab142cda335a, updated_at 2026-09-22"
+      }
+    },
+    {
+      "id": "client.troubleshooting",
+      "list": "client",
+      "kind": "wildcard",
+      "host": "*.servicebus.windows.net",
+      "protocol": "tcp",
+      "port": 443,
+      "purpose": "troubleshooting",
+      "verdict": "informational",
+      "probeFrom": [],
+      "source": {
+        "claim": "ref:avd-required-fqdn#client-list",
+        "url": "https://learn.microsoft.com/azure/virtual-desktop/required-fqdn-endpoint",
+        "pin": "Learn git_commit_id 05df299786103f3d5886146cf73fab142cda335a, updated_at 2026-09-22"
+      }
+    },
+    {
+      "id": "client.fwlink",
+      "list": "client",
+      "kind": "fqdn",
+      "host": "go.microsoft.com",
+      "protocol": "tcp",
+      "port": 443,
+      "purpose": "links-and-docs",
+      "verdict": "informational",
+      "probeFrom": [
+        "browser",
+        "device"
+      ],
+      "note": "Answers with a redirect; a browser probe lists the redirect targets beside it.",
+      "source": {
+        "claim": "ref:avd-required-fqdn#client-list",
+        "url": "https://learn.microsoft.com/azure/virtual-desktop/required-fqdn-endpoint",
+        "pin": "Learn git_commit_id 05df299786103f3d5886146cf73fab142cda335a, updated_at 2026-09-22"
+      }
+    },
+    {
+      "id": "client.shortener",
+      "list": "client",
+      "kind": "fqdn",
+      "host": "aka.ms",
+      "protocol": "tcp",
+      "port": 443,
+      "purpose": "links-and-docs",
+      "verdict": "informational",
+      "probeFrom": [
+        "browser",
+        "device"
+      ],
+      "note": "Answers with a redirect; a browser probe lists the redirect targets beside it.",
+      "source": {
+        "claim": "ref:avd-required-fqdn#client-list",
+        "url": "https://learn.microsoft.com/azure/virtual-desktop/required-fqdn-endpoint",
+        "pin": "Learn git_commit_id 05df299786103f3d5886146cf73fab142cda335a, updated_at 2026-09-22"
+      }
+    },
+    {
+      "id": "client.docs",
+      "list": "client",
+      "kind": "fqdn",
+      "host": "learn.microsoft.com",
+      "protocol": "tcp",
+      "port": 443,
+      "purpose": "links-and-docs",
+      "verdict": "informational",
+      "probeFrom": [
+        "browser",
+        "device"
+      ],
+      "source": {
+        "claim": "ref:avd-required-fqdn#client-list",
+        "url": "https://learn.microsoft.com/azure/virtual-desktop/required-fqdn-endpoint",
+        "pin": "Learn git_commit_id 05df299786103f3d5886146cf73fab142cda335a, updated_at 2026-09-22"
+      }
+    },
+    {
+      "id": "client.privacy",
+      "list": "client",
+      "kind": "fqdn",
+      "host": "privacy.microsoft.com",
+      "protocol": "tcp",
+      "port": 443,
+      "purpose": "links-and-docs",
+      "verdict": "informational",
+      "probeFrom": [
+        "browser",
+        "device"
+      ],
+      "source": {
+        "claim": "ref:avd-required-fqdn#client-list",
+        "url": "https://learn.microsoft.com/azure/virtual-desktop/required-fqdn-endpoint",
+        "pin": "Learn git_commit_id 05df299786103f3d5886146cf73fab142cda335a, updated_at 2026-09-22"
+      }
+    },
+    {
+      "id": "client.office-cdn",
+      "list": "client",
+      "kind": "wildcard",
+      "host": "*.cdn.office.net",
+      "protocol": "tcp",
+      "port": 443,
+      "purpose": "client-updates",
+      "verdict": "informational",
+      "probeFrom": [],
+      "note": "Windows desktop client only.",
+      "source": {
+        "claim": "ref:avd-required-fqdn#client-list",
+        "url": "https://learn.microsoft.com/azure/virtual-desktop/required-fqdn-endpoint",
+        "pin": "Learn git_commit_id 05df299786103f3d5886146cf73fab142cda335a, updated_at 2026-09-22"
+      }
+    },
+    {
+      "id": "client.graph",
+      "list": "client",
+      "kind": "fqdn",
+      "host": "graph.microsoft.com",
+      "protocol": "tcp",
+      "port": 443,
+      "purpose": "service",
+      "verdict": "informational",
+      "probeFrom": [
+        "browser",
+        "device"
+      ],
+      "source": {
+        "claim": "ref:avd-required-fqdn#client-list",
+        "url": "https://learn.microsoft.com/azure/virtual-desktop/required-fqdn-endpoint",
+        "pin": "Learn git_commit_id 05df299786103f3d5886146cf73fab142cda335a, updated_at 2026-09-22"
+      }
+    },
+    {
+      "id": "client.connection-center",
+      "list": "client",
+      "kind": "fqdn",
+      "host": "windows.cloud.microsoft",
+      "protocol": "tcp",
+      "port": 443,
+      "purpose": "connection-center",
+      "verdict": "required",
+      "probeFrom": [
+        "browser",
+        "device"
+      ],
+      "source": {
+        "claim": "ref:avd-required-fqdn#client-list",
+        "url": "https://learn.microsoft.com/azure/virtual-desktop/required-fqdn-endpoint",
+        "pin": "Learn git_commit_id 05df299786103f3d5886146cf73fab142cda335a, updated_at 2026-09-22"
+      }
+    },
+    {
+      "id": "client.windows365",
+      "list": "client",
+      "kind": "fqdn",
+      "host": "windows365.microsoft.com",
+      "protocol": "tcp",
+      "port": 443,
+      "purpose": "service",
+      "verdict": "informational",
+      "probeFrom": [
+        "browser",
+        "device"
+      ],
+      "source": {
+        "claim": "ref:avd-required-fqdn#client-list",
+        "url": "https://learn.microsoft.com/azure/virtual-desktop/required-fqdn-endpoint",
+        "pin": "Learn git_commit_id 05df299786103f3d5886146cf73fab142cda335a, updated_at 2026-09-22"
+      }
+    },
+    {
+      "id": "client.ecs",
+      "list": "client",
+      "kind": "fqdn",
+      "host": "ecs.office.com",
+      "protocol": "tcp",
+      "port": 443,
+      "purpose": "connection-center",
+      "verdict": "informational",
+      "probeFrom": [
+        "browser",
+        "device"
+      ],
+      "source": {
+        "claim": "ref:avd-required-fqdn#client-list",
+        "url": "https://learn.microsoft.com/azure/virtual-desktop/required-fqdn-endpoint",
+        "pin": "Learn git_commit_id 05df299786103f3d5886146cf73fab142cda335a, updated_at 2026-09-22"
+      }
+    },
+    {
+      "id": "client.telemetry",
+      "list": "client",
+      "kind": "wildcard",
+      "host": "*.events.data.microsoft.com",
+      "protocol": "tcp",
+      "port": 443,
+      "purpose": "telemetry",
+      "verdict": "informational",
+      "probeFrom": [],
+      "source": {
+        "claim": "ref:avd-required-fqdn#client-list",
+        "url": "https://learn.microsoft.com/azure/virtual-desktop/required-fqdn-endpoint",
+        "pin": "Learn git_commit_id 05df299786103f3d5886146cf73fab142cda335a, updated_at 2026-09-22"
+      }
+    },
+    {
+      "id": "client.cert-aik",
+      "list": "client",
+      "kind": "wildcard",
+      "host": "*.microsoftaik.azure.net",
+      "protocol": "tcp",
+      "port": 80,
+      "purpose": "certificates",
+      "verdict": "informational",
+      "probeFrom": [],
+      "source": {
+        "claim": "ref:avd-required-fqdn#client-list",
+        "url": "https://learn.microsoft.com/azure/virtual-desktop/required-fqdn-endpoint",
+        "pin": "Learn git_commit_id 05df299786103f3d5886146cf73fab142cda335a, updated_at 2026-09-22"
+      }
+    },
+    {
+      "id": "client.cert-www",
+      "list": "client",
+      "kind": "fqdn",
+      "host": "www.microsoft.com",
+      "protocol": "tcp",
+      "port": 80,
+      "purpose": "certificates",
+      "verdict": "informational",
+      "probeFrom": [
+        "device"
+      ],
+      "note": "Plain HTTP: a page served over HTTPS can't fetch it (mixed content).",
+      "source": {
+        "claim": "ref:avd-required-fqdn#client-list",
+        "url": "https://learn.microsoft.com/azure/virtual-desktop/required-fqdn-endpoint",
+        "pin": "Learn git_commit_id 05df299786103f3d5886146cf73fab142cda335a, updated_at 2026-09-22"
+      }
+    },
+    {
+      "id": "client.cert-aikcertaia",
+      "list": "client",
+      "kind": "wildcard",
+      "host": "*.aikcertaia.microsoft.com",
+      "protocol": "tcp",
+      "port": 80,
+      "purpose": "certificates",
+      "verdict": "informational",
+      "probeFrom": [],
+      "source": {
+        "claim": "ref:avd-required-fqdn#client-list",
+        "url": "https://learn.microsoft.com/azure/virtual-desktop/required-fqdn-endpoint",
+        "pin": "Learn git_commit_id 05df299786103f3d5886146cf73fab142cda335a, updated_at 2026-09-22"
+      }
+    },
+    {
+      "id": "client.cert-publish",
+      "list": "client",
+      "kind": "fqdn",
+      "host": "azcsprodeusaikpublish.blob.core.windows.net",
+      "protocol": "tcp",
+      "port": 80,
+      "purpose": "certificates",
+      "verdict": "informational",
+      "probeFrom": [
+        "device"
+      ],
+      "note": "Plain HTTP: a page served over HTTPS can't fetch it (mixed content).",
+      "source": {
+        "claim": "ref:avd-required-fqdn#client-list",
+        "url": "https://learn.microsoft.com/azure/virtual-desktop/required-fqdn-endpoint",
+        "pin": "Learn git_commit_id 05df299786103f3d5886146cf73fab142cda335a, updated_at 2026-09-22"
+      }
+    },
+    {
+      "id": "host.sign-in",
+      "list": "host",
+      "kind": "fqdn",
+      "host": "login.microsoftonline.com",
+      "protocol": "tcp",
+      "port": 443,
+      "purpose": "sign-in",
+      "verdict": "required",
+      "probeFrom": [
+        "host"
+      ],
+      "serviceTag": "AzureActiveDirectory",
+      "source": {
+        "claim": "ref:avd-required-fqdn#host-list",
+        "url": "https://learn.microsoft.com/azure/virtual-desktop/required-fqdn-endpoint",
+        "pin": "Learn git_commit_id 05df299786103f3d5886146cf73fab142cda335a, updated_at 2026-09-22"
+      }
+    },
+    {
+      "id": "host.relay",
+      "list": "host",
+      "kind": "range",
+      "protocol": "udp",
+      "port": 3478,
+      "purpose": "relay",
+      "verdict": "required",
+      "probeFrom": [],
+      "serviceTag": "WindowsVirtualDesktop",
+      "source": {
+        "claim": "ref:avd-required-fqdn#host-list",
+        "url": "https://learn.microsoft.com/azure/virtual-desktop/required-fqdn-endpoint",
+        "pin": "Learn git_commit_id 05df299786103f3d5886146cf73fab142cda335a, updated_at 2026-09-22"
+      }
+    },
+    {
+      "id": "host.wvd",
+      "list": "host",
+      "kind": "wildcard",
+      "host": "*.wvd.microsoft.com",
+      "protocol": "tcp",
+      "port": 443,
+      "purpose": "service",
+      "verdict": "required",
+      "probeFrom": [],
+      "serviceTag": "WindowsVirtualDesktop",
+      "note": "The agent's region-specific names are in its event 3701 (ref:avd-required-fqdn#wildcards-required); the Agent URL Tool checks those, not the wildcard (ref:avd-url-check-tool#wildcards-not-checked).",
+      "source": {
+        "claim": "ref:avd-required-fqdn#host-list",
+        "url": "https://learn.microsoft.com/azure/virtual-desktop/required-fqdn-endpoint",
+        "pin": "Learn git_commit_id 05df299786103f3d5886146cf73fab142cda335a, updated_at 2026-09-22"
+      }
+    },
+    {
+      "id": "host.marketplace",
+      "list": "host",
+      "kind": "fqdn",
+      "host": "catalogartifact.azureedge.net",
+      "protocol": "tcp",
+      "port": 443,
+      "purpose": "marketplace",
+      "verdict": "required",
+      "probeFrom": [
+        "host"
+      ],
+      "serviceTag": "AzureFrontDoor.Frontend",
+      "source": {
+        "claim": "ref:avd-required-fqdn#host-list",
+        "url": "https://learn.microsoft.com/azure/virtual-desktop/required-fqdn-endpoint",
+        "pin": "Learn git_commit_id 05df299786103f3d5886146cf73fab142cda335a, updated_at 2026-09-22"
+      }
+    },
+    {
+      "id": "host.monitor-ingest",
+      "list": "host",
+      "kind": "wildcard",
+      "host": "*.prod.warm.ingest.monitor.core.windows.net",
+      "protocol": "tcp",
+      "port": 443,
+      "purpose": "agent",
+      "verdict": "required",
+      "probeFrom": [],
+      "serviceTag": "AzureMonitor",
+      "source": {
+        "claim": "ref:avd-required-fqdn#host-list",
+        "url": "https://learn.microsoft.com/azure/virtual-desktop/required-fqdn-endpoint",
+        "pin": "Learn git_commit_id 05df299786103f3d5886146cf73fab142cda335a, updated_at 2026-09-22"
+      }
+    },
+    {
+      "id": "host.monitor-gcs",
+      "list": "host",
+      "kind": "fqdn",
+      "host": "gcs.prod.monitoring.core.windows.net",
+      "protocol": "tcp",
+      "port": 443,
+      "purpose": "agent",
+      "verdict": "required",
+      "probeFrom": [
+        "host"
+      ],
+      "serviceTag": "AzureMonitor",
+      "source": {
+        "claim": "ref:avd-required-fqdn#host-list",
+        "url": "https://learn.microsoft.com/azure/virtual-desktop/required-fqdn-endpoint",
+        "pin": "Learn git_commit_id 05df299786103f3d5886146cf73fab142cda335a, updated_at 2026-09-22"
+      }
+    },
+    {
+      "id": "host.activation",
+      "list": "host",
+      "kind": "fqdn",
+      "host": "azkms.core.windows.net",
+      "protocol": "tcp",
+      "port": 1688,
+      "purpose": "activation",
+      "verdict": "required",
+      "probeFrom": [
+        "host"
+      ],
+      "serviceTag": "Internet",
+      "source": {
+        "claim": "ref:avd-required-fqdn#host-list",
+        "url": "https://learn.microsoft.com/azure/virtual-desktop/required-fqdn-endpoint",
+        "pin": "Learn git_commit_id 05df299786103f3d5886146cf73fab142cda335a, updated_at 2026-09-22"
+      }
+    },
+    {
+      "id": "host.agent-updates",
+      "list": "host",
+      "kind": "fqdn",
+      "host": "mrsglobalsteus2prod.blob.core.windows.net",
+      "protocol": "tcp",
+      "port": 443,
+      "purpose": "agent",
+      "verdict": "required",
+      "probeFrom": [
+        "host"
+      ],
+      "serviceTag": "Storage",
+      "source": {
+        "claim": "ref:avd-required-fqdn#host-list",
+        "url": "https://learn.microsoft.com/azure/virtual-desktop/required-fqdn-endpoint",
+        "pin": "Learn git_commit_id 05df299786103f3d5886146cf73fab142cda335a, updated_at 2026-09-22"
+      }
+    },
+    {
+      "id": "host.portal-support",
+      "list": "host",
+      "kind": "fqdn",
+      "host": "wvdportalstorageblob.blob.core.windows.net",
+      "protocol": "tcp",
+      "port": 443,
+      "purpose": "portal-support",
+      "verdict": "required",
+      "probeFrom": [
+        "host"
+      ],
+      "serviceTag": "AzureCloud",
+      "source": {
+        "claim": "ref:avd-required-fqdn#host-list",
+        "url": "https://learn.microsoft.com/azure/virtual-desktop/required-fqdn-endpoint",
+        "pin": "Learn git_commit_id 05df299786103f3d5886146cf73fab142cda335a, updated_at 2026-09-22"
+      }
+    },
+    {
+      "id": "host.cert-ocsp",
+      "list": "host",
+      "kind": "fqdn",
+      "host": "oneocsp.microsoft.com",
+      "protocol": "tcp",
+      "port": 80,
+      "purpose": "certificates",
+      "verdict": "required",
+      "probeFrom": [
+        "host"
+      ],
+      "serviceTag": "AzureFrontDoor.FirstParty",
+      "source": {
+        "claim": "ref:avd-required-fqdn#host-list",
+        "url": "https://learn.microsoft.com/azure/virtual-desktop/required-fqdn-endpoint",
+        "pin": "Learn git_commit_id 05df299786103f3d5886146cf73fab142cda335a, updated_at 2026-09-22"
+      }
+    },
+    {
+      "id": "host.cert-www",
+      "list": "host",
+      "kind": "fqdn",
+      "host": "www.microsoft.com",
+      "protocol": "tcp",
+      "port": 80,
+      "purpose": "certificates",
+      "verdict": "required",
+      "probeFrom": [
+        "host"
+      ],
+      "source": {
+        "claim": "ref:avd-required-fqdn#host-list",
+        "url": "https://learn.microsoft.com/azure/virtual-desktop/required-fqdn-endpoint",
+        "pin": "Learn git_commit_id 05df299786103f3d5886146cf73fab142cda335a, updated_at 2026-09-22"
+      }
+    },
+    {
+      "id": "host.cert-aikcertaia",
+      "list": "host",
+      "kind": "wildcard",
+      "host": "*.aikcertaia.microsoft.com",
+      "protocol": "tcp",
+      "port": 80,
+      "purpose": "certificates",
+      "verdict": "required",
+      "probeFrom": [],
+      "source": {
+        "claim": "ref:avd-required-fqdn#host-list",
+        "url": "https://learn.microsoft.com/azure/virtual-desktop/required-fqdn-endpoint",
+        "pin": "Learn git_commit_id 05df299786103f3d5886146cf73fab142cda335a, updated_at 2026-09-22"
+      }
+    },
+    {
+      "id": "host.cert-publish",
+      "list": "host",
+      "kind": "fqdn",
+      "host": "azcsprodeusaikpublish.blob.core.windows.net",
+      "protocol": "tcp",
+      "port": 80,
+      "purpose": "certificates",
+      "verdict": "required",
+      "probeFrom": [
+        "host"
+      ],
+      "source": {
+        "claim": "ref:avd-required-fqdn#host-list",
+        "url": "https://learn.microsoft.com/azure/virtual-desktop/required-fqdn-endpoint",
+        "pin": "Learn git_commit_id 05df299786103f3d5886146cf73fab142cda335a, updated_at 2026-09-22"
+      }
+    },
+    {
+      "id": "host.cert-aik",
+      "list": "host",
+      "kind": "wildcard",
+      "host": "*.microsoftaik.azure.net",
+      "protocol": "tcp",
+      "port": 80,
+      "purpose": "certificates",
+      "verdict": "required",
+      "probeFrom": [],
+      "source": {
+        "claim": "ref:avd-required-fqdn#host-list",
+        "url": "https://learn.microsoft.com/azure/virtual-desktop/required-fqdn-endpoint",
+        "pin": "Learn git_commit_id 05df299786103f3d5886146cf73fab142cda335a, updated_at 2026-09-22"
+      }
+    },
+    {
+      "id": "host.cert-ctl",
+      "list": "host",
+      "kind": "fqdn",
+      "host": "ctldl.windowsupdate.com",
+      "protocol": "tcp",
+      "port": 80,
+      "purpose": "certificates",
+      "verdict": "required",
+      "probeFrom": [
+        "host"
+      ],
+      "source": {
+        "claim": "ref:avd-required-fqdn#host-list",
+        "url": "https://learn.microsoft.com/azure/virtual-desktop/required-fqdn-endpoint",
+        "pin": "Learn git_commit_id 05df299786103f3d5886146cf73fab142cda335a, updated_at 2026-09-22"
+      }
+    },
+    {
+      "id": "host.shortener",
+      "list": "host",
+      "kind": "fqdn",
+      "host": "aka.ms",
+      "protocol": "tcp",
+      "port": 443,
+      "purpose": "links-and-docs",
+      "verdict": "informational",
+      "probeFrom": [
+        "host"
+      ],
+      "note": "Listed for session host deployment on Azure Local only.",
+      "source": {
+        "claim": "ref:avd-required-fqdn#host-list",
+        "url": "https://learn.microsoft.com/azure/virtual-desktop/required-fqdn-endpoint",
+        "pin": "Learn git_commit_id 05df299786103f3d5886146cf73fab142cda335a, updated_at 2026-09-22"
+      }
+    },
+    {
+      "id": "host.service",
+      "list": "host",
+      "kind": "wildcard",
+      "host": "*.service.windows.cloud.microsoft",
+      "protocol": "tcp",
+      "port": 443,
+      "purpose": "service",
+      "verdict": "required",
+      "probeFrom": [],
+      "serviceTag": "WindowsVirtualDesktop",
+      "source": {
+        "claim": "ref:avd-required-fqdn#host-list",
+        "url": "https://learn.microsoft.com/azure/virtual-desktop/required-fqdn-endpoint",
+        "pin": "Learn git_commit_id 05df299786103f3d5886146cf73fab142cda335a, updated_at 2026-09-22"
+      }
+    },
+    {
+      "id": "host.windows-cloud",
+      "list": "host",
+      "kind": "wildcard",
+      "host": "*.windows.cloud.microsoft",
+      "protocol": "tcp",
+      "port": 443,
+      "purpose": "service",
+      "verdict": "required",
+      "probeFrom": [],
+      "source": {
+        "claim": "ref:avd-required-fqdn#host-list",
+        "url": "https://learn.microsoft.com/azure/virtual-desktop/required-fqdn-endpoint",
+        "pin": "Learn git_commit_id 05df299786103f3d5886146cf73fab142cda335a, updated_at 2026-09-22"
+      }
+    },
+    {
+      "id": "host.windows-static",
+      "list": "host",
+      "kind": "wildcard",
+      "host": "*.windows.static.microsoft",
+      "protocol": "tcp",
+      "port": 443,
+      "purpose": "service",
+      "verdict": "required",
+      "probeFrom": [],
+      "source": {
+        "claim": "ref:avd-required-fqdn#host-list",
+        "url": "https://learn.microsoft.com/azure/virtual-desktop/required-fqdn-endpoint",
+        "pin": "Learn git_commit_id 05df299786103f3d5886146cf73fab142cda335a, updated_at 2026-09-22"
+      }
+    },
+    {
+      "id": "platform.metadata",
+      "list": "platform",
+      "kind": "address",
+      "protocol": "tcp",
+      "port": 80,
+      "purpose": "platform",
+      "verdict": "required",
+      "probeFrom": [],
+      "note": "Instance metadata.",
+      "source": {
+        "claim": "ref:avd-fabric-ips#two-platform-ips",
+        "url": "https://learn.microsoft.com/azure/virtual-desktop/azurecommunicationips",
+        "pin": "Learn git_commit_id 9df01472230d01bf9bb36b02e508abd74e4dc029, updated_at 2026-05-25"
+      }
+    },
+    {
+      "id": "platform.wireserver",
+      "list": "platform",
+      "kind": "address",
+      "protocol": "tcp",
+      "port": 80,
+      "purpose": "platform",
+      "verdict": "required",
+      "probeFrom": [],
+      "note": "Platform health and, with Azure-provided DNS, name resolution; the other ports are on the cited page.",
+      "source": {
+        "claim": "ref:avd-fabric-ips#two-platform-ips",
+        "url": "https://learn.microsoft.com/azure/virtual-desktop/azurecommunicationips",
+        "pin": "Learn git_commit_id 9df01472230d01bf9bb36b02e508abd74e4dc029, updated_at 2026-05-25"
+      }
+    }
+  ],
+  "views": {
+    "browser": {
+      "lists": [
+        "client"
+      ],
+      "probe": [
+        "client.sign-in",
+        "client.fwlink",
+        "client.shortener",
+        "client.docs",
+        "client.privacy",
+        "client.graph",
+        "client.connection-center",
+        "client.windows365",
+        "client.ecs"
+      ],
+      "notTested": [
+        "client.service",
+        "client.windows-cloud",
+        "client.windows-static",
+        "client.relay",
+        "client.wvd",
+        "client.troubleshooting",
+        "client.office-cdn",
+        "client.telemetry",
+        "client.cert-aik",
+        "client.cert-www",
+        "client.cert-aikcertaia",
+        "client.cert-publish"
+      ]
+    },
+    "device": {
+      "lists": [
+        "client"
+      ],
+      "probe": [
+        "client.sign-in",
+        "client.fwlink",
+        "client.shortener",
+        "client.docs",
+        "client.privacy",
+        "client.graph",
+        "client.connection-center",
+        "client.windows365",
+        "client.ecs",
+        "client.cert-www",
+        "client.cert-publish"
+      ],
+      "notTested": [
+        "client.service",
+        "client.windows-cloud",
+        "client.windows-static",
+        "client.relay",
+        "client.wvd",
+        "client.troubleshooting",
+        "client.office-cdn",
+        "client.telemetry",
+        "client.cert-aik",
+        "client.cert-aikcertaia"
+      ]
+    },
+    "host": {
+      "lists": [
+        "host",
+        "platform"
+      ],
+      "probe": [
+        "host.sign-in",
+        "host.marketplace",
+        "host.monitor-gcs",
+        "host.activation",
+        "host.agent-updates",
+        "host.portal-support",
+        "host.cert-ocsp",
+        "host.cert-www",
+        "host.cert-publish",
+        "host.cert-ctl",
+        "host.shortener"
+      ],
+      "notTested": [
+        "host.relay",
+        "host.wvd",
+        "host.monitor-ingest",
+        "host.cert-aikcertaia",
+        "host.cert-aik",
+        "host.service",
+        "host.windows-cloud",
+        "host.windows-static",
+        "platform.metadata",
+        "platform.wireserver"
+      ]
+    }
+  }
+}
