@@ -48,7 +48,7 @@ Describe 'Pinned copies' {
     $pins = Read-TestJson 'assess/PINS.json'
     $pins.commit | Should -Match '^[0-9a-f]{40}$'
     $pins.source | Should -Be 'https://github.com/avd-ops/avd-assess'
-    @($pins.files.PSObject.Properties).Count | Should -Be 3
+    @($pins.files.PSObject.Properties).Count | Should -Be 4
     foreach ($f in $pins.files.PSObject.Properties) {
       (Get-FileHash (Join-Path $script:root "assess/$($f.Name)") -Algorithm SHA256).Hash.ToLowerInvariant() | Should -Be $f.Value -Because $f.Name
     }

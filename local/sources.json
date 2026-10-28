@@ -1,0 +1,490 @@
+{
+  "schema": "avd-local-sources/v1",
+  "schemaVersion": 1,
+  "programAllowlist": {
+    "preflight": [
+      "%SystemRoot%\\System32\\whoami.exe",
+      "%SystemRoot%\\System32\\netsh.exe",
+      "%SystemRoot%\\System32\\w32tm.exe"
+    ],
+    "host": [
+      "%SystemRoot%\\System32\\whoami.exe",
+      "%SystemRoot%\\System32\\netsh.exe",
+      "%SystemRoot%\\System32\\w32tm.exe",
+      "%ProgramFiles%\\Microsoft RDInfra\\WVDAgentUrlTool.exe"
+    ],
+    "session": [
+      "%SystemRoot%\\System32\\whoami.exe",
+      "%SystemRoot%\\System32\\powercfg.exe"
+    ],
+    "device": [
+      "%SystemRoot%\\System32\\whoami.exe",
+      "%SystemRoot%\\System32\\powercfg.exe"
+    ]
+  },
+  "forbiddenProperties": [
+    "UserName",
+    "SerialNumber",
+    "PartNumber",
+    "MACAddress",
+    "ComputerId",
+    "SSID",
+    "BSSID"
+  ],
+  "sources": [
+    {
+      "id": "preflight.endpoints",
+      "mode": "preflight",
+      "category": "network",
+      "kind": "endpoint-map",
+      "source": "assess/endpoints.json#views.host",
+      "propertyAllowlist": [
+        "id",
+        "host",
+        "port",
+        "protocol",
+        "reachable",
+        "proxyConfigured"
+      ],
+      "requiresAdmin": "no",
+      "privacyClass": "facts",
+      "learnClaim": "ref:avd-required-fqdn#host-list",
+      "learnUrl": "https://learn.microsoft.com/azure/virtual-desktop/required-fqdn-endpoint"
+    },
+    {
+      "id": "preflight.imds",
+      "mode": "preflight",
+      "category": "network",
+      "kind": "imds",
+      "source": "http://169.254.169.254/metadata/instance/compute/vmId?api-version=2021-02-01&format=text",
+      "propertyAllowlist": [
+        "vmId",
+        "idSource",
+        "reachable"
+      ],
+      "requiresAdmin": "no",
+      "privacyClass": "private",
+      "learnClaim": "ref:avd-fabric-ips#two-platform-ips",
+      "learnUrl": "https://learn.microsoft.com/azure/virtual-desktop/troubleshoot-agent#metadataservicecheck"
+    },
+    {
+      "id": "preflight.winhttp-proxy",
+      "mode": "preflight",
+      "category": "network",
+      "kind": "command",
+      "source": "%SystemRoot%\\System32\\netsh.exe winhttp show proxy",
+      "propertyAllowlist": [
+        "directAccess",
+        "proxyServer",
+        "bypassList"
+      ],
+      "requiresAdmin": "no",
+      "privacyClass": "facts",
+      "learnClaim": "ref:avd-proxy-guidelines#winhttp",
+      "learnUrl": "https://learn.microsoft.com/azure/virtual-desktop/proxy-guidelines"
+    },
+    {
+      "id": "preflight.time-source",
+      "mode": "preflight",
+      "category": "system",
+      "kind": "command",
+      "source": "%SystemRoot%\\System32\\w32tm.exe /query /source",
+      "propertyAllowlist": [
+        "timeSource"
+      ],
+      "requiresAdmin": "no",
+      "privacyClass": "facts",
+      "learnClaim": "ref:avd-required-fqdn#host-list",
+      "learnUrl": "https://learn.microsoft.com/azure/virtual-machines/windows/time-sync"
+    },
+    {
+      "id": "host.agent-stack",
+      "mode": "host",
+      "category": "agent",
+      "kind": "registry",
+      "source": "HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall",
+      "propertyAllowlist": [
+        "DisplayName",
+        "DisplayVersion",
+        "Publisher",
+        "InstallDate"
+      ],
+      "requiresAdmin": "yes",
+      "privacyClass": "facts",
+      "learnClaim": "ref:avd-troubleshoot-agent#agent-versions",
+      "learnUrl": "https://learn.microsoft.com/azure/virtual-desktop/troubleshoot-agent"
+    },
+    {
+      "id": "host.url-tool",
+      "mode": "host",
+      "category": "network",
+      "kind": "command",
+      "source": "%ProgramFiles%\\Microsoft RDInfra\\WVDAgentUrlTool.exe",
+      "propertyAllowlist": [
+        "reachableCount",
+        "unreachableCount",
+        "verifiedPublisher"
+      ],
+      "requiresAdmin": "yes",
+      "privacyClass": "facts",
+      "learnClaim": "ref:avd-url-check-tool#run-tool",
+      "learnUrl": "https://learn.microsoft.com/azure/virtual-desktop/check-url-accessibility"
+    },
+    {
+      "id": "host.fslogix-profiles",
+      "mode": "host",
+      "category": "fslogix",
+      "kind": "registry",
+      "source": "HKLM:\\SOFTWARE\\FSLogix\\Profiles",
+      "propertyAllowlist": [
+        "Enabled",
+        "VHDLocations",
+        "CCDLocations",
+        "SizeInMBs",
+        "VolumeType",
+        "FlipFlopProfileDirectoryName",
+        "DeleteLocalProfileWhenVHDShouldApply"
+      ],
+      "requiresAdmin": "yes",
+      "privacyClass": "private",
+      "learnClaim": "ref:fslogix-profile-settings#profiles",
+      "learnUrl": "https://learn.microsoft.com/fslogix/reference-configuration-settings"
+    },
+    {
+      "id": "host.fslogix-odfc",
+      "mode": "host",
+      "category": "fslogix",
+      "kind": "registry",
+      "source": "HKLM:\\SOFTWARE\\Policies\\FSLogix\\ODFC",
+      "propertyAllowlist": [
+        "Enabled",
+        "VHDLocations",
+        "CCDLocations",
+        "SizeInMBs",
+        "VolumeType",
+        "IncludeOfficeActivation",
+        "IncludeOneDrive",
+        "IncludeTeams"
+      ],
+      "requiresAdmin": "yes",
+      "privacyClass": "private",
+      "learnClaim": "ref:fslogix-profile-settings#odfc",
+      "learnUrl": "https://learn.microsoft.com/fslogix/reference-configuration-settings"
+    },
+    {
+      "id": "host.rdp-shortpath",
+      "mode": "host",
+      "category": "protocol",
+      "kind": "registry",
+      "source": "HKLM:\\SYSTEM\\CurrentControlSet\\Control\\Terminal Server\\WinStations",
+      "propertyAllowlist": [
+        "fUseUdpPortRedirector",
+        "UdpPortNumber",
+        "ICEControl"
+      ],
+      "requiresAdmin": "yes",
+      "privacyClass": "facts",
+      "learnClaim": "ref:configure-rdp-shortpath#registry",
+      "learnUrl": "https://learn.microsoft.com/azure/virtual-desktop/configure-rdp-shortpath"
+    },
+    {
+      "id": "host.teams-media",
+      "mode": "host",
+      "category": "protocol",
+      "kind": "registry",
+      "source": "HKLM:\\SOFTWARE\\Microsoft\\Teams",
+      "propertyAllowlist": [
+        "IsWVDEnvironment",
+        "DisableAutoUpdate"
+      ],
+      "requiresAdmin": "yes",
+      "privacyClass": "facts",
+      "learnClaim": "ref:teams-vdi-2#registry",
+      "learnUrl": "https://learn.microsoft.com/microsoftteams/vdi-2-troubleshooting"
+    },
+    {
+      "id": "host.events",
+      "mode": "host",
+      "category": "events",
+      "kind": "event-log",
+      "source": "Microsoft-Windows-TerminalServices-RemoteConnectionManager/Operational;Microsoft-Windows-TerminalServices-LocalSessionManager/Operational;Microsoft-FSLogix-Apps/Operational;Application;System",
+      "propertyAllowlist": [
+        "Id",
+        "LevelDisplayName",
+        "ProviderName",
+        "TimeCreated"
+      ],
+      "requiresAdmin": "yes",
+      "privacyClass": "personal",
+      "learnClaim": "ref:avd-insights-glossary#event-logs",
+      "learnUrl": "https://learn.microsoft.com/azure/virtual-desktop/insights-glossary#windows-event-logs"
+    },
+    {
+      "id": "session.teams-logs",
+      "mode": "session",
+      "category": "logs",
+      "kind": "file-glob",
+      "source": "%LOCALAPPDATA%\\Packages\\MSTeams_8wekyb3d8bbwe\\LocalCache\\Microsoft\\MSTeams\\Logs",
+      "propertyAllowlist": [
+        "Name",
+        "Length",
+        "LastWriteTimeUtc"
+      ],
+      "requiresAdmin": "no",
+      "privacyClass": "personal",
+      "learnClaim": "ref:teams-vdi-2#log-collection",
+      "learnUrl": "https://learn.microsoft.com/microsoftteams/vdi-2-troubleshooting#log-collection"
+    },
+    {
+      "id": "session.teams-diagnostics-hotkey",
+      "mode": "session",
+      "category": "logs",
+      "kind": "file-glob",
+      "source": "%USERPROFILE%\\Downloads\\PROD-WebLogs-*.zip;%USERPROFILE%\\Downloads\\MSTeams Diagnostics Log*",
+      "propertyAllowlist": [
+        "Name",
+        "Length",
+        "LastWriteTimeUtc"
+      ],
+      "requiresAdmin": "no",
+      "privacyClass": "personal",
+      "learnClaim": "ref:teams-vdi-2#diagnostic-hotkey",
+      "learnUrl": "https://learn.microsoft.com/microsoftteams/vdi-2-troubleshooting#log-collection"
+    },
+    {
+      "id": "session.events",
+      "mode": "session",
+      "category": "events",
+      "kind": "event-log",
+      "source": "Application;Microsoft-FSLogix-Apps/Operational",
+      "propertyAllowlist": [
+        "Id",
+        "LevelDisplayName",
+        "ProviderName",
+        "TimeCreated"
+      ],
+      "requiresAdmin": "unknown",
+      "privacyClass": "personal",
+      "learnClaim": "ref:avd-insights-glossary#event-logs",
+      "learnUrl": "https://learn.microsoft.com/azure/virtual-desktop/insights-glossary#windows-event-logs"
+    },
+    {
+      "id": "session.counters",
+      "mode": "session",
+      "category": "performance",
+      "kind": "counter",
+      "source": "User Input Delay per Session;RemoteFX Network",
+      "propertyAllowlist": [
+        "CounterSetName",
+        "Peak",
+        "Average",
+        "SampleCount"
+      ],
+      "requiresAdmin": "no",
+      "privacyClass": "personal",
+      "learnClaim": "ref:avd-insights-glossary#performance-counters",
+      "learnUrl": "https://learn.microsoft.com/azure/virtual-desktop/insights-glossary#performance-counters"
+    },
+    {
+      "id": "device.windows-app-logs",
+      "mode": "device",
+      "category": "logs",
+      "kind": "file-glob",
+      "source": "%TEMP%\\DiagOutputDir\\Windows365\\Logs;%TEMP%\\DiagOutputDir\\RdClientAutoTrace",
+      "propertyAllowlist": [
+        "Name",
+        "Length",
+        "LastWriteTimeUtc"
+      ],
+      "requiresAdmin": "no",
+      "privacyClass": "personal",
+      "learnClaim": "ref:windows-app-logs#windows",
+      "learnUrl": "https://learn.microsoft.com/windows-app/troubleshoot-collect-logs"
+    },
+    {
+      "id": "device.teams-slimcore-logs",
+      "mode": "device",
+      "category": "logs",
+      "kind": "file-glob",
+      "source": "%LOCALAPPDATA%\\Packages\\Microsoft.Windows365_8wekyb3d8bbwe\\LocalCache\\Local\\Microsoft\\TeamsMediaPlugin\\Logs",
+      "propertyAllowlist": [
+        "Name",
+        "Length",
+        "LastWriteTimeUtc"
+      ],
+      "requiresAdmin": "no",
+      "privacyClass": "personal",
+      "learnClaim": "ref:teams-vdi-2#endpoint-logs",
+      "learnUrl": "https://learn.microsoft.com/microsoftteams/vdi-2-troubleshooting#log-collection"
+    },
+    {
+      "id": "device.linecheck-result",
+      "mode": "device",
+      "category": "network",
+      "kind": "file-glob",
+      "source": "%USERPROFILE%\\Downloads\\avd-linecheck-*.json",
+      "propertyAllowlist": [
+        "Name",
+        "Length",
+        "LastWriteTimeUtc"
+      ],
+      "requiresAdmin": "no",
+      "privacyClass": "facts",
+      "learnClaim": "ref:avd-required-fqdn#client-list",
+      "learnUrl": "https://learn.microsoft.com/azure/virtual-desktop/required-fqdn-endpoint"
+    },
+    {
+      "id": "device.hardware-system",
+      "mode": "device",
+      "category": "inventory",
+      "kind": "cim",
+      "source": "Win32_ComputerSystem",
+      "propertyAllowlist": [
+        "Manufacturer",
+        "Model",
+        "NumberOfLogicalProcessors",
+        "TotalPhysicalMemory",
+        "SystemType"
+      ],
+      "requiresAdmin": "no",
+      "privacyClass": "private",
+      "learnClaim": "ref:windows-cim-inventory#computersystem",
+      "learnUrl": "https://learn.microsoft.com/windows/win32/cimwin32prov/win32-computersystem"
+    },
+    {
+      "id": "device.hardware-cpu",
+      "mode": "device",
+      "category": "inventory",
+      "kind": "cim",
+      "source": "Win32_Processor",
+      "propertyAllowlist": [
+        "Name",
+        "NumberOfCores",
+        "NumberOfLogicalProcessors",
+        "MaxClockSpeed"
+      ],
+      "requiresAdmin": "no",
+      "privacyClass": "private",
+      "learnClaim": "ref:windows-cim-inventory#processor",
+      "learnUrl": "https://learn.microsoft.com/windows/win32/cimwin32prov/win32-processor"
+    },
+    {
+      "id": "device.hardware-memory",
+      "mode": "device",
+      "category": "inventory",
+      "kind": "cim",
+      "source": "Win32_PhysicalMemory",
+      "propertyAllowlist": [
+        "Capacity",
+        "Speed",
+        "SMBIOSMemoryType"
+      ],
+      "requiresAdmin": "no",
+      "privacyClass": "private",
+      "learnClaim": "ref:windows-cim-inventory#physicalmemory",
+      "learnUrl": "https://learn.microsoft.com/windows/win32/cimwin32prov/win32-physicalmemory"
+    },
+    {
+      "id": "device.hardware-video",
+      "mode": "device",
+      "category": "inventory",
+      "kind": "cim",
+      "source": "Win32_VideoController",
+      "propertyAllowlist": [
+        "Name",
+        "DriverVersion",
+        "CurrentHorizontalResolution",
+        "CurrentVerticalResolution",
+        "CurrentRefreshRate"
+      ],
+      "requiresAdmin": "no",
+      "privacyClass": "private",
+      "learnClaim": "ref:windows-cim-inventory#videocontroller",
+      "learnUrl": "https://learn.microsoft.com/windows/win32/cimwin32prov/win32-videocontroller"
+    },
+    {
+      "id": "device.software-os",
+      "mode": "device",
+      "category": "inventory",
+      "kind": "cim",
+      "source": "Win32_OperatingSystem",
+      "propertyAllowlist": [
+        "Caption",
+        "Version",
+        "BuildNumber",
+        "OSArchitecture",
+        "LastBootUpTime"
+      ],
+      "requiresAdmin": "no",
+      "privacyClass": "private",
+      "learnClaim": "ref:windows-cim-inventory#operatingsystem",
+      "learnUrl": "https://learn.microsoft.com/windows/win32/cimwin32prov/win32-operatingsystem"
+    },
+    {
+      "id": "device.storage-health",
+      "mode": "device",
+      "category": "health",
+      "kind": "storage",
+      "source": "Get-PhysicalDisk;Get-Volume",
+      "propertyAllowlist": [
+        "MediaType",
+        "HealthStatus",
+        "OperationalStatus",
+        "SizeRemaining",
+        "Size"
+      ],
+      "requiresAdmin": "unknown",
+      "privacyClass": "facts",
+      "learnClaim": "ref:windows-storage-health#physicaldisk",
+      "learnUrl": "https://learn.microsoft.com/powershell/module/storage/get-physicaldisk"
+    },
+    {
+      "id": "device.defender-status",
+      "mode": "device",
+      "category": "health",
+      "kind": "defender",
+      "source": "Get-MpComputerStatus",
+      "propertyAllowlist": [
+        "AMServiceEnabled",
+        "AntivirusEnabled",
+        "RealTimeProtectionEnabled",
+        "AntivirusSignatureAge"
+      ],
+      "requiresAdmin": "unknown",
+      "privacyClass": "facts",
+      "learnClaim": "ref:windows-defender-status#mpcomputerstatus",
+      "learnUrl": "https://learn.microsoft.com/powershell/module/defender/get-mpcomputerstatus"
+    },
+    {
+      "id": "device.power-report",
+      "mode": "device",
+      "category": "health",
+      "kind": "command",
+      "source": "%SystemRoot%\\System32\\powercfg.exe /getactivescheme",
+      "propertyAllowlist": [
+        "activeSchemeGuid",
+        "activeSchemeName"
+      ],
+      "requiresAdmin": "unknown",
+      "privacyClass": "facts",
+      "learnClaim": "ref:windows-powercfg#getactivescheme",
+      "learnUrl": "https://learn.microsoft.com/windows-hardware/design/device-experiences/powercfg-command-line-options"
+    },
+    {
+      "id": "device.user-added",
+      "mode": "device",
+      "category": "user-added",
+      "kind": "user-added",
+      "source": "comments.txt;screenshots;recordings",
+      "propertyAllowlist": [
+        "Name",
+        "Length",
+        "Sha256"
+      ],
+      "requiresAdmin": "no",
+      "privacyClass": "personal",
+      "learnClaim": "ref:windows-snipping-tool#capture",
+      "learnUrl": "https://learn.microsoft.com/windows/whats-new/deprecated-features"
+    }
+  ]
+}

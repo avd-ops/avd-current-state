@@ -2195,49 +2195,149 @@ function Test-ProfileStorage {
     }
 }
 
+function Get-AvdPinnedHostEndpoints {
+    <#
+    .SYNOPSIS
+        Loads the pinned session-host endpoint probe map from assess/endpoints.json.
+    .DESCRIPTION
+        Reads assess/endpoints.json (contract avd-assess-endpoints/v1, pinned in
+        assess/PINS.json and assess/datapackage.json) and returns the concrete TCP
+        endpoints in views.host.probe and the non-probeable entries in views.host.notTested.
+    #>
+    param([string]$EndpointsPath = (Join-Path $PSScriptRoot 'assess/endpoints.json'))
+    if (-not (Test-Path -LiteralPath $EndpointsPath -PathType Leaf)) {
+        throw "Pinned endpoint map not found at $EndpointsPath"
+    }
+    $doc = Get-Content -LiteralPath $EndpointsPath -Raw | ConvertFrom-Json -ErrorAction Stop
+    $byId = @{}
+    foreach ($ep in @($doc.endpoints)) {
+        $byId["$($ep.id)"] = $ep
+    }
+    $probeIds = @($doc.views.host.probe)
+    $notTestedIds = @($doc.views.host.notTested)
+    $probeList = foreach ($id in $probeIds) {
+        if ($byId.ContainsKey("$id")) {
+            $e = $byId["$id"]
+            [pscustomobject]@{
+                Id         = "$($e.id)"
+                Host       = "$($e.host)"
+                Port       = [int]$e.port
+                Protocol   = "$($e.protocol)"
+                Purpose    = "$($e.purpose)"
+                Verdict    = "$($e.verdict)"
+                ServiceTag = if ($null -ne $e.PSObject.Properties['serviceTag']) { "$($e.serviceTag)" } else { 'WindowsVirtualDesktop' }
+                Claim      = "$($e.source.claim)"
+            }
+        }
+    }
+    $notTestedList = foreach ($id in $notTestedIds) {
+        if ($byId.ContainsKey("$id")) {
+            $e = $byId["$id"]
+            $label = if ($null -ne $e.PSObject.Properties['host'] -and "$($e.host)") { "$($e.host)" } else { "$($e.id)" }
+            [pscustomobject]@{
+                Id       = "$($e.id)"
+                Host     = $label
+                Kind     = "$($e.kind)"
+                Port     = [int]$e.port
+                Protocol = "$($e.protocol)"
+                Purpose  = "$($e.purpose)"
+                Verdict  = "$($e.verdict)"
+                Note     = if ($null -ne $e.PSObject.Properties['note']) { "$($e.note)" } else { '' }
+                Claim    = "$($e.source.claim)"
+            }
+        }
+    }
+    return [pscustomobject]@{
+        Probe     = @($probeList)
+        NotTested = @($notTestedList)
+    }
+}
+
 function Test-AvdEndpoints {
     <#
     .SYNOPSIS
-        Outbound TCP reachability probe for the AVD required endpoints.
+        Outbound TCP reachability probe for the AVD required endpoints from assess/endpoints.json.
     .DESCRIPTION
-        Opens and immediately closes a socket per endpoint. No payload is sent.
-        The result reflects the machine running this script, which is usually not a
-        session host, so it is reported as WARN rather than FAIL on failure.
+        Reads the session-host endpoint list from assess/endpoints.json (ref:avd-required-fqdn#host-list
+        and ref:avd-fabric-ips#two-platform-ips). Opens and immediately closes a TCP socket per
+        concrete endpoint in views.host.probe; no payload is sent.
+        When not running on the session host subnet (-OnSessionHostSubnet not set), probes are
+        reported as WARN (unknown for session hosts, never PASS; issue #28 / gaps/network-scope.md).
+        Wildcards, UDP 3478 relay and the two Azure platform addresses in views.host.notTested
+        are recorded as SKIP with their pinned reference note.
     #>
-    $endpoints = @(
-        [pscustomobject]@{ Host = 'login.microsoftonline.com';                 Port = 443;  Purpose = 'Microsoft Entra authentication' },
-        [pscustomobject]@{ Host = 'rdweb.wvd.microsoft.com';                   Port = 443;  Purpose = 'AVD web client and feed' },
-        [pscustomobject]@{ Host = 'rdbroker.wvd.microsoft.com';                Port = 443;  Purpose = 'AVD broker service' },
-        [pscustomobject]@{ Host = 'rdgateway.wvd.microsoft.com';               Port = 443;  Purpose = 'AVD gateway' },
-        [pscustomobject]@{ Host = 'mrsglobalsteus2prod.blob.core.windows.net'; Port = 443;  Purpose = 'AVD agent and SxS stack updates' },
-        [pscustomobject]@{ Host = 'wvdportalstorageblob.blob.core.windows.net'; Port = 443; Purpose = 'AVD portal support' },
-        [pscustomobject]@{ Host = 'oneocsp.microsoft.com';                     Port = 443;  Purpose = 'Certificate revocation checks' },
-        [pscustomobject]@{ Host = 'azkms.core.windows.net';                    Port = 1688; Purpose = 'Windows activation (KMS)' }
+    param(
+        [switch]$OnSessionHostSubnet,
+        [string]$EndpointsPath = (Join-Path $PSScriptRoot 'assess/endpoints.json'),
+        [scriptblock]$ProbeRunner = $null
     )
 
-    Add-Check -Category 'Endpoints' -Check 'Probe context' -Status 'INFO' `
-        -Detail "Probing from $([System.Net.Dns]::GetHostName()), not from a session host." `
-        -Recommendation 'Run this from a VM in the session host subnet for an authoritative result.'
+    $map = Get-AvdPinnedHostEndpoints -EndpointsPath $EndpointsPath
+    $hostName = try { [System.Net.Dns]::GetHostName() } catch { $env:COMPUTERNAME }
 
-    foreach ($endpoint in $endpoints) {
-        $result = Test-TcpEndpoint -ComputerName $endpoint.Host -Port $endpoint.Port
-        if ($result.Succeeded) {
-            Add-Check -Category 'Endpoints' -Check $endpoint.Host -Status 'PASS' `
-                -Detail "$($endpoint.Purpose) -- reachable on $($endpoint.Port)." -Scope $endpoint.Host
+    if ($OnSessionHostSubnet) {
+        Add-Check -Category 'Endpoints' -Check 'Probe context' -Status 'INFO' `
+            -Detail "Probing $($map.Probe.Count) pinned session-host endpoint(s) from $hostName on the session host subnet (ref:avd-required-fqdn#host-list)." `
+            -Recommendation 'Use WVDAgentUrlTool.exe on a session host to also verify region-specific *.wvd.microsoft.com names.'
+    } else {
+        Add-Check -Category 'Endpoints' -Check 'Probe context' -Status 'WARN' `
+            -Detail "Probing from $hostName, not verified on the session host subnet -- off-host probes are unknown for session hosts, not pass (ref:avd-required-fqdn#host-list)." `
+            -Recommendation 'Run avd_current_state.ps1 local -Mode Preflight or -Mode Host inside the session host subnet for an authoritative result.'
+    }
+
+    foreach ($endpoint in $map.Probe) {
+        $result = if ($null -ne $ProbeRunner) {
+            & $ProbeRunner $endpoint.Host $endpoint.Port
         } else {
-            Add-Check -Category 'Endpoints' -Check $endpoint.Host -Status 'WARN' `
-                -Detail "$($endpoint.Purpose) -- not reachable on $($endpoint.Port). $($result.Message)" `
-                -Recommendation 'If this probe ran from the session host subnet, open outbound 443 to the WindowsVirtualDesktop and AzureFrontDoor.Frontend service tags.' `
+            Test-TcpEndpoint -ComputerName $endpoint.Host -Port $endpoint.Port
+        }
+        $tagHint = if ($endpoint.ServiceTag) { "service tag $($endpoint.ServiceTag)" } else { 'WindowsVirtualDesktop and AzureFrontDoor.Frontend service tags' }
+        if ($result.Succeeded) {
+            if ($OnSessionHostSubnet) {
+                Add-Check -Category 'Endpoints' -Check $endpoint.Host -Status 'PASS' `
+                    -Detail "$($endpoint.Purpose) ($($endpoint.Id)) -- reachable on TCP $($endpoint.Port) ($($endpoint.Claim))." `
+                    -Scope $endpoint.Host
+            } else {
+                Add-Check -Category 'Endpoints' -Check $endpoint.Host -Status 'WARN' `
+                    -Detail "$($endpoint.Purpose) ($($endpoint.Id)) -- reachable on TCP $($endpoint.Port) from $hostName, but unknown for the session host subnet (off-host probe; $($endpoint.Claim))." `
+                    -Recommendation 'Run the local preflight or host collector from a VM inside the session host subnet to verify session host egress.' `
+                    -Scope $endpoint.Host
+            }
+        } else {
+            $failStatus = if ($OnSessionHostSubnet -and $endpoint.Verdict -eq 'required') { 'FAIL' } else { 'WARN' }
+            Add-Check -Category 'Endpoints' -Check $endpoint.Host -Status $failStatus `
+                -Detail "$($endpoint.Purpose) ($($endpoint.Id)) -- not reachable on TCP $($endpoint.Port). $($result.Message) ($($endpoint.Claim))." `
+                -Recommendation "Ensure session host subnet egress allows outbound TCP $($endpoint.Port) to $($endpoint.Host) ($tagHint)." `
                 -Scope $endpoint.Host
         }
     }
 
+    foreach ($untested in $map.NotTested) {
+        $why = if ($untested.Kind -eq 'wildcard') {
+            "Wildcard endpoint ($($untested.Protocol.ToUpperInvariant()) $($untested.Port)); verify on a session host with WVDAgentUrlTool.exe."
+        } elseif ($untested.Kind -eq 'address') {
+            "Azure platform address ($($untested.Protocol.ToUpperInvariant()) $($untested.Port)); must never be proxied or tunneled ($($untested.Claim))."
+        } else {
+            "Non-TCP endpoint ($($untested.Protocol.ToUpperInvariant()) $($untested.Port)); cannot be tested with a TCP socket ($($untested.Claim))."
+        }
+        if ($untested.Note) { $why = "$why $($untested.Note)" }
+        Add-Check -Category 'Endpoints' -Check $untested.Host -Status 'SKIP' `
+            -Detail "$($untested.Purpose) ($($untested.Id)) -- not probed: $why" `
+            -Recommendation 'Run avd_current_state.ps1 local -Mode Host or WVDAgentUrlTool.exe on a session host.' `
+            -Scope $untested.Host
+    }
+
     # Domain controller reachability, when a domain join is planned.
     if (-not [string]::IsNullOrWhiteSpace($DomainName)) {
-        $domainResult = Test-TcpEndpoint -ComputerName $DomainName -Port 389
+        $domainResult = if ($null -ne $ProbeRunner) {
+            & $ProbeRunner $DomainName 389
+        } else {
+            Test-TcpEndpoint -ComputerName $DomainName -Port 389
+        }
+        $dcStatus = if ($domainResult.Succeeded -and $OnSessionHostSubnet) { 'PASS' } else { 'WARN' }
         if ($domainResult.Succeeded) {
-            Add-Check -Category 'Endpoints' -Check 'Domain controller LDAP' -Status 'PASS' `
-                -Detail "LDAP 389 reachable for '$DomainName'." -Scope $DomainName
+            Add-Check -Category 'Endpoints' -Check 'Domain controller LDAP' -Status $dcStatus `
+                -Detail "LDAP 389 reachable for '$DomainName'$(if (-not $OnSessionHostSubnet) { ' (off-host probe; unknown for session host subnet)' })." -Scope $DomainName
         } else {
             Add-Check -Category 'Endpoints' -Check 'Domain controller LDAP' -Status 'WARN' `
                 -Detail "LDAP 389 not reachable for '$DomainName'. $($domainResult.Message)" `

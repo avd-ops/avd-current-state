@@ -7,6 +7,7 @@
   "files": {
     "method.json": "64de9cfeda4b59cdc061f1d0981f1f457f5a77925afe9c175683edabf3c38dad",
     "index.json": "745a756e011bb6b98f4f7b41e062d87c8235eb0eebbb3408b7490ffb151ccc14",
+    "endpoints.json": "eb8a1aed7f3c285006c05164825bbfc061c2a3fc94a58f1a68d8c6098f699472",
     "AvdAssessBundle.psm1": "2e1b25892222dd9c5f55f7fcf4a2d0a541b2a61e1cb60f66f362b4431a7bfbf6"
   }
 }
