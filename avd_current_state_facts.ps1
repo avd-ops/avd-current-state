@@ -811,6 +811,25 @@ function Get-PowerPlatformFact {
     }
 }
 
+function Get-InsightsFact {
+    param([string]$PackageDir)
+    $benchMod = Join-Path $PSScriptRoot 'lib/AvdBenchmark.psm1'
+    if (-not (Test-Path -LiteralPath $benchMod)) { return $null }
+    $insightsDir = Join-Path $PackageDir 'insights'
+    if (Test-Path -LiteralPath $insightsDir) {
+        Import-Module $benchMod -Force
+        return Get-AvdInsightsFact -Directory $insightsDir
+    }
+    foreach ($child in @(Get-ChildItem -LiteralPath $PackageDir -Directory -ErrorAction SilentlyContinue)) {
+        $subInsights = Join-Path $child.FullName 'insights'
+        if (Test-Path -LiteralPath $subInsights) {
+            Import-Module $benchMod -Force
+            return Get-AvdInsightsFact -Directory $subInsights
+        }
+    }
+    return $null
+}
+
 function Get-ValidationFact {
     param($Package, [hashtable]$Targets)
     $m = $Package.Manifest
@@ -1133,6 +1152,8 @@ try {
         if ($null -ne $m365Fact) { $snapshot.m365 = $m365Fact }
         $ppFact = Get-PowerPlatformFact -PackageDir $latestCollectorPkg.Directory
         if ($null -ne $ppFact) { $snapshot.powerPlatform = $ppFact }
+        $insightsFact = Get-InsightsFact -PackageDir $latestCollectorPkg.Directory
+        if ($null -ne $insightsFact) { $snapshot.insights = $insightsFact }
     }
     $snapshot.validations = $validations
     $snapshot.redactedValues = $script:RedactedValues
