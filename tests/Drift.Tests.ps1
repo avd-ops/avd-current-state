@@ -392,6 +392,15 @@ Describe 'the sample workflow (samples/drift.yml)' {
   It 'closes the issue only on a clean run' {
     $script:yml | Should -Match '(?s)if \[ "\$CODE" = "0" \]; then\s+gh issue close'
   }
+
+  It 'skips cleanly until the reader is set up, with setup steps in the summary and no open failure issue' {
+    $script:yml | Should -Match '(?s)- name: Check the reader is set up.*GITHUB_STEP_SUMMARY.*DRIFT_CONFIGURED=false'
+    $script:yml | Should -Match "(?s)- name: Sign in as avd-ops-reader[^\n]*\n\s+if: env\.DRIFT_CONFIGURED == 'true'"
+    $script:yml | Should -Match "(?s)- name: Drift check \(read-only\)\s+id: drift\s+if: env\.DRIFT_CONFIGURED == 'true'"
+    $script:yml | Should -Match '(?s)if \[ "\$DRIFT_CONFIGURED" = "false" \]; then.*?contains\(.*?Couldn.*?gh issue close.*?exit 0'
+    $script:yml | Should -Match "(?s)- name: Check out avd-current-state at the reviewed commit\s+if: env\.DRIFT_CONFIGURED == 'true'"
+    $script:yml | Should -Match "(?m)^\s+if: always\(\) && env\.DRIFT_CONFIGURED == 'true' && steps\.drift\.outputs\.code != '0'"
+  }
 }
 
 Describe 'the entry point, offline' {
