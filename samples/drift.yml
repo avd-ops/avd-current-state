@@ -65,7 +65,32 @@ jobs:
           last="$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/drift.yml/runs?status=success&per_page=1" --jq '.workflow_runs[0].updated_at // empty')"
           echo "DRIFT_LAST_SUCCESS=$last" >> "$GITHUB_ENV"
 
+      - name: Check the reader is set up
+        env:
+          READER_CLIENT: ${{ vars.AVD_READER_CLIENT_ID }}
+          READER_TENANT: ${{ vars.AVD_TENANT_ID }}
+          READER_SUBSCRIPTION: ${{ vars.AVD_SUBSCRIPTION_ID }}
+        run: |
+          # Until the reader exists, skip cleanly instead of failing every day.
+          missing=""
+          [ -n "$READER_CLIENT" ] || missing="$missing AVD_READER_CLIENT_ID"
+          [ -n "$READER_TENANT" ] || missing="$missing AVD_TENANT_ID"
+          [ -n "$READER_SUBSCRIPTION" ] || missing="$missing AVD_SUBSCRIPTION_ID"
+          [ -n "$AVD_ENVIRONMENT" ] || missing="$missing AVD_ENVIRONMENT"
+          if [ -n "$missing" ]; then
+            {
+              echo "## Drift check skipped: the reader isn't set up"
+              echo
+              echo "Missing repository variables:$missing."
+              echo "Set up avd-ops-reader (avd-current-state docs/reader-identity.md), then set the variables above (step 2 at the top of this workflow)."
+            } >> "$GITHUB_STEP_SUMMARY"
+            echo "DRIFT_CONFIGURED=false" >> "$GITHUB_ENV"
+          else
+            echo "DRIFT_CONFIGURED=true" >> "$GITHUB_ENV"
+          fi
+
       - name: Check out this private repository (exceptions, approvals, values)
+        if: env.DRIFT_CONFIGURED == 'true'
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           path: private
@@ -73,6 +98,7 @@ jobs:
           persist-credentials: false
 
       - name: Check out avd-current-state at the reviewed commit
+        if: env.DRIFT_CONFIGURED == 'true'
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           repository: avd-ops/avd-current-state
@@ -81,6 +107,7 @@ jobs:
           persist-credentials: false
 
       - name: Sign in as avd-ops-reader (federated, no secret)
+        if: env.DRIFT_CONFIGURED == 'true'
         uses: azure/login@8216e11d8cd9b42fe925c852af8e76311ff067ac # v2.3.1
         with:
           client-id: ${{ vars.AVD_READER_CLIENT_ID }}
@@ -90,6 +117,7 @@ jobs:
 
       - name: Drift check (read-only)
         id: drift
+        if: env.DRIFT_CONFIGURED == 'true'
         shell: pwsh
         run: |
           # The runner image's Az modules; nothing is installed from a gallery at run time.
@@ -106,6 +134,13 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           CODE: ${{ steps.drift.outputs.code }}
         run: |
+          if [ "$DRIFT_CONFIGURED" = "false" ]; then
+            # Not set up yet: close only the "couldn't check" issues earlier runs left open (never a drift finding), and stop.
+            for number in $(gh issue list --state open --search '"Drift:" in:title' --json number,title,body --jq 'map(select((.title | startswith("Drift: ")) and (.body | contains("**Couldn'"'"'t check:**")))) | .[].number'); do
+              gh issue close "$number" --comment "The reader isn't set up, so the drift check is skipped until it is. See the run summary."
+            done
+            exit 0
+          fi
           title="Drift: $AVD_ENVIRONMENT"
           body="output/drift-report.md"
           if [ ! -f "$body" ]; then
@@ -131,7 +166,7 @@ jobs:
           fi
 
       - name: Fail when the run couldn't check
-        if: always() && steps.drift.outputs.code != '0' && steps.drift.outputs.code != '1'
+        if: always() && env.DRIFT_CONFIGURED == 'true' && steps.drift.outputs.code != '0' && steps.drift.outputs.code != '1'
         env:
           CODE: ${{ steps.drift.outputs.code }}
         run: |
