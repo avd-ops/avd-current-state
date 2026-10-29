@@ -17,6 +17,7 @@ BeforeAll {
 Describe 'PowerShell AST read-only guard' {
   BeforeAll {
     $script:readOnlyScripts = @(
+      'avd_current_state.ps1',
       'avd_current_state_collector.ps1',
       'avd_current_state_facts.ps1',
       'avd_current_state_drift.ps1',
@@ -26,6 +27,49 @@ Describe 'PowerShell AST read-only guard' {
       $script:readOnlyScripts | ForEach-Object { Get-Item (Join-Path $script:root $_) }
       Get-ChildItem -Path (Join-Path $script:root 'lib') -Filter '*.psm1' -File
     )
+    # The only POSTs a read-only script may make, each read-shaped, with the reason it is a read.
+    $script:postAllowlist = @(
+      @{ Pattern = 'Microsoft\.ResourceGraph/resources'; Reason = 'Resource Graph queries are POSTs that only read' }
+    )
+
+    # Returns one line per write call: a write cmdlet, a PUT, PATCH or DELETE, a POST whose path is
+    # outside the allowlist, or a REST call whose method the test can't read (an expression or splatting).
+    function Get-WriteCall {
+      param([string]$Path)
+      $forbidden = '^((Set-(?!AzContext$)|New-|Remove-|Update-|Clear-|Reset-|Stop-|Start-|Restart-|Grant-|Revoke-)(Az|Mg|Cs|AdminPowerApp|PowerApp))'
+      $tokens = $null
+      $errors = $null
+      $ast = [System.Management.Automation.Language.Parser]::ParseFile($Path, [ref]$tokens, [ref]$errors)
+      $name = Split-Path $Path -Leaf
+      foreach ($cmd in $ast.FindAll({ param($n) $n -is [System.Management.Automation.Language.CommandAst] }, $true)) {
+        $command = $cmd.GetCommandName()
+        if (-not $command) { continue }
+        $at = "$name line $($cmd.Extent.StartLineNumber)"
+        if ($command -match $forbidden) { "${at}: write cmdlet $command"; continue }
+        if ($command -notin @('Invoke-AzRestMethod', 'Invoke-RestMethod', 'Invoke-WebRequest', 'Invoke-MgGraphRequest')) { continue }
+        # Read the parameters from this command's own elements, never from nested commands or strings.
+        $elements = @($cmd.CommandElements)
+        $arguments = @{}
+        $splatted = $false
+        for ($i = 1; $i -lt $elements.Count; $i++) {
+          $e = $elements[$i]
+          if ($e -is [System.Management.Automation.Language.VariableExpressionAst] -and $e.Splatted) { $splatted = $true }
+          if ($e -isnot [System.Management.Automation.Language.CommandParameterAst]) { continue }
+          $value = if ($e.Argument) { $e.Argument } elseif ($i + 1 -lt $elements.Count -and $elements[$i + 1] -isnot [System.Management.Automation.Language.CommandParameterAst]) { $elements[$i + 1] }
+          $arguments[$e.ParameterName.ToLowerInvariant()] = $value
+        }
+        if ($splatted) { "${at}: $command with splatted parameters the test can't read"; continue }
+        $method = $arguments['method']
+        if (-not $method) { continue }
+        if ($method -isnot [System.Management.Automation.Language.StringConstantExpressionAst]) { "${at}: $command with a method the test can't read ($($method.Extent.Text))"; continue }
+        $verb = $method.Value.ToUpperInvariant()
+        if ($verb -in @('PUT', 'PATCH', 'DELETE', 'MERGE')) { "${at}: $command -Method $verb"; continue }
+        if ($verb -eq 'POST') {
+          $target = foreach ($key in 'path', 'uri') { if ($arguments[$key]) { $arguments[$key].Extent.Text.Split('?')[0] } }
+          if (-not @($script:postAllowlist | Where-Object { "$target" -match $_.Pattern })) { "${at}: $command -Method POST outside the allowlist" }
+        }
+      }
+    }
   }
 
   It 'parses every collector, validator, facts, drift and library file without syntax errors' {
@@ -38,39 +82,38 @@ Describe 'PowerShell AST read-only guard' {
     }
   }
 
-  It 'never calls write cmdlets against Azure, Graph, Intune, M365 or Power Platform' {
-    $forbiddenPattern = '^((Set-(?!AzContext$)|New-|Remove-|Update-|Clear-|Reset-|Stop-|Start-|Restart-|Grant-|Revoke-)(Az|Mg|Cs|AdminPowerApp|PowerApp))'
-    foreach ($file in $script:files) {
-      $tokens = $null
-      $errors = $null
-      $ast = [System.Management.Automation.Language.Parser]::ParseFile($file.FullName, [ref]$tokens, [ref]$errors)
-      $commands = $ast.FindAll({ param($n) $n -is [System.Management.Automation.Language.CommandAst] }, $true)
-      foreach ($cmd in $commands) {
-        $name = $cmd.GetCommandName()
-        if ($name) {
-          $name | Should -Not -Match $forbiddenPattern -Because "$($file.Name) line $($cmd.Extent.StartLineNumber)"
-        }
-      }
-    }
+  It 'gives every allowed POST a reason' {
+    foreach ($entry in $script:postAllowlist) { $entry.Reason | Should -Not -BeNullOrEmpty -Because $entry.Pattern }
   }
 
-  It 'never invokes REST with PUT, PATCH or DELETE, and uses POST only for Resource Graph' {
-    foreach ($file in $script:files) {
-      $tokens = $null
-      $errors = $null
-      $ast = [System.Management.Automation.Language.Parser]::ParseFile($file.FullName, [ref]$tokens, [ref]$errors)
-      $commands = $ast.FindAll({ param($n) $n -is [System.Management.Automation.Language.CommandAst] }, $true)
-      foreach ($cmd in $commands) {
-        $name = $cmd.GetCommandName()
-        if ($name -in @('Invoke-AzRestMethod', 'Invoke-RestMethod', 'Invoke-WebRequest')) {
-          $text = $cmd.Extent.Text
-          $text | Should -Not -Match '-Method\s+[''"]?(PUT|PATCH|DELETE)\b' -Because "$($file.Name) line $($cmd.Extent.StartLineNumber)"
-          if ($text -match '-Method\s+[''"]?POST\b') {
-            $text | Should -Match 'Microsoft\.ResourceGraph/resources' -Because "$($file.Name) line $($cmd.Extent.StartLineNumber)"
-          }
-        }
-      }
-    }
+  It 'finds no write cmdlet, no PUT, PATCH or DELETE, and no POST outside the allowlist' {
+    $found = @(foreach ($file in $script:files) { Get-WriteCall -Path $file.FullName })
+    $found | Should -BeNullOrEmpty
+  }
+
+  It 'catches each kind of write call when a script gains one' {
+    $planted = Join-Path $TestDrive 'planted.ps1'
+    @(
+      'Remove-AzResourceGroup -Name x',
+      'New-MgUser -DisplayName x',
+      'Invoke-AzRestMethod -Method PUT -Path /x',
+      'Invoke-RestMethod -Uri https://example.invalid -Method:Delete',
+      'Invoke-AzRestMethod -Method POST -Path /providers/Microsoft.Authorization/roleAssignments',
+      'Invoke-AzRestMethod -Method $verb -Path /x',
+      'Invoke-AzRestMethod -Method POST -Path /providers/Microsoft.ResourceGraph/resources?api-version=2022-10-01',
+      'Invoke-AzRestMethod -Method GET -Path /x',
+      'Set-AzContext -Subscription x',
+      'Invoke-AzRestMethod -method put -Path /x',
+      'Invoke-RestMethod -Uri (Get-Thing -Method Get) -Method Delete',
+      'Invoke-AzRestMethod -Method ([Microsoft.PowerShell.Commands.WebRequestMethod]::Delete) -Path /x',
+      'Invoke-AzRestMethod @splat',
+      'Invoke-AzRestMethod -Method POST -Path /providers/Microsoft.Authorization/x?note=Microsoft.ResourceGraph/resources',
+      'Invoke-AzRestMethod -Method POST -Path /x -Payload Microsoft.ResourceGraph/resources'
+    ) | Set-Content $planted
+    $found = @(Get-WriteCall -Path $planted)
+    $found.Count | Should -Be 12
+    ($found -join "`n") | Should -Match 'line 1: write cmdlet Remove-AzResourceGroup'
+    ($found -join "`n") | Should -Match 'line 6: .*method the test can.t read'
   }
 }
 
