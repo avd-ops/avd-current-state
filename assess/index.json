@@ -8571,6 +8571,54 @@
       ]
     },
     {
+      "id": "windows-365-intune",
+      "title": "Windows 365 Cloud PC provisioning, user settings and Intune assignment filters",
+      "url": "https://learn.microsoft.com/windows-365/enterprise/create-provisioning-policy",
+      "pin": "Learn git_commit_id 4e8b71c3a902d114f6c88e1209a3b54d7e61f02a, updated_at 2026-10-18",
+      "read": "2026-11-02",
+      "license": "Microsoft Learn content (link only)",
+      "areas": [
+        "collection",
+        "assessment"
+      ],
+      "pillars": [
+        "intune"
+      ],
+      "notes": "Microsoft's provisioning policy, user settings, restore point and assignment filter guidance for managing Windows 365 Cloud PCs alongside Azure Virtual Desktop in Microsoft Intune.",
+      "claims": [
+        {
+          "id": "assignment-filters-separate-platforms",
+          "says": "Assignment filters in Microsoft Intune scope Settings Catalog and compliance policies by device model or SKU so multi-session AVD policies do not apply to single-session Cloud PCs or physical desktops.",
+          "kind": "published"
+        },
+        {
+          "id": "provisioning-policy-sso",
+          "says": "Windows 365 provisioning policies support Microsoft Entra join with single sign-on enabled so users authenticate once with Microsoft Entra ID and Conditional Access.",
+          "kind": "published"
+        },
+        {
+          "id": "user-settings-least-privilege",
+          "says": "Windows 365 user settings policies control whether users receive local administrator rights on their Cloud PCs; leaving local administrator off enforces least privilege by default.",
+          "kind": "published"
+        },
+        {
+          "id": "restore-point-cadence",
+          "says": "Windows 365 user settings configure automatic point-in-time restore points at intervals from 4 to 24 hours so an administrator or user can roll back a Cloud PC before reprovisioning.",
+          "kind": "published"
+        },
+        {
+          "id": "anc-health-checks",
+          "says": "When Windows 365 provisioning policies use an Azure Network Connection instead of a Microsoft Hosted Network, Intune runs automated network, DNS and subnet health checks that must pass before Cloud PCs can provision.",
+          "kind": "published"
+        },
+        {
+          "id": "cloudpc-intune-compliance",
+          "says": "Provisioned Windows 365 Cloud PCs enroll automatically into Microsoft Intune as managed devices and evaluate assigned device compliance policies for Conditional Access.",
+          "kind": "published"
+        }
+      ]
+    },
+    {
       "id": "windows-app-basic",
       "title": "Basic troubleshooting for Windows App",
       "url": "https://learn.microsoft.com/windows-app/troubleshoot-basic",

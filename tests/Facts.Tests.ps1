@@ -296,13 +296,23 @@ Describe 'avd_current_state_facts.ps1' {
         conditions = @{ applications = @{ includeApplications = @('9cdead84-a844-4324-93f2-b2e6bb768d07') }; users = @{ excludeUsers = @('55555555-2222-4333-8444-555555555555') } }
         grantControls = @{ builtInControls = @('mfa', 'compliantDevice') }; sessionControls = @{ signInFrequency = @{ isEnabled = $true } } })
     Write-TestJson "$pkg/entra/servicePrincipals.json" @(@{ id = '66666666-2222-4333-8444-555555555555'; displayName = 'stcontosoprofiles'; kerberosReady = $true })
-    Write-TestJson "$pkg/entra/subscribedSkus.json" @(@{ skuPartNumber = 'SPE_E5'; prepaidUnits = @{ enabled = 100 }; consumedUnits = 75 })
+    Write-TestJson "$pkg/entra/subscribedSkus.json" @(
+      @{ skuPartNumber = 'SPE_E5'; prepaidUnits = @{ enabled = 100 }; consumedUnits = 75 }
+      @{ skuPartNumber = 'CPC_E_4C_16GB_128GB'; prepaidUnits = @{ enabled = 20 }; consumedUnits = 12 })
     Write-TestJson "$pkg/intune/settings.json" @(@{ secureByDefault = $true })
     Write-TestJson "$pkg/intune/mdmPolicies.json" @(@{ id = 'mdm-1'; displayName = 'Contoso MDM'; appliesTo = 'all' })
     Write-TestJson "$pkg/intune/configurationPolicies.json" @(@{ id = 'cfg-1'; name = 'Contoso FSLogix Catalog'; technologies = 'mdm,windowsEnterpriseMultiSession'; fslogixConfigured = $true; rdpShortpathConfigured = $true; sessionTimeLimitsConfigured = $true; multiSessionUpdateRingAssigned = $true })
+    Write-TestJson "$pkg/intune/assignmentFilters.json" @(
+      @{ id = 'flt-1'; displayName = 'Contoso MultiSession Filter'; rule = '(device.operatingSystemSKU -eq "ServerRdsh")' }
+      @{ id = 'flt-2'; displayName = 'Contoso CloudPC Filter'; rule = '(device.model -startsWith "Cloud PC")' })
     Write-TestJson "$pkg/intune/managedDevices.json" @(
       @{ id = '77777777-2222-4333-8444-555555555555'; deviceName = 'avdhost-0'; complianceState = 'compliant'; lastSyncDateTime = '2026-10-10T08:00:00Z'; baselineApplied = $true }
-      @{ id = '88888888-2222-4333-8444-555555555555'; deviceName = 'avdhost-orphan'; complianceState = 'noncompliant'; isAvdSessionHost = $true })
+      @{ id = '88888888-2222-4333-8444-555555555555'; deviceName = 'avdhost-orphan'; complianceState = 'noncompliant'; isAvdSessionHost = $true }
+      @{ id = '99999999-2222-4333-8444-555555555555'; deviceName = 'CPC-jdoe-01'; model = 'Cloud PC Enterprise 4vCPU/16GB/128GB'; complianceState = 'compliant' })
+    Write-TestJson "$pkg/intune/cloudPcs.json" @(@{ id = 'cpc-1'; managedDeviceName = 'CPC-jdoe-01'; status = 'provisioned' })
+    Write-TestJson "$pkg/intune/provisioningPolicies.json" @(@{ id = 'pp-1'; displayName = 'Contoso Win365 Policy'; enableSingleSignOn = $true; domainJoinConfigurations = @(@{ domainJoinType = 'azureAdJoin' }) })
+    Write-TestJson "$pkg/intune/userSettings.json" @(@{ id = 'us-1'; displayName = 'Contoso Win365 User Settings'; localAdminEnabled = $false; restorePointSetting = @{ frequencyInHours = 4 } })
+    Write-TestJson "$pkg/intune/onPremisesConnections.json" @(@{ id = 'anc-1'; displayName = 'Contoso ANC'; healthCheckStatus = 'passed' })
     Write-TestJson "$pkg/m365/configurationPolicies.json" @(@{ id = 'm365-1'; name = 'Contoso M365 VDI'; oneDriveSilentConfigEnabled = $true; oneDriveKfmState = 'enforced'; oneDriveFilesOnDemandEnabled = $true; m365AppsSharedComputerActivation = $true; outlookCachedModeConfigured = $true; teamsMediaOptimizationState = 'enabled'; mmrConfigured = $true })
     Write-TestJson "$pkg/power-platform/environments.json" @(@{ id = 'env-1'; displayName = 'Contoso AVD Prod'; properties = @{ environmentSku = 'Production' } })
     Write-TestJson "$pkg/power-platform/dlpPolicies.json" @(@{ id = 'dlp-1'; displayName = 'Contoso Strict DLP'; defaultConnectorsClassification = 'Blocked' })
@@ -313,7 +323,7 @@ Describe 'avd_current_state_facts.ps1' {
     $r = Invoke-Facts -Packages $dir -Key $script:key -Out (Join-Path $TestDrive 'out-five-planes')
     $errs = $null
     Test-Json -Json $r.Text -SchemaFile $script:schema -ErrorVariable errs -ErrorAction SilentlyContinue | Should -BeTrue -Because "$errs"
-    foreach ($s in ($script:secrets + @('grp-contoso-avd-hosts', 'CA-Contoso-AVD-MFA', 'avdhost-orphan', 'Contoso Strict DLP'))) {
+    foreach ($s in ($script:secrets + @('grp-contoso-avd-hosts', 'CA-Contoso-AVD-MFA', 'avdhost-orphan', 'Contoso Strict DLP', 'CPC-jdoe-01', 'Contoso Win365 Policy'))) {
       $r.Text | Should -Not -Match ([regex]::Escape($s))
     }
     $r.Data.planesCollected.m365.status | Should -Be 'partial'
@@ -321,7 +331,17 @@ Describe 'avd_current_state_facts.ps1' {
     $r.Data.entra.caAvdRequiresMfa | Should -Be 'enforced'
     $r.Data.entra.caAvdBreakGlassExcluded | Should -BeTrue
     $r.Data.entra.skuAvdEligibleAvailable | Should -Be 25
+    $r.Data.entra.skuWin365Available | Should -Be 8
     $r.Data.intune.fslogixProfileConfigured | Should -BeTrue
+    $r.Data.intune.assignmentFiltersCount | Should -Be 2
+    $r.Data.intune.multiSessionFilterPresent | Should -BeTrue
+    $r.Data.intune.cloudPcFilterPresent | Should -BeTrue
+    $r.Data.intune.cloudPcManagedCompliant | Should -Be 1
+    $r.Data.intune.win365.cloudPcCountByStatus.provisioned | Should -Be 1
+    $r.Data.intune.win365.ssoEnabledOnAllPolicies | Should -BeTrue
+    $r.Data.intune.win365.localAdminDisabled | Should -BeTrue
+    $r.Data.intune.win365.restorePointFrequencyHoursMax | Should -Be 4
+    $r.Data.intune.win365.ancFailedCount | Should -Be 0
     $r.Data.subscriptions[0].hostPools[0].sessionHosts.intuneManaged | Should -Be 1
     $r.Data.subscriptions[0].hostPools[0].intuneOrphans | Should -Be 1
     $r.Data.m365.oneDriveKfmState | Should -Be 'enforced'

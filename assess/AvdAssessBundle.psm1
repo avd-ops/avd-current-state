@@ -24,8 +24,8 @@ $script:Known = @{
     'avd-assess-security-review' = @(1); 'avd-assess-endpoints' = @(1); 'avd-assess-evidence' = @(1)
     'avd-fact-register' = @(1); 'avd-run-use-cases' = @(1); 'avd-current-state-facts' = @(1)
     'avd-intake' = @(1); 'avd-assessment' = @(1); 'avd-assessment-review' = @(1)
-    'avd-remediation-plan' = @(1); 'avd-run-record' = @(1); 'avd-run-cost' = @(1); 'avd-run-journal' = @(1)
-    'avd-assess-bundle' = @(1)
+    'avd-remediation-plan' = @(1); 'avd-benchmark-result' = @(1); 'avd-run-record' = @(1); 'avd-run-cost' = @(1)
+    'avd-run-journal' = @(1); 'avd-assess-bundle' = @(1)
 }
 $script:SemVer = '^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(-[0-9A-Za-z.-]+)?$'
 $script:SchemaString = '^([a-z0-9-]+)/v([1-9]\d*)$'
