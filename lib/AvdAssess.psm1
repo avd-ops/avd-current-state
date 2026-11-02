@@ -246,10 +246,12 @@ function Invoke-AvdAssessCheck {
         if ($why) { throw "Check $(Get-AssessProp $Check 'id'), property $($t.Property): $why." }
     }
 
+    $checkId = "$(Get-AssessProp $Check 'id')"
     $plane = "$(Get-AssessProp $Check 'plane')"
     if (($plane -eq 'm365' -and "$(Get-AssessProp $Intake 'm365PlaneScope')" -eq 'not-used') -or
-        ($plane -eq 'power-platform' -and "$(Get-AssessProp $Intake 'powerPlatformPlaneScope')" -eq 'not-used')) {
-        $row = [ordered]@{ check = "$(Get-AssessProp $Check 'id')" }
+        ($plane -eq 'power-platform' -and "$(Get-AssessProp $Intake 'powerPlatformPlaneScope')" -eq 'not-used') -or
+        ($checkId -like 'asm-win365-*' -and "$(Get-AssessProp $Intake 'win365Scope')" -eq 'not-used')) {
+        $row = [ordered]@{ check = $checkId }
         if ($plane) { $row.plane = $plane }
         $row.outcome = 'not-applicable'
         $row.facts = [string[]]@()
