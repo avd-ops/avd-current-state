@@ -125,6 +125,14 @@
       "description": "Fact intake.powerPlatformPlaneScope (optional). Whether the estate uses Power Platform day-2 automation for AVD.",
       "enum": ["in-scope", "not-used"]
     },
+    "avdScope": {
+      "description": "Fact intake.avdScope (optional). Whether the estate runs Azure Virtual Desktop host pools.",
+      "enum": ["in-scope", "not-used"]
+    },
+    "win365Scope": {
+      "description": "Fact intake.win365Scope (optional). Whether the estate runs Windows 365 Cloud PCs managed through Intune.",
+      "enum": ["in-scope", "not-used"]
+    },
     "extensions": {
       "type": "object",
       "description": "Optional, for upper layers only, keyed by namespace (contracts/README.md rule 1). A foundation reader ignores it.",

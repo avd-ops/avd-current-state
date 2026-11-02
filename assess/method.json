@@ -1,6 +1,6 @@
 {
   "schema": "avd-assess-method/v1",
-  "version": 5,
+  "version": 6,
   "factRegister": 1,
   "landingZoneCommit": "ae6e80b574cccde570d0053d4c62b519d31052a8",
   "collection": [
@@ -925,6 +925,410 @@
         "gap:intake",
         "gap:power-platform-scope"
       ]
+    },
+    {
+      "fact": "c11.insights.rttP50",
+      "from": "insights",
+      "table": "WVDConnectionNetworkData",
+      "property": "EstRoundTripTimeInMs",
+      "claims": [
+        "ref:avd-insights-workbooks#queries-define-measures",
+        "gap:insights-facts"
+      ]
+    },
+    {
+      "fact": "c11.insights.rttP95",
+      "from": "insights",
+      "table": "WVDConnectionNetworkData",
+      "property": "EstRoundTripTimeInMs",
+      "claims": [
+        "ref:avd-insights-workbooks#queries-define-measures",
+        "gap:insights-facts"
+      ]
+    },
+    {
+      "fact": "c11.insights.inputDelayP95",
+      "from": "insights",
+      "table": "Perf",
+      "property": "CounterValue",
+      "claims": [
+        "ref:avd-insights-glossary#input-delay-bands",
+        "ref:avd-insights-workbooks#queries-define-measures",
+        "gap:insights-facts"
+      ]
+    },
+    {
+      "fact": "c11.insights.timeToConnectP95",
+      "from": "insights",
+      "table": "WVDConnections",
+      "property": "TimeGenerated",
+      "claims": [
+        "ref:avd-insights-glossary#time-to-connect-stages",
+        "ref:avd-insights-workbooks#queries-define-measures",
+        "gap:insights-facts"
+      ]
+    },
+    {
+      "fact": "c11.insights.fslogixReadIopsP95",
+      "from": "insights",
+      "table": "Perf",
+      "property": "CounterValue",
+      "claims": [
+        "ref:avd-insights-workbooks#queries-define-measures",
+        "gap:insights-facts"
+      ]
+    },
+    {
+      "fact": "c11.insights.connectionFailureRate",
+      "from": "insights",
+      "table": "WVDConnections",
+      "property": "State",
+      "claims": [
+        "ref:avd-insights-workbooks#queries-define-measures",
+        "gap:insights-facts"
+      ]
+    },
+    {
+      "fact": "c11.hostPool.sessionHosts.acceleratedNetworking",
+      "from": "resource-graph",
+      "table": "Resources",
+      "type": "microsoft.network/networkinterfaces",
+      "property": "properties.enableAcceleratedNetworking",
+      "claims": [
+        "ref:review-checklists-avd#C01.13",
+        "gap:collection-map"
+      ]
+    },
+    {
+      "fact": "c11.hostPool.sessionHosts.notAcceleratedNetworking",
+      "from": "resource-graph",
+      "table": "Resources",
+      "type": "microsoft.network/networkinterfaces",
+      "property": "properties.enableAcceleratedNetworking",
+      "claims": [
+        "ref:review-checklists-avd#C01.13",
+        "gap:collection-map"
+      ]
+    },
+    {
+      "fact": "c11.hostPool.sessionHosts.encryptionAtHost",
+      "from": "resource-graph",
+      "table": "Resources",
+      "type": "microsoft.compute/virtualmachines",
+      "property": "properties.securityProfile.encryptionAtHost",
+      "claims": [
+        "ref:disk-encryption-options#encryption-at-host",
+        "ref:review-checklists-avd#G02.02",
+        "gap:collection-map"
+      ]
+    },
+    {
+      "fact": "c11.hostPool.sessionHosts.notEncryptionAtHost",
+      "from": "resource-graph",
+      "table": "Resources",
+      "type": "microsoft.compute/virtualmachines",
+      "property": "properties.securityProfile.encryptionAtHost",
+      "claims": [
+        "ref:disk-encryption-options#encryption-at-host",
+        "ref:review-checklists-avd#G02.02",
+        "gap:collection-map"
+      ]
+    },
+    {
+      "fact": "c11.hostPool.sessionHosts.osDiskTypes",
+      "from": "resource-graph",
+      "table": "Resources",
+      "type": "microsoft.compute/virtualmachines",
+      "property": "properties.storageProfile.osDisk.managedDisk.storageAccountType",
+      "claims": [
+        "ref:avd-deploy-host-pool#premium-ssd-os-disk",
+        "ref:review-checklists-avd#H03.01",
+        "gap:collection-map"
+      ]
+    },
+    {
+      "fact": "c11.hostPool.sessionHosts.nonPremiumOsDisk",
+      "from": "resource-graph",
+      "table": "Resources",
+      "type": "microsoft.compute/virtualmachines",
+      "property": "properties.storageProfile.osDisk.managedDisk.storageAccountType",
+      "claims": [
+        "ref:avd-deploy-host-pool#premium-ssd-os-disk",
+        "ref:review-checklists-avd#H03.01",
+        "gap:collection-map"
+      ]
+    },
+    {
+      "fact": "c11.hostPool.sessionHosts.zones",
+      "from": "resource-graph",
+      "table": "Resources",
+      "type": "microsoft.compute/virtualmachines",
+      "property": "zones",
+      "claims": [
+        "ref:review-checklists-avd#A01.04",
+        "ref:waf-reliability-checklist#RE:05",
+        "gap:collection-map"
+      ]
+    },
+    {
+      "fact": "c11.hostPool.sessionHosts.unpinnedZones",
+      "from": "resource-graph",
+      "table": "Resources",
+      "type": "microsoft.compute/virtualmachines",
+      "property": "zones",
+      "claims": [
+        "ref:review-checklists-avd#A01.04",
+        "ref:waf-reliability-checklist#RE:05",
+        "gap:collection-map"
+      ]
+    },
+    {
+      "fact": "c11.hostPool.diagnosticsSetting",
+      "from": "arm-rest",
+      "type": "microsoft.insights/diagnosticsettings",
+      "property": "properties.logs",
+      "claims": [
+        "ref:avd-insights#hostpool-diagnostics",
+        "ref:review-checklists-avd#E02.02",
+        "gap:collection-map"
+      ]
+    },
+    {
+      "fact": "c11.hostPool.sessionHosts.monitoringAgent",
+      "from": "resource-graph",
+      "table": "Resources",
+      "type": "microsoft.compute/virtualmachines/extensions",
+      "property": "properties.provisioningState",
+      "claims": [
+        "ref:avd-insights#host-data-ama-dcr",
+        "ref:review-checklists-avd#E02.01",
+        "gap:collection-map"
+      ]
+    },
+    {
+      "fact": "c11.hostPool.sessionHosts.insightsDcr",
+      "from": "resource-graph",
+      "table": "Resources",
+      "type": "microsoft.insights/datacollectionruleassociations",
+      "property": "properties.dataCollectionRuleId",
+      "claims": [
+        "ref:avd-insights#host-data-ama-dcr",
+        "ref:review-checklists-avd#E02.01",
+        "gap:collection-map"
+      ]
+    },
+    {
+      "fact": "c11.hostPool.scalingPlan.method",
+      "from": "resource-graph",
+      "table": "Resources",
+      "type": "microsoft.desktopvirtualization/scalingplans",
+      "property": "properties.hostPoolReferences",
+      "claims": [
+        "ref:avd-rest-api#scalingplan-hostpool-references",
+        "ref:review-checklists-avd#E01.04",
+        "gap:collection-map"
+      ]
+    },
+    {
+      "fact": "c11.hostPool.agentUpdate.scheduled",
+      "from": "resource-graph",
+      "table": "Resources",
+      "type": "microsoft.desktopvirtualization/hostpools",
+      "property": "properties.agentUpdate.type",
+      "claims": [
+        "ref:avd-rest-api#hostpool-properties",
+        "ref:review-checklists-avd#E01.10",
+        "gap:collection-map"
+      ]
+    },
+    {
+      "fact": "c11.storage.smbMultichannel",
+      "from": "arm-rest",
+      "type": "microsoft.storage/storageaccounts/fileservices",
+      "property": "properties.protocolSettings.smb.multichannel.enabled",
+      "claims": [
+        "ref:azure-files-smb#multichannel-ssd-only",
+        "ref:review-checklists-avd#H01.02",
+        "gap:collection-map"
+      ]
+    },
+    {
+      "fact": "c11.storage.backupProtected",
+      "from": "arm-rest",
+      "type": "microsoft.recoveryservices/vaults/backupfabrics",
+      "property": "properties.protectionState",
+      "claims": [
+        "ref:azure-files-backup#snapshot-and-vaulted",
+        "ref:review-checklists-avd#A03.02",
+        "gap:collection-map"
+      ]
+    },
+    {
+      "fact": "c11.entra.skuWin365Available",
+      "from": "graph-rest",
+      "property": "subscribedSkus.prepaidUnits.enabled",
+      "claims": [
+        "gap:identity-scope"
+      ]
+    },
+    {
+      "fact": "c11.intune.assignmentFiltersCount",
+      "from": "graph-rest",
+      "property": "assignmentFilters",
+      "claims": [
+        "ref:windows-365-intune#assignment-filters-separate-platforms",
+        "gap:intune-scope"
+      ]
+    },
+    {
+      "fact": "c11.intune.multiSessionFilterPresent",
+      "from": "graph-rest",
+      "property": "assignmentFilters.rule",
+      "claims": [
+        "ref:windows-365-intune#assignment-filters-separate-platforms",
+        "gap:intune-scope"
+      ]
+    },
+    {
+      "fact": "c11.intune.cloudPcFilterPresent",
+      "from": "graph-rest",
+      "property": "assignmentFilters.rule",
+      "claims": [
+        "ref:windows-365-intune#assignment-filters-separate-platforms",
+        "gap:intune-scope"
+      ]
+    },
+    {
+      "fact": "c11.intune.unfilteredAllDevicesPolicies",
+      "from": "graph-rest",
+      "property": "configurationPolicies.assignments",
+      "claims": [
+        "ref:windows-365-intune#assignment-filters-separate-platforms",
+        "gap:intune-scope"
+      ]
+    },
+    {
+      "fact": "c11.intune.cloudPcManagedCompliant",
+      "from": "graph-rest",
+      "property": "managedDevices.complianceState",
+      "claims": [
+        "ref:windows-365-intune#cloudpc-intune-compliance",
+        "gap:intune-scope"
+      ]
+    },
+    {
+      "fact": "c11.intune.cloudPcManagedNoncompliant",
+      "from": "graph-rest",
+      "property": "managedDevices.complianceState",
+      "claims": [
+        "ref:windows-365-intune#cloudpc-intune-compliance",
+        "gap:intune-scope"
+      ]
+    },
+    {
+      "fact": "c11.intune.win365.cloudPcCountByStatus",
+      "from": "graph-rest",
+      "property": "virtualEndpoint.cloudPCs.status",
+      "claims": [
+        "ref:windows-365-intune#cloudpc-intune-compliance",
+        "gap:intune-scope"
+      ]
+    },
+    {
+      "fact": "c11.intune.win365.provisioningPoliciesCount",
+      "from": "graph-rest",
+      "property": "virtualEndpoint.provisioningPolicies",
+      "claims": [
+        "ref:windows-365-intune#provisioning-policy-sso",
+        "gap:intune-scope"
+      ]
+    },
+    {
+      "fact": "c11.intune.win365.ssoEnabledOnAllPolicies",
+      "from": "graph-rest",
+      "property": "virtualEndpoint.provisioningPolicies.enableSingleSignOn",
+      "claims": [
+        "ref:windows-365-intune#provisioning-policy-sso",
+        "gap:intune-scope"
+      ]
+    },
+    {
+      "fact": "c11.intune.win365.networkMode",
+      "from": "graph-rest",
+      "property": "virtualEndpoint.provisioningPolicies.managedType",
+      "claims": [
+        "ref:windows-365-intune#anc-health-checks",
+        "gap:intune-scope"
+      ]
+    },
+    {
+      "fact": "c11.intune.win365.ancCountByHealth",
+      "from": "graph-rest",
+      "property": "virtualEndpoint.onPremisesConnections.healthCheckStatus",
+      "claims": [
+        "ref:windows-365-intune#anc-health-checks",
+        "gap:intune-scope"
+      ]
+    },
+    {
+      "fact": "c11.intune.win365.ancFailedCount",
+      "from": "graph-rest",
+      "property": "virtualEndpoint.onPremisesConnections.healthCheckStatus",
+      "claims": [
+        "ref:windows-365-intune#anc-health-checks",
+        "gap:intune-scope"
+      ]
+    },
+    {
+      "fact": "c11.intune.win365.userSettingsCount",
+      "from": "graph-rest",
+      "property": "virtualEndpoint.userSettings",
+      "claims": [
+        "ref:windows-365-intune#user-settings-least-privilege",
+        "gap:intune-scope"
+      ]
+    },
+    {
+      "fact": "c11.intune.win365.localAdminDisabled",
+      "from": "graph-rest",
+      "property": "virtualEndpoint.userSettings.localAdminEnabled",
+      "claims": [
+        "ref:windows-365-intune#user-settings-least-privilege",
+        "gap:intune-scope"
+      ]
+    },
+    {
+      "fact": "c11.intune.win365.restorePointFrequencyHoursMax",
+      "from": "graph-rest",
+      "property": "virtualEndpoint.userSettings.restorePointSetting.frequencyInHours",
+      "claims": [
+        "ref:windows-365-intune#restore-point-cadence",
+        "gap:intune-scope"
+      ]
+    },
+    {
+      "fact": "c11.intune.win365.customImagesReady",
+      "from": "graph-rest",
+      "property": "virtualEndpoint.deviceImages.status",
+      "claims": [
+        "gap:intune-scope"
+      ]
+    },
+    {
+      "fact": "intake.avdScope",
+      "from": "intake",
+      "claims": [
+        "gap:intake",
+        "gap:intune-scope"
+      ]
+    },
+    {
+      "fact": "intake.win365Scope",
+      "from": "intake",
+      "claims": [
+        "gap:intake",
+        "gap:intune-scope"
+      ]
     }
   ],
   "checks": [
@@ -1772,6 +2176,672 @@
         "plane": "power-platform",
         "name": "enableVnetEnterprisePolicy",
         "to": true
+      }
+    },
+    {
+      "id": "asm-insights-rtt-target",
+      "plane": "azure",
+      "title": "AVD Insights p95 round-trip latency stays under 150 ms",
+      "pillar": "performance",
+      "severity": "medium",
+      "claims": [
+        "ref:avd-prerequisites#rtt-under-150",
+        "ref:avd-insights-use-cases#rtt-ideal-100-poor-200"
+      ],
+      "facts": [
+        "c11.insights.rttP95"
+      ],
+      "rule": {
+        "each": "/subscriptions/*/hostPools/*",
+        "expect": {
+          "insights/rttP95": {
+            "max": 150
+          }
+        },
+        "onFail": "warn"
+      },
+      "informs": [
+        "region"
+      ],
+      "remediation": {
+        "kind": "manual",
+        "plane": "azure",
+        "code": "outside-landing-zone"
+      }
+    },
+    {
+      "id": "asm-insights-input-delay-target",
+      "plane": "azure",
+      "title": "AVD Insights p95 user input delay stays within the 100 ms acceptable band",
+      "pillar": "performance",
+      "severity": "medium",
+      "claims": [
+        "ref:avd-insights-glossary#input-delay-bands",
+        "ref:avd-insights-use-cases#input-delay-host-100"
+      ],
+      "facts": [
+        "c11.insights.inputDelayP95"
+      ],
+      "rule": {
+        "each": "/subscriptions/*/hostPools/*",
+        "expect": {
+          "insights/inputDelayP95": {
+            "max": 100
+          }
+        },
+        "onFail": "warn"
+      },
+      "informs": [
+        "hostPool.vmSize",
+        "hostPool.maxSessions"
+      ],
+      "remediation": {
+        "kind": "lz-parameter",
+        "plane": "azure",
+        "name": "maxSessionLimit"
+      }
+    },
+    {
+      "id": "asm-insights-time-to-connect",
+      "plane": "azure",
+      "title": "AVD Insights p95 time to connect stays under 30 seconds",
+      "pillar": "performance",
+      "severity": "low",
+      "claims": [
+        "ref:avd-insights-glossary#time-to-connect-stages",
+        "ref:avd-insights-workbooks#queries-define-measures"
+      ],
+      "facts": [
+        "c11.insights.timeToConnectP95"
+      ],
+      "rule": {
+        "each": "/subscriptions/*/hostPools/*",
+        "expect": {
+          "insights/timeToConnectP95": {
+            "max": 30
+          }
+        },
+        "onFail": "warn"
+      },
+      "informs": [
+        "hostPool.vmSize"
+      ],
+      "remediation": {
+        "kind": "manual",
+        "plane": "azure",
+        "code": "process"
+      }
+    },
+    {
+      "id": "asm-insights-connection-reliability",
+      "plane": "azure",
+      "title": "AVD Insights connection failure rate stays at or below 5 percent",
+      "pillar": "reliability",
+      "severity": "medium",
+      "claims": [
+        "ref:avd-insights-workbooks#queries-define-measures",
+        "ref:diagnostics-log-analytics#connection-states"
+      ],
+      "facts": [
+        "c11.insights.connectionFailureRate"
+      ],
+      "rule": {
+        "each": "/subscriptions/*/hostPools/*",
+        "expect": {
+          "insights/connectionFailureRate": {
+            "max": 5
+          }
+        },
+        "onFail": "warn"
+      },
+      "informs": [
+        "hostPool.hosts"
+      ],
+      "remediation": {
+        "kind": "manual",
+        "plane": "azure",
+        "code": "process"
+      }
+    },
+    {
+      "id": "asm-hosts-accelerated-networking",
+      "plane": "azure",
+      "title": "Session host NICs enable accelerated networking",
+      "pillar": "performance",
+      "severity": "medium",
+      "claims": [
+        "ref:review-checklists-avd#C01.13",
+        "ref:accelerated-networking#lower-latency-jitter-cpu"
+      ],
+      "facts": [
+        "c11.hostPool.sessionHosts.notAcceleratedNetworking"
+      ],
+      "rule": {
+        "each": "/subscriptions/*/hostPools/*",
+        "expect": {
+          "sessionHosts/notAcceleratedNetworking": {
+            "max": 0
+          }
+        },
+        "onFail": "warn"
+      },
+      "informs": [
+        "hostPool.vmSize"
+      ],
+      "remediation": {
+        "kind": "lz-setting",
+        "plane": "azure",
+        "name": "session-host-accelerated-networking"
+      }
+    },
+    {
+      "id": "asm-hosts-encryption-at-host",
+      "plane": "azure",
+      "title": "Session hosts enable encryption at host",
+      "pillar": "security",
+      "severity": "medium",
+      "claims": [
+        "ref:review-checklists-avd#G02.02",
+        "ref:disk-encryption-options#encryption-at-host"
+      ],
+      "facts": [
+        "c11.hostPool.sessionHosts.notEncryptionAtHost"
+      ],
+      "rule": {
+        "each": "/subscriptions/*/hostPools/*",
+        "expect": {
+          "sessionHosts/notEncryptionAtHost": {
+            "max": 0
+          }
+        },
+        "onFail": "warn"
+      },
+      "informs": [],
+      "remediation": {
+        "kind": "lz-parameter",
+        "plane": "azure",
+        "name": "encryptionAtHost",
+        "to": true
+      }
+    },
+    {
+      "id": "asm-hosts-premium-os-disk",
+      "plane": "azure",
+      "title": "Session hosts run on Premium SSD or ephemeral OS disks",
+      "pillar": "performance",
+      "severity": "medium",
+      "claims": [
+        "ref:review-checklists-avd#H03.01",
+        "ref:avd-deploy-host-pool#premium-ssd-os-disk"
+      ],
+      "facts": [
+        "c11.hostPool.sessionHosts.nonPremiumOsDisk"
+      ],
+      "rule": {
+        "each": "/subscriptions/*/hostPools/*",
+        "expect": {
+          "sessionHosts/nonPremiumOsDisk": {
+            "max": 0
+          }
+        },
+        "onFail": "warn"
+      },
+      "informs": [],
+      "remediation": {
+        "kind": "lz-setting",
+        "plane": "azure",
+        "name": "session-host-premium-os-disk"
+      }
+    },
+    {
+      "id": "asm-hosts-zone-redundant",
+      "plane": "azure",
+      "title": "Session hosts are pinned to availability zones",
+      "pillar": "reliability",
+      "severity": "medium",
+      "claims": [
+        "ref:review-checklists-avd#A01.04",
+        "ref:waf-reliability-checklist#RE:05"
+      ],
+      "facts": [
+        "c11.hostPool.sessionHosts.unpinnedZones"
+      ],
+      "rule": {
+        "each": "/subscriptions/*/hostPools/*",
+        "expect": {
+          "sessionHosts/unpinnedZones": {
+            "max": 0
+          }
+        },
+        "onFail": "warn"
+      },
+      "informs": [],
+      "remediation": {
+        "kind": "lz-parameter",
+        "plane": "azure",
+        "name": "availabilityZones"
+      }
+    },
+    {
+      "id": "asm-hostpool-diagnostics-enabled",
+      "plane": "azure",
+      "title": "Host pools forward required diagnostic log categories to a workspace",
+      "pillar": "operations",
+      "severity": "medium",
+      "claims": [
+        "ref:review-checklists-avd#E02.02",
+        "ref:review-checklists-avd#G03.05",
+        "ref:avd-insights#hostpool-diagnostics"
+      ],
+      "facts": [
+        "c11.hostPool.diagnosticsSetting"
+      ],
+      "rule": {
+        "each": "/subscriptions/*/hostPools/*",
+        "expect": {
+          "diagnosticsSetting": {
+            "in": [
+              "all",
+              "required"
+            ]
+          }
+        },
+        "onFail": "gap"
+      },
+      "informs": [],
+      "remediation": {
+        "kind": "lz-parameter",
+        "plane": "azure",
+        "name": "deploySubscriptionSettings",
+        "to": true
+      }
+    },
+    {
+      "id": "asm-hosts-insights-agent",
+      "plane": "azure",
+      "title": "Session hosts have the Azure Monitor Agent and AVD Insights DCR associated",
+      "pillar": "operations",
+      "severity": "medium",
+      "claims": [
+        "ref:review-checklists-avd#E02.01",
+        "ref:avd-insights#host-data-ama-dcr"
+      ],
+      "facts": [
+        "c11.hostPool.sessionHosts.monitoringAgent",
+        "c11.hostPool.sessionHosts.insightsDcr"
+      ],
+      "rule": {
+        "each": "/subscriptions/*/hostPools/*",
+        "expect": {
+          "sessionHosts/monitoringAgent": {
+            "min": 1
+          },
+          "sessionHosts/insightsDcr": {
+            "min": 1
+          }
+        },
+        "onFail": "warn"
+      },
+      "informs": [],
+      "remediation": {
+        "kind": "lz-setting",
+        "plane": "azure",
+        "name": "session-host-ama-insights-dcr"
+      }
+    },
+    {
+      "id": "asm-pooled-autoscale-attached",
+      "plane": "azure",
+      "title": "Pooled host pools have an active AVD scaling plan attached",
+      "pillar": "cost",
+      "severity": "medium",
+      "claims": [
+        "ref:review-checklists-avd#E01.04",
+        "ref:aprl-desktop-virtualization#499769ae-67c9-492e-9ca5-cfd4cece5209",
+        "ref:avd-autoscale#scales-to-save-cost"
+      ],
+      "facts": [
+        "c11.hostPool.type",
+        "c11.hostPool.scalingPlan.method"
+      ],
+      "rule": {
+        "each": "/subscriptions/*/hostPools/*",
+        "where": {
+          "type": {
+            "eq": "Pooled"
+          }
+        },
+        "expect": {
+          "scalingPlan/method": {
+            "in": [
+              "power-management",
+              "dynamic"
+            ]
+          }
+        },
+        "onFail": "warn"
+      },
+      "informs": [
+        "hostPool.power"
+      ],
+      "remediation": {
+        "kind": "lz-setting",
+        "plane": "azure",
+        "name": "hostpool-scaling-plan"
+      }
+    },
+    {
+      "id": "asm-hostpool-scheduled-agent-updates",
+      "plane": "azure",
+      "title": "Host pools configure a maintenance window for scheduled agent updates",
+      "pillar": "operations",
+      "severity": "low",
+      "claims": [
+        "ref:review-checklists-avd#E01.10",
+        "ref:aprl-desktop-virtualization#979ff8be-5f3a-4d8e-9aa3-407ecdd6d6f7",
+        "ref:psrule-azure#AZR-000437"
+      ],
+      "facts": [
+        "c11.hostPool.agentUpdate.scheduled"
+      ],
+      "rule": {
+        "each": "/subscriptions/*/hostPools/*",
+        "expect": {
+          "agentUpdate/scheduled": {
+            "eq": true
+          }
+        },
+        "onFail": "warn"
+      },
+      "informs": [
+        "hostPool.power"
+      ],
+      "remediation": {
+        "kind": "lz-setting",
+        "plane": "azure",
+        "name": "hostpool-scheduled-agent-updates"
+      }
+    },
+    {
+      "id": "asm-files-smb-multichannel",
+      "plane": "azure",
+      "title": "Premium Azure Files profile storage enables SMB Multichannel",
+      "pillar": "performance",
+      "severity": "medium",
+      "claims": [
+        "ref:review-checklists-avd#H01.02",
+        "ref:azure-files-smb#multichannel-ssd-only"
+      ],
+      "facts": [
+        "c11.storage.kind",
+        "c11.storage.smbMultichannel"
+      ],
+      "rule": {
+        "each": "/subscriptions/*/storageAccounts/*",
+        "where": {
+          "kind": {
+            "eq": "FileStorage"
+          }
+        },
+        "expect": {
+          "smbMultichannel": {
+            "eq": true
+          }
+        },
+        "onFail": "warn"
+      },
+      "informs": [],
+      "remediation": {
+        "kind": "lz-setting",
+        "plane": "azure",
+        "name": "profile-storage-smb-multichannel"
+      }
+    },
+    {
+      "id": "asm-files-backup-protected",
+      "plane": "azure",
+      "title": "Premium Azure Files profile storage is protected by Azure Backup",
+      "pillar": "reliability",
+      "severity": "high",
+      "claims": [
+        "ref:review-checklists-avd#A03.02",
+        "ref:azure-files-backup#snapshot-and-vaulted"
+      ],
+      "facts": [
+        "c11.storage.kind",
+        "c11.storage.backupProtected"
+      ],
+      "rule": {
+        "each": "/subscriptions/*/storageAccounts/*",
+        "where": {
+          "kind": {
+            "eq": "FileStorage"
+          }
+        },
+        "expect": {
+          "backupProtected": {
+            "eq": true
+          }
+        },
+        "onFail": "gap"
+      },
+      "informs": [],
+      "remediation": {
+        "kind": "lz-parameter",
+        "plane": "azure",
+        "name": "enableProfileBackup",
+        "to": true
+      }
+    },
+    {
+      "id": "asm-intune-assignment-filters-separate-platforms",
+      "plane": "intune",
+      "title": "Intune assignment filters separate multi-session AVD hosts, Cloud PCs and physical endpoints",
+      "pillar": "operations",
+      "severity": "high",
+      "claims": [
+        "ref:windows-365-intune#assignment-filters-separate-platforms",
+        "ref:intune-avd-multisession#settings-catalog-only"
+      ],
+      "facts": [
+        "c11.intune.multiSessionFilterPresent",
+        "c11.intune.cloudPcFilterPresent",
+        "c11.intune.unfilteredAllDevicesPolicies"
+      ],
+      "rule": {
+        "each": "/intune",
+        "expect": {
+          "multiSessionFilterPresent": {
+            "eq": true
+          },
+          "cloudPcFilterPresent": {
+            "eq": true
+          },
+          "unfilteredAllDevicesPolicies": {
+            "max": 0
+          }
+        },
+        "onFail": "warn"
+      },
+      "informs": [],
+      "remediation": {
+        "kind": "lz-setting",
+        "plane": "intune",
+        "name": "intune-platform-assignment-filters"
+      }
+    },
+    {
+      "id": "asm-win365-sso-enabled",
+      "plane": "intune",
+      "title": "Windows 365 provisioning policies enable Microsoft Entra single sign-on",
+      "pillar": "security",
+      "severity": "medium",
+      "claims": [
+        "ref:windows-365-intune#provisioning-policy-sso"
+      ],
+      "facts": [
+        "c11.intune.win365.provisioningPoliciesCount",
+        "c11.intune.win365.ssoEnabledOnAllPolicies"
+      ],
+      "rule": {
+        "each": "/intune/win365",
+        "where": {
+          "provisioningPoliciesCount": {
+            "min": 1
+          }
+        },
+        "expect": {
+          "ssoEnabledOnAllPolicies": {
+            "eq": true
+          }
+        },
+        "onFail": "warn"
+      },
+      "informs": [
+        "identity"
+      ],
+      "remediation": {
+        "kind": "lz-parameter",
+        "plane": "intune",
+        "name": "win365EnableSingleSignOn",
+        "to": true
+      }
+    },
+    {
+      "id": "asm-win365-no-local-admin",
+      "plane": "intune",
+      "title": "Windows 365 user settings policies disable local administrator rights on Cloud PCs",
+      "pillar": "security",
+      "severity": "high",
+      "claims": [
+        "ref:windows-365-intune#user-settings-least-privilege"
+      ],
+      "facts": [
+        "c11.intune.win365.userSettingsCount",
+        "c11.intune.win365.localAdminDisabled"
+      ],
+      "rule": {
+        "each": "/intune/win365",
+        "where": {
+          "userSettingsCount": {
+            "min": 1
+          }
+        },
+        "expect": {
+          "localAdminDisabled": {
+            "eq": true
+          }
+        },
+        "onFail": "gap"
+      },
+      "informs": [],
+      "remediation": {
+        "kind": "lz-setting",
+        "plane": "intune",
+        "name": "win365-disable-local-admin"
+      }
+    },
+    {
+      "id": "asm-win365-restore-points-configured",
+      "plane": "intune",
+      "title": "Windows 365 user settings configure automatic point-in-time restore points every 12 hours or less",
+      "pillar": "reliability",
+      "severity": "medium",
+      "claims": [
+        "ref:windows-365-intune#restore-point-cadence"
+      ],
+      "facts": [
+        "c11.intune.win365.userSettingsCount",
+        "c11.intune.win365.restorePointFrequencyHoursMax"
+      ],
+      "rule": {
+        "each": "/intune/win365",
+        "where": {
+          "userSettingsCount": {
+            "min": 1
+          }
+        },
+        "expect": {
+          "restorePointFrequencyHoursMax": {
+            "max": 12
+          }
+        },
+        "onFail": "warn"
+      },
+      "informs": [],
+      "remediation": {
+        "kind": "lz-parameter",
+        "plane": "intune",
+        "name": "win365RestorePointFrequencyHours",
+        "to": 6
+      }
+    },
+    {
+      "id": "asm-win365-anc-healthy",
+      "plane": "intune",
+      "title": "Windows 365 Azure Network Connections pass all health checks",
+      "pillar": "reliability",
+      "severity": "high",
+      "claims": [
+        "ref:windows-365-intune#anc-health-checks"
+      ],
+      "facts": [
+        "c11.intune.win365.networkMode",
+        "c11.intune.win365.ancFailedCount"
+      ],
+      "rule": {
+        "each": "/intune/win365",
+        "where": {
+          "networkMode": {
+            "in": [
+              "azure-network-connection",
+              "mixed"
+            ]
+          }
+        },
+        "expect": {
+          "ancFailedCount": {
+            "max": 0
+          }
+        },
+        "onFail": "gap"
+      },
+      "informs": [
+        "network"
+      ],
+      "remediation": {
+        "kind": "lz-setting",
+        "plane": "intune",
+        "name": "win365-anc-health-check"
+      }
+    },
+    {
+      "id": "asm-win365-cloudpcs-compliant",
+      "plane": "intune",
+      "title": "Intune-managed Windows 365 Cloud PCs have zero noncompliant devices",
+      "pillar": "security",
+      "severity": "high",
+      "claims": [
+        "ref:windows-365-intune#cloudpc-intune-compliance",
+        "ref:intune-compliance#no-policy-default-compliant"
+      ],
+      "facts": [
+        "c11.intune.cloudPcManagedNoncompliant"
+      ],
+      "rule": {
+        "each": "/intune",
+        "expect": {
+          "cloudPcManagedNoncompliant": {
+            "max": 0
+          }
+        },
+        "onFail": "gap"
+      },
+      "informs": [],
+      "remediation": {
+        "kind": "lz-setting",
+        "plane": "intune",
+        "name": "intune-cloudpc-compliance"
       }
     }
   ],

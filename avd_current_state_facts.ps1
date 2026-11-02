@@ -684,7 +684,7 @@ function Get-EntraFact {
         Add-KnownName (Get-Prop $row 'id')
     }
     $dynamicGroups = @($groups | Where-Object { @(Get-Prop $_ 'groupTypes' @()) -contains 'DynamicMembership' }).Count
-    $avdAppIds = @('9cdead84-a844-4324-93f2-b2e6bb768d07', 'a4a365df-50f1-4397-bc59-1a1564b8bb9c', '270efc09-cd0d-444b-a71f-39af4910ec45', '00cb2876-7ebd-4aa4-9cc9-d28bd4d359a9')
+    $avdAppIds = @('9cdead84-a844-4324-93f2-b2e6bb768d07', 'a4a365df-50f1-4397-bc59-1a1564b8bb9c', '270efc09-cd0d-444b-a71f-39af4910ec45', '00cb2876-7ebd-4aa4-9cc9-d28bd4d359a9', '0af06dc6-e4b5-4f28-818e-e78e62d137a5')
     $avdCa = @($caPolicies | Where-Object {
             $incApps = @(Get-PathValue $_ 'conditions.applications.includeApplications' @())
             $incApps -contains 'All' -or @($incApps | Where-Object { $avdAppIds -contains "$_" }).Count -gt 0
@@ -700,10 +700,18 @@ function Get-EntraFact {
         }).Count -eq 0
     $kerberosReady = @($sps | Where-Object { Test-True (Get-Prop $_ 'kerberosReady') -or "$(Get-Prop $_ 'servicePrincipalType' '')" -eq 'StorageAccountKerberos' }).Count
     $eligibleSeats = 0
+    $win365Seats = 0
     foreach ($sku in $skus) {
         $enabled = [int](Get-PathValue $sku 'prepaidUnits.enabled' 0)
         $consumed = [int](Get-Prop $sku 'consumedUnits' 0)
-        if ($enabled -gt $consumed) { $eligibleSeats += ($enabled - $consumed) }
+        $part = "$(Get-Prop $sku 'skuPartNumber' '')"
+        if ($enabled -gt $consumed) {
+            if ($part -match '(?i)^(CPC_|WINDOWS_365)') {
+                $win365Seats += ($enabled - $consumed)
+            } else {
+                $eligibleSeats += ($enabled - $consumed)
+            }
+        }
     }
     return [ordered]@{
         userGroupsAssigned             = [int]$GroupRoleAssignments
@@ -715,6 +723,7 @@ function Get-EntraFact {
         caAvdBreakGlassExcluded        = [bool]$breakGlassExcluded
         kerberosStoragePrincipalsReady = [int]$kerberosReady
         skuAvdEligibleAvailable        = [int]$eligibleSeats
+        skuWin365Available             = [int]$win365Seats
     }
 }
 
@@ -725,9 +734,17 @@ function Get-IntuneFact {
     $settings = @(Read-Dataset -Directory $dir -Name 'settings')
     $mdm = @(Read-Dataset -Directory $dir -Name 'mdmPolicies')
     $profiles = @(Read-Dataset -Directory $dir -Name 'configurationPolicies')
-    foreach ($row in @($mdm + $profiles)) {
+    $filters = @(Read-Dataset -Directory $dir -Name 'assignmentFilters')
+    $devices = @(Read-Dataset -Directory $dir -Name 'managedDevices')
+    $cloudPcs = @(Read-Dataset -Directory $dir -Name 'cloudPcs')
+    $provPolicies = @(Read-Dataset -Directory $dir -Name 'provisioningPolicies')
+    $userSettings = @(Read-Dataset -Directory $dir -Name 'userSettings')
+    $ancs = @(Read-Dataset -Directory $dir -Name 'onPremisesConnections')
+    foreach ($row in @($mdm + $profiles + $filters + $devices + $cloudPcs + $provPolicies + $userSettings + $ancs)) {
         Add-KnownName (Get-Prop $row 'name')
         Add-KnownName (Get-Prop $row 'displayName')
+        Add-KnownName (Get-Prop $row 'deviceName')
+        Add-KnownName (Get-Prop $row 'managedDeviceName')
         Add-KnownName (Get-Prop $row 'id')
     }
     $firstSetting = $settings | Select-Object -First 1
@@ -740,7 +757,13 @@ function Get-IntuneFact {
     $shortpath = @($profiles | Where-Object { Test-True (Get-Prop $_ 'rdpShortpathConfigured') -or "$(Get-Prop $_ 'category' '')" -eq 'rdpShortpath' }).Count -gt 0
     $timeLimits = @($profiles | Where-Object { Test-True (Get-Prop $_ 'sessionTimeLimitsConfigured') -or "$(Get-Prop $_ 'category' '')" -eq 'sessionTimeLimits' }).Count -gt 0
     $updateRing = @($profiles | Where-Object { Test-True (Get-Prop $_ 'multiSessionUpdateRingAssigned') -or "$(Get-Prop $_ 'category' '')" -eq 'updateRing' }).Count -gt 0
-    return [ordered]@{
+    $msFilter = @($filters | Where-Object { "$(Get-Prop $_ 'rule' '')" -match 'ServerRdsh' }).Count -gt 0
+    $cpcFilter = @($filters | Where-Object { "$(Get-Prop $_ 'rule' '')" -match 'Cloud PC' }).Count -gt 0
+    $unfilteredAll = @($profiles | Where-Object { Test-True (Get-Prop $_ 'unfilteredAllDevices') }).Count
+    $cpcCompliant = @($devices | Where-Object { "$(Get-Prop $_ 'model' '')" -like 'Cloud PC*' -and "$(Get-Prop $_ 'complianceState' '')" -eq 'compliant' }).Count
+    $cpcNoncompliant = @($devices | Where-Object { "$(Get-Prop $_ 'model' '')" -like 'Cloud PC*' -and "$(Get-Prop $_ 'complianceState' '')" -eq 'noncompliant' }).Count
+
+    $result = [ordered]@{
         noPolicyMeansNoncompliant      = [bool]$secureByDefault
         mdmAutoEnrollmentScope         = $mdmScope
         multiSessionCatalogProfiles    = [int]$multiSession.Count
@@ -748,7 +771,50 @@ function Get-IntuneFact {
         rdpShortpathConfigured         = [bool]$shortpath
         sessionTimeLimitsConfigured    = [bool]$timeLimits
         multiSessionUpdateRingAssigned = [bool]$updateRing
+        assignmentFiltersCount         = [int]$filters.Count
+        multiSessionFilterPresent      = [bool]$msFilter
+        cloudPcFilterPresent           = [bool]$cpcFilter
+        unfilteredAllDevicesPolicies   = [int]$unfilteredAll
+        cloudPcManagedCompliant        = [int]$cpcCompliant
+        cloudPcManagedNoncompliant     = [int]$cpcNoncompliant
     }
+    if ((Test-Path -LiteralPath (Join-Path $dir 'cloudPcs.json')) -or
+        (Test-Path -LiteralPath (Join-Path $dir 'provisioningPolicies.json')) -or
+        (Test-Path -LiteralPath (Join-Path $dir 'userSettings.json')) -or
+        (Test-Path -LiteralPath (Join-Path $dir 'onPremisesConnections.json'))) {
+        $ssoAll = $provPolicies.Count -gt 0 -and @($provPolicies | Where-Object { -not (Test-True (Get-Prop $_ 'enableSingleSignOn')) }).Count -eq 0
+        $hasAnc = $false
+        $hasMhn = $false
+        foreach ($pp in $provPolicies) {
+            foreach ($djc in @(Get-Prop $pp 'domainJoinConfigurations' @())) {
+                if (Get-Prop $djc 'onPremisesConnectionId') { $hasAnc = $true } else { $hasMhn = $true }
+            }
+        }
+        $netMode = if ($hasAnc -and $hasMhn) { 'mixed' } elseif ($hasAnc) { 'azure-network-connection' } elseif ($hasMhn) { 'microsoft-hosted' } else { 'none' }
+        $localAdminDisabled = $userSettings.Count -gt 0 -and @($userSettings | Where-Object { Test-True (Get-Prop $_ 'localAdminEnabled') }).Count -eq 0
+        $rpHours = 0
+        foreach ($us in $userSettings) {
+            $freq = Get-PathValue $us 'restorePointSetting.frequencyInHours'
+            if ($null -ne $freq -and "$freq" -match '^\d+$') {
+                $h = [int]"$freq"
+                if ($h -gt $rpHours) { $rpHours = $h }
+            }
+        }
+        $ancFailed = @($ancs | Where-Object { "$(Get-Prop $_ 'healthCheckStatus' '')" -eq 'failed' }).Count
+        $result.win365 = [ordered]@{
+            cloudPcCountByStatus          = Get-CountMap @($cloudPcs | ForEach-Object { Get-Prop $_ 'status' }) '^[A-Za-z]{2,40}$'
+            provisioningPoliciesCount     = [int]$provPolicies.Count
+            ssoEnabledOnAllPolicies       = [bool]$ssoAll
+            networkMode                   = $netMode
+            ancCountByHealth              = Get-CountMap @($ancs | ForEach-Object { Get-Prop $_ 'healthCheckStatus' }) '^[A-Za-z]{2,40}$'
+            ancFailedCount                = [int]$ancFailed
+            userSettingsCount             = [int]$userSettings.Count
+            localAdminDisabled            = [bool]$localAdminDisabled
+            restorePointFrequencyHoursMax = [int]$rpHours
+            customImagesReady             = 0
+        }
+    }
+    return $result
 }
 
 function Get-M365Fact {

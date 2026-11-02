@@ -2,8 +2,8 @@
   "$schema": "https://datapackage.org/profiles/2.0/datapackage.json",
   "name": "avd-assess",
   "title": "avd-assess: the AVD assessment map",
-  "version": "2.0.0",
-  "created": "2026-10-27T17:34:01-05:00",
+  "version": "2.1.0",
+  "created": "2026-11-02T14:03:34-06:00",
   "homepage": "https://github.com/avd-ops/avd-assess",
   "description": "Personal project, not for production, as is; not affiliated with the author's employer, Liquidware or Microsoft.",
   "licenses": [
@@ -19,8 +19,8 @@
     }
   ],
   "avdAssess": {
-    "commit": "5c5696cc5050ba216dbe6a8268a4c0a7592b177d",
-    "tag": "v2.0.0",
+    "commit": "0682312d60185074756537caab7fc2856f84923c",
+    "tag": "v2.1.0",
     "profile": "avd-assess-bundle/v1"
   },
   "resources": [
@@ -53,8 +53,8 @@
       "path": "contracts/README.md",
       "format": "md",
       "mediatype": "text/markdown",
-      "bytes": 5662,
-      "hash": "sha256:10fe4ffa45b7dd87a6556aa269f287b0c9c991cd656372caf71464991edffe48"
+      "bytes": 5949,
+      "hash": "sha256:a7d99d8eedcba5cce5dff4655634ffb44d1bf68b803fa2b58a3d3896bcd6c7f7"
     },
     {
       "name": "example-assess-assessment",
@@ -65,6 +65,16 @@
       "hash": "sha256:5b1e51c559ca4634154e0eb22314d2f8151a1e2d3fa4eae13e7a640ec47cd8b4",
       "schemaString": "avd-assessment/v1",
       "jsonSchema": "contracts/schemas/assessment.schema.json"
+    },
+    {
+      "name": "example-assess-benchmark-result",
+      "path": "contracts/examples/assess/benchmark-result.example.json",
+      "format": "json",
+      "mediatype": "application/json",
+      "bytes": 1807,
+      "hash": "sha256:13973a544570f74669d9eb69e168dc826faf790c2998db8bc8a1cbc95470be20",
+      "schemaString": "avd-benchmark-result/v1",
+      "jsonSchema": "contracts/schemas/benchmark-result.schema.json"
     },
     {
       "name": "example-assess-endpoints",
@@ -91,8 +101,8 @@
       "path": "contracts/examples/assess/intake.example.json",
       "format": "json",
       "mediatype": "application/json",
-      "bytes": 599,
-      "hash": "sha256:89d6ffc59debbca448e2b04635241acffa0ec90e89bd6476cce3603700530760",
+      "bytes": 654,
+      "hash": "sha256:ae125e7eb095d9b2e3a21589c59c178ce8fc5f2639f0cb7d6beebd875f4b4679",
       "schemaString": "avd-intake/v1",
       "jsonSchema": "contracts/schemas/intake.schema.json"
     },
@@ -101,8 +111,8 @@
       "path": "contracts/examples/assess/map.example.json",
       "format": "json",
       "mediatype": "application/json",
-      "bytes": 3976,
-      "hash": "sha256:50a8616f5a2f8105e721afcb901685ecaadf8e092d2498b3eb6433726d99c593",
+      "bytes": 4786,
+      "hash": "sha256:69c9200cbfd2119342961d312de92eb63c2860c070e783aa5137ff903bac6dd6",
       "schemaString": "avd-assess-map/v1",
       "jsonSchema": "contracts/schemas/assess-map.schema.json"
     },
@@ -180,8 +190,8 @@
       "path": "contracts/fact-register.json",
       "format": "json",
       "mediatype": "application/json",
-      "bytes": 71429,
-      "hash": "sha256:edd6ad6ee9e222687e6b904ff04a2f9db61c0c5ac39b5d0cfff5e1c3f6123915",
+      "bytes": 80071,
+      "hash": "sha256:1ac7d2d65bc791b3d97007bfad1f1acb35b30bf24bda5896219cfa1fde7525c1",
       "schemaString": "avd-fact-register/v1",
       "jsonSchema": "contracts/schemas/fact-register.schema.json",
       "idPaths": [
@@ -230,8 +240,8 @@
       "path": "contracts/schemas/assess-map.schema.json",
       "format": "json",
       "mediatype": "application/json",
-      "bytes": 5498,
-      "hash": "sha256:d85318e0fb68a0699b56a90baef3e4ba81a8681f77e4f4e71de68780b1f02166"
+      "bytes": 6414,
+      "hash": "sha256:013ae66e3eb255cf33f08df4b7ea86d8a80debd2930ef3eb6d96ef3f2451ce72"
     },
     {
       "name": "schema-assess-method",
@@ -266,6 +276,14 @@
       "hash": "sha256:113d355e5a3d1ae35b921e817a8395cfb192e3a96410c772440c04f76cfbc3bf"
     },
     {
+      "name": "schema-benchmark-result",
+      "path": "contracts/schemas/benchmark-result.schema.json",
+      "format": "json",
+      "mediatype": "application/json",
+      "bytes": 9349,
+      "hash": "sha256:1d7967b2c4dac6306acc250e45dc3be3ed4e9ae6df9387aa591fef59e84fe8ed"
+    },
+    {
       "name": "schema-check-catalog",
       "path": "contracts/schemas/check-catalog.schema.json",
       "format": "json",
@@ -278,8 +296,8 @@
       "path": "contracts/schemas/current-state-facts.schema.json",
       "format": "json",
       "mediatype": "application/json",
-      "bytes": 18826,
-      "hash": "sha256:37f04c8048dbc29a048829ef4e6a46173e081c89c5753e116ea003e5573ec5fd"
+      "bytes": 23014,
+      "hash": "sha256:16dbf8635c8e5410c56e06a8f16627a5ce650b569deb1f8aa7fbaa2ec0bf8066"
     },
     {
       "name": "schema-fact-register",
@@ -294,8 +312,8 @@
       "path": "contracts/schemas/intake.schema.json",
       "format": "json",
       "mediatype": "application/json",
-      "bytes": 7994,
-      "hash": "sha256:6009ad6b31da792fd736f40bb89cfcf1883ae669fbf21e92c4b81713d633c191"
+      "bytes": 8370,
+      "hash": "sha256:90912d4fb9b16946ca004609761c72830323b7c77dde0c065c3d2bd060b6ef4e"
     },
     {
       "name": "schema-remediation-plan",
@@ -372,16 +390,16 @@
       "path": "gaps/baseline-profile.md",
       "format": "md",
       "mediatype": "text/markdown",
-      "bytes": 4236,
-      "hash": "sha256:d0dd3145da19c8b29916664c92027fca91e5e890b183bd0c4bcacbb39121d104"
+      "bytes": 4481,
+      "hash": "sha256:1669e24adc9eacb08fe1242fa7d8ef5d1eb35e795d35bd41553e778ab3ee3ede"
     },
     {
       "name": "gap-checklist-mapping",
       "path": "gaps/checklist-mapping.md",
       "format": "md",
       "mediatype": "text/markdown",
-      "bytes": 9330,
-      "hash": "sha256:a0cd6096f1fb17d7aaea2052b0dd295ee672ed81096789572b0bd790a72b4f9b"
+      "bytes": 11796,
+      "hash": "sha256:deac12634d780342c942aff7476fd8ca4d9d2c41833a86e3daebb3e747d145ec"
     },
     {
       "name": "gap-client-network",
@@ -460,8 +478,8 @@
       "path": "gaps/error-code-map.md",
       "format": "md",
       "mediatype": "text/markdown",
-      "bytes": 5571,
-      "hash": "sha256:ad4e76449ff4632bdceb6942e4ee81ca166c05e32e504faa494d003f7c605a54"
+      "bytes": 6598,
+      "hash": "sha256:089ebb059a3129f5859839a5b6f612f1702e3b15836b7510975f6ebe1b576f99"
     },
     {
       "name": "gap-evidence-intake",
@@ -516,8 +534,8 @@
       "path": "gaps/insights-facts.md",
       "format": "md",
       "mediatype": "text/markdown",
-      "bytes": 4477,
-      "hash": "sha256:72c7ab0bfca5ff3e5ae470e28a63f1ce5e214fa633ed2f0b4438702fa0a2a14a"
+      "bytes": 6402,
+      "hash": "sha256:6516a7c52e0f2f31e0938ebf036467f72333779f6da5a0981c30462def651f73"
     },
     {
       "name": "gap-intake",
@@ -532,8 +550,8 @@
       "path": "gaps/intune-scope.md",
       "format": "md",
       "mediatype": "text/markdown",
-      "bytes": 11059,
-      "hash": "sha256:0d8dedaf44fac99e1d736e7e20a5bc494f29131b10b4ed0b395867db40fbd760"
+      "bytes": 12408,
+      "hash": "sha256:f0f5214d7d39571e7d6aebe42ea7f4e7f9639f6bb68af3e3666a1dbe934e5b1a"
     },
     {
       "name": "gap-logon-target",
@@ -708,16 +726,16 @@
       "path": "gaps/workload-benchmark.md",
       "format": "md",
       "mediatype": "text/markdown",
-      "bytes": 3394,
-      "hash": "sha256:10d89825813637c52ea176eaa577b343f8cbb7d8c3ed9512b9214a629ad2fcaf"
+      "bytes": 3750,
+      "hash": "sha256:62a37f573e2a409b20a0441fa1098e5023752a3a6f6b833695c140aa53ecaeb4"
     },
     {
       "name": "index",
       "path": "index.json",
       "format": "json",
       "mediatype": "application/json",
-      "bytes": 424071,
-      "hash": "sha256:745a756e011bb6b98f4f7b41e062d87c8235eb0eebbb3408b7490ffb151ccc14",
+      "bytes": 426653,
+      "hash": "sha256:44085ec5a02daca05ea8110da8e9876814b7b090d266a2cbc94d349004603394",
       "schemaString": "avd-assess-index/v1",
       "jsonSchema": "contracts/schemas/assess-index.schema.json",
       "idPaths": [
@@ -732,8 +750,8 @@
       "path": "map.json",
       "format": "json",
       "mediatype": "application/json",
-      "bytes": 258197,
-      "hash": "sha256:9d970eb2dace7e7b919d15029911996c7e7a0992c70e8ebf7545dee1357a0c2c",
+      "bytes": 270333,
+      "hash": "sha256:a1d79516fa0fd585bc7e27ff600fd001ea32646a1f5ed59c01ea3b2921b07eec",
       "schemaString": "avd-assess-map/v1",
       "jsonSchema": "contracts/schemas/assess-map.schema.json",
       "idPaths": [
@@ -741,7 +759,8 @@
         "/dimensions/*/id",
         "/baselines/window/*/id",
         "/baselines/classes/*/id",
-        "/useCases/*/id"
+        "/useCases/*/id",
+        "/benchmarks/*/id"
       ]
     },
     {
@@ -749,8 +768,8 @@
       "path": "method.json",
       "format": "json",
       "mediatype": "application/json",
-      "bytes": 51488,
-      "hash": "sha256:64de9cfeda4b59cdc061f1d0981f1f457f5a77925afe9c175683edabf3c38dad",
+      "bytes": 81049,
+      "hash": "sha256:f67c59927f32f24c64e72576a7253806c764fa1b9d6d26bfe6c9d404142acf9b",
       "schemaString": "avd-assess-method/v1",
       "jsonSchema": "contracts/schemas/assess-method.schema.json",
       "idPaths": [
@@ -810,8 +829,8 @@
       "path": "methods/intune.md",
       "format": "md",
       "mediatype": "text/markdown",
-      "bytes": 5133,
-      "hash": "sha256:7ff220f54c788b731b5ce1a1896cbb8304c2982a8610d51c3b6702b8df0a61d7"
+      "bytes": 6078,
+      "hash": "sha256:a8aaf690deda97e928c467c7fdae0253cb33c5e0e8512ebb5adcca9ee763d120"
     },
     {
       "name": "method-m365",
@@ -947,16 +966,16 @@
       "path": "tools/AvdAssessBundle.psm1",
       "format": "psm1",
       "mediatype": "text/plain",
-      "bytes": 16102,
-      "hash": "sha256:2e1b25892222dd9c5f55f7fcf4a2d0a541b2a61e1cb60f66f362b4431a7bfbf6"
+      "bytes": 16133,
+      "hash": "sha256:59771625d1ba8bc4d002ab703fa874d7d88667e5f90eb50bb6cb6b0efe6ad8c2"
     },
     {
       "name": "tool-avd-assess-bundle-py",
       "path": "tools/avd_assess_bundle.py",
       "format": "py",
       "mediatype": "text/x-python",
-      "bytes": 14451,
-      "hash": "sha256:6f6c0d46cf576298d8747d1b6c4aecc55c6353cf4ca30409fb30029e009d12f4"
+      "bytes": 14480,
+      "hash": "sha256:0a8ad5fe63436c500f1fd46c348152d39378b586472dd77d5779969d7780c934"
     },
     {
       "name": "tool-diff-bundle-py",

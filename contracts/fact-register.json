@@ -567,7 +567,7 @@
       "grain": "hostPool",
       "unit": "bool",
       "privacy": "boolean",
-      "status": "specified",
+      "status": "built",
       "evidences": []
     },
     {
@@ -768,7 +768,7 @@
       "grain": "storageAccount",
       "unit": "bool",
       "privacy": "boolean",
-      "status": "specified",
+      "status": "built",
       "evidences": []
     },
     {
@@ -790,7 +790,7 @@
       "grain": "storageAccount",
       "unit": "bool",
       "privacy": "boolean",
-      "status": "specified",
+      "status": "built",
       "evidences": []
     },
     {
@@ -849,7 +849,7 @@
       "grain": "hostPool",
       "unit": "hosts",
       "privacy": "count",
-      "status": "specified",
+      "status": "built",
       "evidences": []
     },
     {
@@ -860,7 +860,7 @@
       "grain": "hostPool",
       "unit": "hosts",
       "privacy": "count",
-      "status": "specified",
+      "status": "built",
       "evidences": []
     },
     {
@@ -1093,7 +1093,7 @@
       "grain": "hostPool",
       "unit": "hosts",
       "privacy": "count",
-      "status": "specified",
+      "status": "built",
       "evidences": [
         "hostPool.vmSize"
       ]
@@ -1106,7 +1106,7 @@
       "grain": "hostPool",
       "unit": "hosts",
       "privacy": "count",
-      "status": "specified",
+      "status": "built",
       "evidences": []
     },
     {
@@ -1117,7 +1117,7 @@
       "grain": "hostPool",
       "unit": "count",
       "privacy": "count",
-      "status": "specified",
+      "status": "built",
       "evidences": []
     },
     {
@@ -1128,7 +1128,7 @@
       "grain": "hostPool",
       "unit": "count",
       "privacy": "count",
-      "status": "specified",
+      "status": "built",
       "evidences": []
     },
     {
@@ -1274,7 +1274,7 @@
       "grain": "hostPool",
       "unit": "enum",
       "privacy": "public",
-      "status": "specified",
+      "status": "built",
       "evidences": []
     },
     {
@@ -1307,7 +1307,7 @@
       "grain": "hostPool",
       "unit": "enum",
       "privacy": "public",
-      "status": "specified",
+      "status": "built",
       "evidences": [
         "hostPool.power"
       ]
@@ -2804,6 +2804,344 @@
       "tier": "intake",
       "contract": "C19",
       "path": "/powerPlatformPlaneScope",
+      "grain": "estate",
+      "unit": "enum",
+      "privacy": "public",
+      "status": "built",
+      "evidences": []
+    },
+    {
+      "id": "c11.hostPool.sessionHosts.notAcceleratedNetworking",
+      "tier": "azure",
+      "contract": "C11",
+      "path": "/subscriptions/*/hostPools/*/sessionHosts/notAcceleratedNetworking",
+      "grain": "hostPool",
+      "unit": "hosts",
+      "privacy": "count",
+      "status": "built",
+      "evidences": [
+        "hostPool.vmSize"
+      ]
+    },
+    {
+      "id": "c11.hostPool.sessionHosts.notEncryptionAtHost",
+      "tier": "azure",
+      "contract": "C11",
+      "path": "/subscriptions/*/hostPools/*/sessionHosts/notEncryptionAtHost",
+      "grain": "hostPool",
+      "unit": "hosts",
+      "privacy": "count",
+      "status": "built",
+      "evidences": []
+    },
+    {
+      "id": "c11.hostPool.sessionHosts.nonPremiumOsDisk",
+      "tier": "azure",
+      "contract": "C11",
+      "path": "/subscriptions/*/hostPools/*/sessionHosts/nonPremiumOsDisk",
+      "grain": "hostPool",
+      "unit": "hosts",
+      "privacy": "count",
+      "status": "built",
+      "evidences": []
+    },
+    {
+      "id": "c11.hostPool.sessionHosts.unpinnedZones",
+      "tier": "azure",
+      "contract": "C11",
+      "path": "/subscriptions/*/hostPools/*/sessionHosts/unpinnedZones",
+      "grain": "hostPool",
+      "unit": "hosts",
+      "privacy": "count",
+      "status": "built",
+      "evidences": []
+    },
+    {
+      "id": "c11.insights.rttP50",
+      "tier": "azure",
+      "contract": "C11",
+      "path": "/subscriptions/*/hostPools/*/insights/rttP50",
+      "grain": "hostPool",
+      "unit": "ms",
+      "privacy": "measure",
+      "status": "built",
+      "evidences": [
+        "region"
+      ]
+    },
+    {
+      "id": "c11.insights.rttP95",
+      "tier": "azure",
+      "contract": "C11",
+      "path": "/subscriptions/*/hostPools/*/insights/rttP95",
+      "grain": "hostPool",
+      "unit": "ms",
+      "privacy": "measure",
+      "status": "built",
+      "evidences": [
+        "region"
+      ]
+    },
+    {
+      "id": "c11.insights.inputDelayP95",
+      "tier": "azure",
+      "contract": "C11",
+      "path": "/subscriptions/*/hostPools/*/insights/inputDelayP95",
+      "grain": "hostPool",
+      "unit": "ms",
+      "privacy": "measure",
+      "status": "built",
+      "evidences": [
+        "hostPool.vmSize",
+        "hostPool.maxSessions"
+      ]
+    },
+    {
+      "id": "c11.insights.timeToConnectP95",
+      "tier": "azure",
+      "contract": "C11",
+      "path": "/subscriptions/*/hostPools/*/insights/timeToConnectP95",
+      "grain": "hostPool",
+      "unit": "seconds",
+      "privacy": "measure",
+      "status": "built",
+      "evidences": []
+    },
+    {
+      "id": "c11.insights.fslogixReadIopsP95",
+      "tier": "azure",
+      "contract": "C11",
+      "path": "/subscriptions/*/hostPools/*/insights/fslogixReadIopsP95",
+      "grain": "hostPool",
+      "unit": "iops",
+      "privacy": "measure",
+      "status": "built",
+      "evidences": [
+        "hostPool.profileQuotaGiB"
+      ]
+    },
+    {
+      "id": "c11.insights.connectionFailureRate",
+      "tier": "azure",
+      "contract": "C11",
+      "path": "/subscriptions/*/hostPools/*/insights/connectionFailureRate",
+      "grain": "hostPool",
+      "unit": "percent",
+      "privacy": "measure",
+      "status": "built",
+      "evidences": []
+    },
+    {
+      "id": "c11.entra.skuWin365Available",
+      "tier": "azure",
+      "contract": "C11",
+      "path": "/entra/skuWin365Available",
+      "grain": "estate",
+      "unit": "count",
+      "privacy": "count",
+      "status": "built",
+      "evidences": []
+    },
+    {
+      "id": "c11.intune.assignmentFiltersCount",
+      "tier": "azure",
+      "contract": "C11",
+      "path": "/intune/assignmentFiltersCount",
+      "grain": "estate",
+      "unit": "count",
+      "privacy": "count",
+      "status": "built",
+      "evidences": []
+    },
+    {
+      "id": "c11.intune.multiSessionFilterPresent",
+      "tier": "azure",
+      "contract": "C11",
+      "path": "/intune/multiSessionFilterPresent",
+      "grain": "estate",
+      "unit": "bool",
+      "privacy": "boolean",
+      "status": "built",
+      "evidences": []
+    },
+    {
+      "id": "c11.intune.cloudPcFilterPresent",
+      "tier": "azure",
+      "contract": "C11",
+      "path": "/intune/cloudPcFilterPresent",
+      "grain": "estate",
+      "unit": "bool",
+      "privacy": "boolean",
+      "status": "built",
+      "evidences": []
+    },
+    {
+      "id": "c11.intune.unfilteredAllDevicesPolicies",
+      "tier": "azure",
+      "contract": "C11",
+      "path": "/intune/unfilteredAllDevicesPolicies",
+      "grain": "estate",
+      "unit": "count",
+      "privacy": "count",
+      "status": "built",
+      "evidences": []
+    },
+    {
+      "id": "c11.intune.cloudPcManagedCompliant",
+      "tier": "azure",
+      "contract": "C11",
+      "path": "/intune/cloudPcManagedCompliant",
+      "grain": "estate",
+      "unit": "count",
+      "privacy": "count",
+      "status": "built",
+      "evidences": []
+    },
+    {
+      "id": "c11.intune.cloudPcManagedNoncompliant",
+      "tier": "azure",
+      "contract": "C11",
+      "path": "/intune/cloudPcManagedNoncompliant",
+      "grain": "estate",
+      "unit": "count",
+      "privacy": "count",
+      "status": "built",
+      "evidences": []
+    },
+    {
+      "id": "c11.intune.win365.cloudPcCountByStatus",
+      "tier": "azure",
+      "contract": "C11",
+      "path": "/intune/win365/cloudPcCountByStatus",
+      "grain": "estate",
+      "unit": "count",
+      "privacy": "count",
+      "status": "built",
+      "evidences": []
+    },
+    {
+      "id": "c11.intune.win365.provisioningPoliciesCount",
+      "tier": "azure",
+      "contract": "C11",
+      "path": "/intune/win365/provisioningPoliciesCount",
+      "grain": "estate",
+      "unit": "count",
+      "privacy": "count",
+      "status": "built",
+      "evidences": []
+    },
+    {
+      "id": "c11.intune.win365.ssoEnabledOnAllPolicies",
+      "tier": "azure",
+      "contract": "C11",
+      "path": "/intune/win365/ssoEnabledOnAllPolicies",
+      "grain": "estate",
+      "unit": "bool",
+      "privacy": "boolean",
+      "status": "built",
+      "evidences": [
+        "identity"
+      ]
+    },
+    {
+      "id": "c11.intune.win365.networkMode",
+      "tier": "azure",
+      "contract": "C11",
+      "path": "/intune/win365/networkMode",
+      "grain": "estate",
+      "unit": "enum",
+      "privacy": "public",
+      "status": "built",
+      "evidences": [
+        "network"
+      ]
+    },
+    {
+      "id": "c11.intune.win365.ancCountByHealth",
+      "tier": "azure",
+      "contract": "C11",
+      "path": "/intune/win365/ancCountByHealth",
+      "grain": "estate",
+      "unit": "count",
+      "privacy": "count",
+      "status": "built",
+      "evidences": [
+        "network"
+      ]
+    },
+    {
+      "id": "c11.intune.win365.ancFailedCount",
+      "tier": "azure",
+      "contract": "C11",
+      "path": "/intune/win365/ancFailedCount",
+      "grain": "estate",
+      "unit": "count",
+      "privacy": "count",
+      "status": "built",
+      "evidences": [
+        "network"
+      ]
+    },
+    {
+      "id": "c11.intune.win365.userSettingsCount",
+      "tier": "azure",
+      "contract": "C11",
+      "path": "/intune/win365/userSettingsCount",
+      "grain": "estate",
+      "unit": "count",
+      "privacy": "count",
+      "status": "built",
+      "evidences": []
+    },
+    {
+      "id": "c11.intune.win365.localAdminDisabled",
+      "tier": "azure",
+      "contract": "C11",
+      "path": "/intune/win365/localAdminDisabled",
+      "grain": "estate",
+      "unit": "bool",
+      "privacy": "boolean",
+      "status": "built",
+      "evidences": []
+    },
+    {
+      "id": "c11.intune.win365.restorePointFrequencyHoursMax",
+      "tier": "azure",
+      "contract": "C11",
+      "path": "/intune/win365/restorePointFrequencyHoursMax",
+      "grain": "estate",
+      "unit": "hours",
+      "privacy": "count",
+      "status": "built",
+      "evidences": []
+    },
+    {
+      "id": "c11.intune.win365.customImagesReady",
+      "tier": "azure",
+      "contract": "C11",
+      "path": "/intune/win365/customImagesReady",
+      "grain": "estate",
+      "unit": "count",
+      "privacy": "count",
+      "status": "built",
+      "evidences": []
+    },
+    {
+      "id": "intake.avdScope",
+      "tier": "intake",
+      "contract": "C19",
+      "path": "/avdScope",
+      "grain": "estate",
+      "unit": "enum",
+      "privacy": "public",
+      "status": "built",
+      "evidences": []
+    },
+    {
+      "id": "intake.win365Scope",
+      "tier": "intake",
+      "contract": "C19",
+      "path": "/win365Scope",
       "grain": "estate",
       "unit": "enum",
       "privacy": "public",

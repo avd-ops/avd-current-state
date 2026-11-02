@@ -173,7 +173,7 @@ function Get-AvdStateEntra {
 function Get-AvdStateIntune {
     <#
     .SYNOPSIS
-        Read-only Intune plane collector (deviceManagement settings, MDM auto-enrollment, Settings Catalog, managedDevices).
+        Read-only Intune and Windows 365 plane collector (deviceManagement settings, MDM auto-enrollment, Settings Catalog, assignmentFilters, managedDevices, and virtualEndpoint).
     #>
     param(
         [Parameter(Mandatory)][scriptblock]$Invoker,
@@ -185,6 +185,13 @@ function Get-AvdStateIntune {
         mdmPolicies           = 'https://graph.microsoft.com/v1.0/policies/mobileDeviceManagementPolicies'
         configurationPolicies = 'https://graph.microsoft.com/beta/deviceManagement/configurationPolicies'
         managedDevices        = 'https://graph.microsoft.com/v1.0/deviceManagement/managedDevices'
+    }
+    $optionalEndpoints = [ordered]@{
+        assignmentFilters     = 'https://graph.microsoft.com/beta/deviceManagement/assignmentFilters'
+        cloudPcs              = 'https://graph.microsoft.com/v1.0/deviceManagement/virtualEndpoint/cloudPCs'
+        provisioningPolicies  = 'https://graph.microsoft.com/v1.0/deviceManagement/virtualEndpoint/provisioningPolicies'
+        userSettings          = 'https://graph.microsoft.com/v1.0/deviceManagement/virtualEndpoint/userSettings'
+        onPremisesConnections = 'https://graph.microsoft.com/v1.0/deviceManagement/virtualEndpoint/onPremisesConnections'
     }
     $data = [ordered]@{}
     foreach ($k in $endpoints.Keys) {
@@ -199,6 +206,14 @@ function Get-AvdStateIntune {
             return @{ Status = 'skipped'; Reason = 'no-license'; Data = @{} }
         }
         $data[$k] = @($r.Items)
+    }
+    foreach ($optKey in $optionalEndpoints.Keys) {
+        $optRead = Invoke-RebuildRestRead -Path $optionalEndpoints[$optKey] -Invoker $Invoker
+        if ($optRead.Status -eq 'ok') {
+            $data[$optKey] = @($optRead.Items)
+        } else {
+            $data[$optKey] = @()
+        }
     }
     return @{ Status = 'collected'; Data = $data }
 }
