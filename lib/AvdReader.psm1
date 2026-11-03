@@ -18,6 +18,7 @@ $script:Audience = 'api://AzureADTokenExchange'
 # Microsoft's built-in role definition IDs (public, the same in every tenant). The only roles the reader may hold.
 $script:Roles = @(
     [pscustomobject]@{ Name = 'Reader'; Id = 'acdd72a7-3385-48ef-bd42-f606fba81ae7'; ScopeKind = 'Arm' }
+    [pscustomobject]@{ Name = 'Desktop Virtualization Reader'; Id = '49a72310-ab8d-41df-bbb0-79b649203868'; ScopeKind = 'Arm' }
     [pscustomobject]@{ Name = 'Log Analytics Reader'; Id = '73c42c96-874c-492b-b04d-ab87d138a893'; ScopeKind = 'Workspace' }
     [pscustomobject]@{ Name = 'Cost Management Reader'; Id = '72fafb9e-0641-4937-9268-a91bfd8191a3'; ScopeKind = 'Arm' }
     [pscustomobject]@{ Name = 'Storage Blob Data Contributor'; Id = 'ba92f5b4-2d11-453d-a403-e96b0029c9fe'; ScopeKind = 'Container' }
@@ -306,5 +307,47 @@ function Get-AvdReaderFinding {
     $out.ToArray()
 }
 
+function Get-AvdReaderMcpConfig {
+    <#
+      Pure helper that builds a read-only, zero-secret .mcp.json object for local operator investigation
+      (Microsoft's Azure MCP Server in --mode all --read-only --namespace virtualdesktop, plus optional
+      Azure/azure-api-mcp with --readonly). The collector, validator and facts scripts never use MCP.
+    #>
+    [CmdletBinding()]
+    param(
+        [string[]] $Namespace = @('virtualdesktop'),
+        [switch] $IncludeAzCliMcp
+    )
+    $allowedNamespaces = @('virtualdesktop', 'monitor', 'kusto', 'advisor', 'pricing', 'resourcehealth', 'policy', 'role', 'quota')
+    $cleaned = @($Namespace | Where-Object { $_ -and $_.Trim() } | ForEach-Object { $_.Trim().ToLowerInvariant() } | Select-Object -Unique)
+    if (-not $cleaned.Count) { throw 'Specify at least one Azure MCP namespace.' }
+    foreach ($ns in $cleaned) {
+        if ($ns -notin $allowedNamespaces) {
+            throw "Namespace '$ns' is not in the read-only allowlist ($($allowedNamespaces -join ', '))."
+        }
+    }
+    $azMcpArgs = New-Object System.Collections.Generic.List[string]
+    foreach ($token in @('-y', '@azure/mcp@latest', 'server', 'start', '--mode', 'all', '--read-only')) {
+        $azMcpArgs.Add($token)
+    }
+    foreach ($ns in $cleaned) {
+        $azMcpArgs.Add('--namespace')
+        $azMcpArgs.Add($ns)
+    }
+    $servers = [ordered]@{
+        'azure-mcp' = [ordered]@{
+            command = 'npx'
+            args    = $azMcpArgs.ToArray()
+        }
+    }
+    if ($IncludeAzCliMcp) {
+        $servers['az-cli-mcp'] = [ordered]@{
+            command = 'az-api-mcp'
+            args    = @('--readonly')
+        }
+    }
+    [ordered]@{ mcpServers = $servers }
+}
+
 Export-ModuleMember -Function Get-AvdReaderRole, Get-AvdReaderScopeKind, Get-AvdReaderSubject, Get-AvdReaderCredentialName,
-    Get-AvdReaderRepoVerdict, Get-AvdReaderAssignmentPlan, Get-AvdReaderTokenClaim, Get-AvdReaderPolicyBody, Get-AvdReaderDelegationCondition, Get-AvdReaderFinding
+    Get-AvdReaderRepoVerdict, Get-AvdReaderAssignmentPlan, Get-AvdReaderTokenClaim, Get-AvdReaderPolicyBody, Get-AvdReaderDelegationCondition, Get-AvdReaderFinding, Get-AvdReaderMcpConfig
