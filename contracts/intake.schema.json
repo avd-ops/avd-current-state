@@ -133,6 +133,14 @@
       "description": "Fact intake.win365Scope (optional). Whether the estate runs Windows 365 Cloud PCs managed through Intune.",
       "enum": ["in-scope", "not-used"]
     },
+    "userLicense": {
+      "description": "Fact intake.userLicense (optional). Which license covers the users, deciding whether per-user access pricing applies (avd-assess gaps/finops-scope.md).",
+      "enum": ["m365-or-windows-enterprise", "rds-cal", "per-user-access", "unknown"]
+    },
+    "computeCommitments": {
+      "description": "Fact intake.computeCommitments (optional). Whether the organization holds VM reservations or a compute savings plan covering the estate (avd-assess gaps/finops-scope.md).",
+      "enum": ["reservation", "savings-plan", "both", "none", "unknown"]
+    },
     "extensions": {
       "type": "object",
       "description": "Optional, for upper layers only, keyed by namespace (contracts/README.md rule 1). A foundation reader ignores it.",

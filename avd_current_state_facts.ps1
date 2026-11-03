@@ -259,6 +259,41 @@ function Test-TrustedLaunch {
         (Test-True (Get-PathValue $Vm 'properties.securityProfile.uefiSettings.vTpmEnabled')))
 }
 
+function Test-CostAllocationTag {
+    # True when a row's Tags JSON or rebuild tags object carries a cost allocation tag key; never emits tag names or values.
+    param([object]$Row, [object]$RebuildRow = $null)
+    $keys = @()
+    $hasTagProp = $false
+    if ($null -ne $Row -and $Row.PSObject.Properties['Tags']) {
+        $hasTagProp = $true
+        $raw = Get-Prop $Row 'Tags'
+        if ($raw) {
+            try {
+                $parsed = "$raw" | ConvertFrom-Json
+                if ($parsed) { $keys += @($parsed.PSObject.Properties | ForEach-Object { $_.Name }) }
+            } catch {
+                $null = $_
+            }
+        }
+    }
+    if ($null -ne $RebuildRow -and $RebuildRow.PSObject.Properties['tags']) {
+        $hasTagProp = $true
+        $rbTags = Get-Prop $RebuildRow 'tags'
+        if ($rbTags -is [System.Collections.IDictionary]) {
+            $keys += @($rbTags.Keys)
+        } elseif ($null -ne $rbTags) {
+            $keys += @($rbTags.PSObject.Properties | ForEach-Object { $_.Name })
+        }
+    }
+    if (-not $hasTagProp) { return $null }
+    foreach ($k in $keys) {
+        if ("$k" -match '(?i)^(cm-resource-parent|costcenter|cost-center|cost_center|application|app|environment|env|owner|department|project|workload|billing|service)$') {
+            return $true
+        }
+    }
+    return $false
+}
+
 # endregion
 
 # region Packages
@@ -357,7 +392,7 @@ function Get-SubscriptionFact {
     # and those facts are left out (a check then reads them as unknown).
     $rebuild = Join-Path $Directory 'rebuild'
     $rbById = @{}
-    foreach ($type in @('microsoft.compute-virtualmachines', 'microsoft.storage-storageaccounts')) {
+    foreach ($type in @('microsoft.compute-virtualmachines', 'microsoft.storage-storageaccounts', 'microsoft.desktopvirtualization-hostpools')) {
         foreach ($row in @(Read-JsonFile -Path (Join-Path $rebuild "resources/$type.json"))) {
             $rid = "$(Get-Prop $row 'id' '')".ToLowerInvariant()
             if ($rid) { $rbById[$rid] = $row }
@@ -366,6 +401,86 @@ function Get-SubscriptionFact {
     $extRows = @(Read-JsonFile -Path (Join-Path $rebuild 'resources/microsoft.compute-virtualmachines-extensions.json'))
     $epFile = Join-Path $rebuild 'resources/microsoft.powerplatform-enterprisepolicies.json'
     $epRows = if (Test-Path -LiteralPath $epFile) { @(Read-JsonFile -Path $epFile) } else { $null }
+    $spFile = Join-Path $rebuild 'resources/microsoft.desktopvirtualization-scalingplans.json'
+    $scaledPools = $null
+    if (Test-Path -LiteralPath $spFile) {
+        $scaledPools = @{}
+        foreach ($sp in @(Read-JsonFile -Path $spFile)) {
+            Add-KnownName (Get-Prop $sp 'name')
+            Add-KnownName (Get-Prop $sp 'id')
+            foreach ($ref in @(Get-PathValue $sp 'properties.hostPoolReferences' @())) {
+                $hpRef = "$(Get-Prop $ref 'hostPoolArmPath' '')".ToLowerInvariant()
+                $enabled = Get-Prop $ref 'scalingPlanEnabled'
+                if ($hpRef -and "$enabled".ToLowerInvariant() -ne 'false') {
+                    $scaledPools[$hpRef] = $true
+                }
+            }
+        }
+    }
+    $budgetsFile = Join-Path $rebuild 'rest/budgets.json'
+    $budgetsFact = $null
+    if (Test-Path -LiteralPath $budgetsFile) {
+        $budgetItems = @()
+        $hasOkRead = $false
+        foreach ($row in @(Read-JsonFile -Path $budgetsFile)) {
+            if ($null -ne (Get-Prop $row 'status')) {
+                if ("$(Get-Prop $row 'status' '')" -eq 'ok') {
+                    $hasOkRead = $true
+                    $budgetItems += @(Get-Prop $row 'items' @())
+                }
+            } elseif ($null -ne $row) {
+                $hasOkRead = $true
+                $budgetItems += $row
+            }
+        }
+        if ($hasOkRead) {
+            foreach ($b in $budgetItems) { Add-KnownName (Get-Prop $b 'name'); Add-KnownName (Get-Prop $b 'id') }
+            $withAg = 0
+            foreach ($b in $budgetItems) {
+                $notifs = Get-PathValue $b 'properties.notifications'
+                $hasAg = $false
+                if ($notifs -is [System.Collections.IDictionary]) {
+                    foreach ($n in $notifs.Values) {
+                        if ("$(Get-Prop $n 'enabled' 'true')".ToLowerInvariant() -ne 'false' -and @(Get-Prop $n 'contactGroups' @()).Count -gt 0) { $hasAg = $true }
+                    }
+                } elseif ($null -ne $notifs) {
+                    foreach ($p in $notifs.PSObject.Properties) {
+                        $n = $p.Value
+                        if ("$(Get-Prop $n 'enabled' 'true')".ToLowerInvariant() -ne 'false' -and @(Get-Prop $n 'contactGroups' @()).Count -gt 0) { $hasAg = $true }
+                    }
+                }
+                if ($hasAg) { $withAg++ }
+            }
+            $budgetsFact = [ordered]@{
+                total           = [int]$budgetItems.Count
+                withActionGroup = [int]$withAg
+            }
+        }
+    }
+    $advisorFile = Join-Path $rebuild 'resources/microsoft.advisor-recommendations.json'
+    $advisorFact = $null
+    if (Test-Path -LiteralPath $advisorFile) {
+        $advRows = @(Read-JsonFile -Path $advisorFile)
+        foreach ($adv in $advRows) {
+            Add-KnownName (Get-Prop $adv 'name')
+            Add-KnownName (Get-Prop $adv 'id')
+            Add-KnownName (Get-PathValue $adv 'properties.impactedValue')
+        }
+        $costRows = @($advRows | Where-Object { "$(Get-PathValue $_ 'properties.category' '')" -eq 'Cost' })
+        $unattachedDisks = @($costRows | Where-Object {
+                "$(Get-PathValue $_ 'properties.impactedField' '')" -match '(?i)disks$' -or
+                "$(Get-PathValue $_ 'properties.shortDescription.problem' '')" -match '(?i)unattached.*disk'
+            }).Count
+        $rightSizeVms = @($costRows | Where-Object {
+                "$(Get-PathValue $_ 'properties.impactedField' '')" -match '(?i)virtualMachines$' -or
+                "$(Get-PathValue $_ 'properties.shortDescription.problem' '')" -match '(?i)(right-size|rightsize|underutilized)'
+            }).Count
+        $advisorFact = [ordered]@{
+            recommendations = Get-CountMap @($advRows | ForEach-Object { Get-PathValue $_ 'properties.category' }) '^[A-Za-z]{2,40}$'
+            unattachedDisks = [int]$unattachedDisks
+            rightSizeVms    = [int]$rightSizeVms
+        }
+    }
     $fileServices = @{}
     foreach ($read in @(Read-JsonFile -Path (Join-Path $rebuild 'rest/file-services.json'))) {
         if ("$(Get-Prop $read 'status' '')" -ne 'ok') { continue }
@@ -395,6 +510,7 @@ function Get-SubscriptionFact {
     $hostPools = @()
     $hpByName = @{}
     $hpById = @{}
+    $hpRowByName = @{}
     foreach ($hp in $ds['avd-host-pools']) {
         $id = "$(Get-Prop $hp 'Id' '')"
         $rdp = @()
@@ -429,8 +545,14 @@ function Get-SubscriptionFact {
                     "$(Get-Prop $_ 'RoleDefinitionName' '')" -eq 'Desktop Virtualization User' -and "$(Get-Prop $_ 'ObjectType' '')" -eq 'User'
                 }).Count
         }
+        if ($null -ne $scaledPools -and $id) {
+            $spMethod = if ($scaledPools.ContainsKey($id.ToLowerInvariant())) { 'power-management' } else { 'none' }
+            $entry.scalingPlan = [ordered]@{ method = $spMethod }
+        }
         $hostPools += $entry
-        $hpByName["$(Get-Prop $hp 'Name' '')".ToLowerInvariant()] = $entry
+        $poolKey = "$(Get-Prop $hp 'Name' '')".ToLowerInvariant()
+        $hpByName[$poolKey] = $entry
+        $hpRowByName[$poolKey] = $hp
         if ($id) { $hpById[$id.ToLowerInvariant()] = $entry }
     }
 
@@ -488,6 +610,27 @@ function Get-SubscriptionFact {
             $trusted = @($rbVms | Where-Object { Test-TrustedLaunch $_ }).Count
             $entry.sessionHosts.trustedLaunch = $trusted
             $entry.sessionHosts.notTrustedLaunch = $rbVms.Count - $trusted
+            $hibernating = @($rbVms | Where-Object { Test-True (Get-PathValue $_ 'properties.additionalCapabilities.hibernationEnabled') }).Count
+            $entry.sessionHosts.hibernation = [int]$hibernating
+            $hpRow = $hpRowByName[$pool]
+            $hpArmId = "$(Get-Prop $hpRow 'Id' '')".ToLowerInvariant()
+            $hpCostTag = Test-CostAllocationTag -Row $hpRow -RebuildRow $(if ($hpArmId -and $rbById.ContainsKey($hpArmId)) { $rbById[$hpArmId] } else { $null })
+            if ($null -ne $hpCostTag) { $entry.costAllocationTag = [bool]$hpCostTag }
+            $tagChecked = 0
+            $untagged = 0
+            foreach ($h in $hosts) {
+                $vmId = "$(Get-Prop $h 'ResourceId' '')".ToLowerInvariant()
+                $vmRow = if ($vmById.ContainsKey($vmId)) { $vmById[$vmId] } else { $null }
+                $rbVmRow = if ($rbById.ContainsKey($vmId)) { $rbById[$vmId] } else { $null }
+                $hasCostTag = Test-CostAllocationTag -Row $vmRow -RebuildRow $rbVmRow
+                if ($null -ne $hasCostTag) {
+                    $tagChecked++
+                    if (-not $hasCostTag) { $untagged++ }
+                }
+            }
+            if ($tagChecked -gt 0) {
+                $entry.sessionHosts.untaggedForCost = [int]$untagged
+            }
         }
         if ($extRows.Count -gt 0 -or $ds['vm-extensions'].Count -gt 0) {
             $hostVmNames = @{}
@@ -661,6 +804,8 @@ function Get-SubscriptionFact {
         }
     }
     if ($null -ne $defenderPlans) { $result.defenderPlans = $defenderPlans }
+    if ($null -ne $budgetsFact) { $result.budgets = $budgetsFact }
+    if ($null -ne $advisorFact) { $result.advisor = $advisorFact }
     $ppDelegated = @($ds['subnets'] | Where-Object { "$(Get-Prop $_ 'Delegations' '')" -match '(?i)Microsoft\.PowerPlatform/enterprisePolicies' }).Count
     if ($null -ne $epRows -or $ppDelegated -gt 0) {
         $result.powerPlatform = [ordered]@{

@@ -42,8 +42,8 @@
       "id": "activity-log",
       "title": "Activity log in Azure Monitor",
       "url": "https://learn.microsoft.com/azure/azure-monitor/fundamentals/activity-log",
-      "pin": "Learn git_commit_id e1e0379f84a8e116f30c72567d10ade8ea2f46e5, updated_at 2026-10-19",
-      "read": "2026-10-21",
+      "pin": "Learn git_commit_id 25304e36332b7851db820ab35a8b2814ccbe7614, updated_at 2026-10-27",
+      "read": "2026-10-29",
       "license": "Microsoft Learn content (link only)",
       "areas": [
         "assessment",
@@ -520,8 +520,8 @@
       "id": "arch-avd-design-guide",
       "title": "Azure Architecture Center, Azure Virtual Desktop landing zone design guide",
       "url": "https://learn.microsoft.com/azure/architecture/landing-zones/azure-virtual-desktop/design-guide",
-      "pin": "Learn git_commit_id 1a7a778bf46ec7c3bdd403f91d5985a92ac6cc25, updated_at 2026-10-05",
-      "read": "2026-10-21",
+      "pin": "Learn git_commit_id dd1873a40db49a7541996af5597d94969aa63444, updated_at 2026-10-27",
+      "read": "2026-10-29",
       "license": "Microsoft Learn content (link only)",
       "areas": [
         "assessment"
@@ -795,8 +795,8 @@
       "id": "availability-zones",
       "title": "What are Azure availability zones?",
       "url": "https://learn.microsoft.com/azure/reliability/availability-zones-overview",
-      "pin": "Learn git_commit_id 2f7ee4c8b45127943bcd615810dc882f9ddd598e, updated_at 2026-10-13",
-      "read": "2026-10-21",
+      "pin": "Learn git_commit_id 454863f3dc91952428e31d5a5fcd4ba88bdb1ad7, updated_at 2026-10-27",
+      "read": "2026-10-29",
       "license": "Microsoft Learn content (link only)",
       "areas": [
         "assessment"
@@ -1512,8 +1512,8 @@
       "id": "avd-gis-workload-example",
       "title": "Azure Architecture Center, a GIS desktop app on Azure Virtual Desktop (example scenario)",
       "url": "https://learn.microsoft.com/azure/architecture/example-scenario/data/esri-arcgis-azure-virtual-desktop",
-      "pin": "Learn git_commit_id 069a83fe2cc8d78c25f4123a93ba3b9819821147, updated_at 2026-06-03",
-      "read": "2026-10-21",
+      "pin": "Learn git_commit_id fce7dc954ab10936e5083de69677c9c046b86494, updated_at 2026-10-27",
+      "read": "2026-10-29",
       "license": "Microsoft Learn content (link only)",
       "areas": [
         "benchmarks"
@@ -2125,8 +2125,8 @@
       "id": "avd-multiregion-bcdr",
       "title": "Multiregion BCDR for Azure Virtual Desktop",
       "url": "https://learn.microsoft.com/azure/architecture/example-scenario/azure-virtual-desktop/azure-virtual-desktop-multi-region-bcdr",
-      "pin": "Learn git_commit_id d6054b5b6a0fda90d06619b94a3c5c2ce89c4513, updated_at 2026-10-05",
-      "read": "2026-10-21",
+      "pin": "Learn git_commit_id 0762ad3f4f716eaeb4f5da294f815cf5f99bd965, updated_at 2026-10-23",
+      "read": "2026-10-29",
       "license": "Microsoft Learn content (link only)",
       "areas": [
         "assessment",
@@ -2724,8 +2724,8 @@
       "id": "avd-security-guide",
       "title": "Security recommendations for Azure Virtual Desktop",
       "url": "https://learn.microsoft.com/azure/virtual-desktop/security-guide",
-      "pin": "Learn git_commit_id 02c72255bd133b6d98c53d233b6f97b780f2322a, updated_at 2026-08-27",
-      "read": "2026-10-20",
+      "pin": "Learn git_commit_id 033104598fa925b1260d4d3d83012e0692c949a3, updated_at 2026-10-21",
+      "read": "2026-10-29",
       "license": "Microsoft Learn content (link only)",
       "areas": [
         "assessment"
@@ -2801,6 +2801,11 @@
           "id": "gsa-on-hosts",
           "says": "Configure Global Secure Access on session hosts to apply the same access controls to private, internet and Microsoft 365 apps, external identities included.",
           "kind": "guidance"
+        },
+        {
+          "id": "no-administrator-protection",
+          "says": "Don't turn on Windows 11 Administrator protection on session hosts or their images; it isn't supported yet, and the Windows security baselines applied by Group Policy turn it on from the October 2026 security update.",
+          "kind": "published"
         }
       ]
     },
@@ -3124,8 +3129,8 @@
       "id": "avd-update-methods",
       "title": "Windows update management methodologies for Azure Virtual Desktop session hosts",
       "url": "https://learn.microsoft.com/azure/virtual-desktop/windows-update-management-methodologies-session-hosts",
-      "pin": "Learn git_commit_id c972d4459371656583cdf255f87778a5ffc75fa4, updated_at 2026-10-08",
-      "read": "2026-10-20",
+      "pin": "Learn git_commit_id de6e2325bea5c22de746080fb3965dbf1b277e5a, updated_at 2026-10-28",
+      "read": "2026-10-29",
       "license": "Microsoft Learn content (link only)",
       "areas": [
         "assessment"
@@ -3153,7 +3158,7 @@
         },
         {
           "id": "hotpatch",
-          "says": "Hotpatch applies eligible monthly security updates without a reboot on supported editions, including multi-session.",
+          "says": "Hotpatch applies eligible monthly security updates without a reboot on Windows Server Azure Edition and Windows 11 Enterprise 24H2 or later with VBS on; multi-session isn't supported.",
           "kind": "published"
         }
       ]
@@ -3217,8 +3222,8 @@
       "id": "avd-whats-new",
       "title": "What's new in Azure Virtual Desktop",
       "url": "https://learn.microsoft.com/azure/virtual-desktop/whats-new",
-      "pin": "Learn git_commit_id e1f3352792e5f5036e29c56eff58e883bb6b2b22, updated_at 2026-10-14",
-      "read": "2026-10-21",
+      "pin": "Learn git_commit_id 9f188d1eb9303ec2326038144e80606e4d67ed4f, updated_at 2026-10-23",
+      "read": "2026-10-29",
       "license": "Microsoft Learn content (link only)",
       "areas": [
         "assessment"
@@ -3231,7 +3236,7 @@
         },
         {
           "id": "multipath-ga",
-          "says": "RDP Multipath became generally available in July 2025; redundant TCP paths began a phased GA rollout in May 2026.",
+          "says": "RDP Multipath became generally available in July 2025; redundant TCP paths began a phased GA rollout in May 2026 and were generally available in July 2026.",
           "kind": "published"
         }
       ]
@@ -3274,8 +3279,8 @@
       "id": "azure-files-networking",
       "title": "Azure Files networking considerations",
       "url": "https://learn.microsoft.com/azure/storage/files/storage-files-networking-overview",
-      "pin": "Learn git_commit_id 7d8e1c58c58a4dc0ec333cbc4ad45173c7d61e6d, updated_at 2026-10-05",
-      "read": "2026-10-21",
+      "pin": "Learn git_commit_id ac4bcb1eb41ca6e2ace58e626de7d186ea80bb00, updated_at 2026-10-26",
+      "read": "2026-10-29",
       "license": "Microsoft Learn content (link only)",
       "areas": [
         "assessment"
@@ -3292,8 +3297,8 @@
       "id": "azure-files-smb",
       "title": "SMB file shares in Azure Files",
       "url": "https://learn.microsoft.com/azure/storage/files/files-smb-protocol",
-      "pin": "Learn git_commit_id 950ee5e997d79ae583f3b68272322c637732fc9a, updated_at 2026-09-22",
-      "read": "2026-10-21",
+      "pin": "Learn git_commit_id ac4bcb1eb41ca6e2ace58e626de7d186ea80bb00, updated_at 2026-10-26",
+      "read": "2026-10-29",
       "license": "Microsoft Learn content (link only)",
       "areas": [
         "assessment",
@@ -3315,8 +3320,8 @@
       "id": "azure-files-vdi",
       "title": "Azure Files guidance for virtual desktop workloads",
       "url": "https://learn.microsoft.com/azure/storage/files/virtual-desktop-workloads",
-      "pin": "Learn git_commit_id 21b4b7181ee0e882340a24ca59e1805107a58d64, updated_at 2026-10-19",
-      "read": "2026-10-20",
+      "pin": "Learn git_commit_id ac4bcb1eb41ca6e2ace58e626de7d186ea80bb00, updated_at 2026-10-26",
+      "read": "2026-10-29",
       "license": "Microsoft Learn content (link only)",
       "areas": [
         "benchmarks"
@@ -3336,6 +3341,41 @@
           "id": "storm-sizing",
           "says": "Size for sign-in and sign-out storms separately from steady state; the worked example uses 10 IOPS per user steady and calls its values sample assumptions.",
           "kind": "prior"
+        }
+      ]
+    },
+    {
+      "id": "azure-mcp",
+      "title": "Azure MCP Server tools for Azure Virtual Desktop and server startup modes",
+      "url": "https://learn.microsoft.com/azure/developer/azure-mcp-server/tools/azure-virtual-desktop",
+      "pin": "Learn git_commit_id 7c4a91e2b803f512d4a96c1830e7b42f9a51c308, updated_at 2026-10-20",
+      "read": "2026-11-03",
+      "license": "Microsoft Learn content (link only)",
+      "areas": [
+        "collection",
+        "assessment"
+      ],
+      "pillars": [
+        "monitoring",
+        "diagnostics",
+        "security-posture"
+      ],
+      "notes": "Microsoft's Azure MCP Server (`microsoft/mcp`, MIT) startup parameters (`--mode all`, `--read-only`, `--namespace virtualdesktop`), typed AVD read tools, and comparison against CLI wrapper MCP servers (`Azure/azure-api-mcp`, MIT) for collection vs. investigation.",
+      "claims": [
+        {
+          "id": "read-only-flag",
+          "says": "Starting the Azure MCP Server with `--read-only` exposes only tools annotated read-only (`readOnlyHint` set to `true`) and refuses write operations across exposed namespaces.",
+          "kind": "published"
+        },
+        {
+          "id": "all-mode-per-tool-allowlist",
+          "says": "The default `namespace` mode exposes one aggregated tool per service namespace; starting the Azure MCP Server with `--mode all` (or naming tools with `--tool`) exposes individual tool schemas so a caller can enforce a per-tool allowlist and bound prompt token overhead.",
+          "kind": "published"
+        },
+        {
+          "id": "typed-vs-cli-wrapper",
+          "says": "The Azure MCP Server's `virtualdesktop` namespace exposes typed, read-only tools for host pools, session hosts and user sessions, whereas `Azure/azure-api-mcp` (`--readonly`) wraps free-form `az` CLI commands for ad-hoc exploration; deterministic collectors and test harnesses run direct PowerShell or Bicep without MCP.",
+          "kind": "guidance"
         }
       ]
     },
@@ -4047,8 +4087,8 @@
       "id": "context-based-redirections",
       "title": "Context-based redirections (preview), Azure Virtual Desktop",
       "url": "https://learn.microsoft.com/azure/virtual-desktop/context-based-redirections-avd",
-      "pin": "Learn git_commit_id 3a92c56eeb06c2c44fb9e51ee18283bc9ac6e888, updated_at 2026-06-03",
-      "read": "2026-10-21",
+      "pin": "Learn git_commit_id 9f188d1eb9303ec2326038144e80606e4d67ed4f, updated_at 2026-10-23",
+      "read": "2026-10-29",
       "license": "Microsoft Learn content (link only)",
       "areas": [
         "assessment"
@@ -4066,7 +4106,7 @@
         },
         {
           "id": "full-desktop-only",
-          "says": "Supported in Windows App on Windows, web, Android, iOS and iPadOS and macOS, for full desktop sessions.",
+          "says": "Supported in Windows App on Windows, web, Android, iOS and iPadOS and macOS, for full desktop sessions and, in AVD, RemoteApp sessions too.",
           "kind": "published"
         }
       ]
@@ -4680,8 +4720,8 @@
       "id": "files-backup-support",
       "title": "Support matrix for Azure Files backup",
       "url": "https://learn.microsoft.com/azure/backup/azure-file-share-support-matrix",
-      "pin": "Learn git_commit_id 61a22ef60bd18c850befbd4c64c118893ae42770, updated_at 2026-09-23",
-      "read": "2026-10-21",
+      "pin": "Learn git_commit_id 8ec165efbe56a9ea50ae0ce0ea42b0fbb5f23cf0, updated_at 2026-10-27",
+      "read": "2026-10-29",
       "license": "Microsoft Learn content (link only)",
       "areas": [
         "assessment"
@@ -4767,8 +4807,8 @@
       "id": "files-monitoring-alerts",
       "title": "Create monitoring alerts for Azure Files",
       "url": "https://learn.microsoft.com/azure/storage/files/files-monitoring-alerts",
-      "pin": "Learn git_commit_id aa85b0febdf3dde390ad653f19cd406f8cc6aff5, updated_at 2026-10-07",
-      "read": "2026-10-21",
+      "pin": "Learn git_commit_id ac4bcb1eb41ca6e2ace58e626de7d186ea80bb00, updated_at 2026-10-26",
+      "read": "2026-10-29",
       "license": "Microsoft Learn content (link only)",
       "areas": [
         "assessment"
@@ -6079,8 +6119,8 @@
       "id": "mdm-wins-over-gp",
       "title": "Policy CSP - ControlPolicyConflict (MDMWinsOverGP)",
       "url": "https://learn.microsoft.com/windows/client-management/mdm/policy-csp-controlpolicyconflict",
-      "pin": "Learn git_commit_id a0d5f1399171210809959ea5d44801cc57b5ad30, updated_at 2026-10-16",
-      "read": "2026-10-21",
+      "pin": "Learn git_commit_id 6e5887a2f20ef9f4a897a01f069534e71a53d71e, updated_at 2026-10-23",
+      "read": "2026-10-29",
       "license": "Microsoft Learn content (link only)",
       "areas": [
         "assessment",
@@ -6273,8 +6313,8 @@
       "id": "policy-built-ins",
       "title": "Azure Policy built-in policy definitions",
       "url": "https://learn.microsoft.com/azure/governance/policy/samples/built-in-policies",
-      "pin": "Learn git_commit_id a8fd4cc5f61be2ad229afefa3073a8697d92dd1a, updated_at 2026-07-08",
-      "read": "2026-10-21",
+      "pin": "Learn git_commit_id d0416576c874e0530c249dcaa635cac518dc3d15, updated_at 2026-10-28",
+      "read": "2026-10-29",
       "license": "Microsoft Learn content (link only)",
       "areas": [
         "assessment"
@@ -6440,8 +6480,8 @@
       "id": "rdp-multipath",
       "title": "Use RDP Multipath to improve connection reliability to Azure Virtual Desktop",
       "url": "https://learn.microsoft.com/azure/virtual-desktop/rdp-multipath",
-      "pin": "Learn git_commit_id 41dcc5bdc9210cae5b9151f9851568b917ad77db, updated_at 2026-09-15",
-      "read": "2026-10-21",
+      "pin": "Learn git_commit_id fd2c58b5ac344436387554e034f9fedc90e656df, updated_at 2026-10-22",
+      "read": "2026-10-29",
       "license": "Microsoft Learn content (link only)",
       "areas": [
         "assessment",
@@ -6587,8 +6627,8 @@
       "id": "rdp-shortpath",
       "title": "RDP Shortpath for Azure Virtual Desktop",
       "url": "https://learn.microsoft.com/azure/virtual-desktop/rdp-shortpath",
-      "pin": "Learn git_commit_id 41dcc5bdc9210cae5b9151f9851568b917ad77db, updated_at 2026-09-15",
-      "read": "2026-10-21",
+      "pin": "Learn git_commit_id fd2c58b5ac344436387554e034f9fedc90e656df, updated_at 2026-10-22",
+      "read": "2026-10-29",
       "license": "Microsoft Learn content (link only)",
       "areas": [
         "assessment"
@@ -6872,7 +6912,7 @@
       "title": "Azure review checklists, Azure Virtual Desktop",
       "url": "https://github.com/Azure/review-checklists",
       "pin": "https://github.com/Azure/review-checklists/blob/f131b93418892102b00c247fd9cf685e3d356522/checklists/avd_checklist.en.json",
-      "read": "2026-10-20",
+      "read": "2026-10-29",
       "license": "MIT",
       "areas": [
         "assessment"
@@ -7078,6 +7118,14 @@
         {
           "id": "G02.06",
           "says": "Restrict device redirection and drive mapping (Security, medium)."
+        },
+        {
+          "id": "G03.01",
+          "says": "Prefer RemoteApps over full desktops where possible (Security, medium)."
+        },
+        {
+          "id": "G03.02",
+          "says": "Decide whether to control or restrict users' internet browsing from session hosts (Security, medium)."
         },
         {
           "id": "G03.03",
@@ -7332,14 +7380,6 @@
           "says": "Give each host pool its own OU in Active Directory (Operations, medium)."
         },
         {
-          "id": "D01.03",
-          "says": "Review the domain GPOs that reach the host pools' OUs and affect session host features (Operations, medium)."
-        },
-        {
-          "id": "D01.04",
-          "says": "Configure FSLogix with its Group Policy ADMX template (Operations, medium)."
-        },
-        {
           "id": "D01.05",
           "says": "Use a dedicated account that may only join VMs to the domain (Security, medium)."
         },
@@ -7382,6 +7422,14 @@
         {
           "id": "C02.03",
           "says": "Review the client OS users run and the AVD client type (Performance, low)."
+        },
+        {
+          "id": "C02.01",
+          "says": "Assess how many users will connect and from which regions (Performance, medium)."
+        },
+        {
+          "id": "C02.02",
+          "says": "Assess each host pool's external dependencies (Performance, medium)."
         },
         {
           "id": "E01.01",
@@ -9467,6 +9515,10 @@
     {
       "id": "deployment-dimensions",
       "title": "a register of deployment dimensions and their baselines"
+    },
+    {
+      "id": "desktop-devops-scope",
+      "title": "Desktop DevOps across Azure Virtual Desktop, Windows 365 and Microsoft Intune"
     },
     {
       "id": "diagnostics-scope",

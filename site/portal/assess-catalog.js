@@ -9,8 +9,8 @@
 })(typeof self !== 'undefined' ? self : this, function () {
   'use strict';
   return {
-    "method": 6,
-    "assessCommit": "0682312d60185074756537caab7fc2856f84923c",
+    "method": 7,
+    "assessCommit": "004394b9328aa540d9b7f7488a0c749b4a18be60",
     "landingZoneCommit": "ae6e80b574cccde570d0053d4c62b519d31052a8",
     "checks": {
       "asm-personal-start-vm-on-connect": {
@@ -714,6 +714,85 @@
           "kind": "lz-setting",
           "plane": "intune",
           "name": "intune-cloudpc-compliance"
+        }
+      },
+      "asm-personal-deallocation": {
+        "title": "Personal host pools with Start VM on Connect have a scaling plan attached",
+        "plane": "azure",
+        "pillar": "cost",
+        "severity": "low",
+        "claims": [
+          "ref:review-checklists-avd#E01.06",
+          "ref:start-vm-on-connect-faq#no-automatic-deallocation",
+          "ref:avd-autoscale#hibernate-personal"
+        ],
+        "remediation": {
+          "kind": "lz-setting",
+          "plane": "azure",
+          "name": "hostpool-scaling-plan"
+        }
+      },
+      "asm-cost-allocation-tags": {
+        "title": "Host pools and session hosts carry cost allocation tags",
+        "plane": "azure",
+        "pillar": "cost",
+        "severity": "low",
+        "claims": [
+          "ref:review-checklists-avd#E01.07",
+          "ref:avd-tagging#tag-host-pools-first",
+          "ref:avd-tagging#cm-resource-parent"
+        ],
+        "remediation": {
+          "kind": "lz-parameter",
+          "plane": "azure",
+          "name": "tags"
+        }
+      },
+      "asm-cost-budget-action-group": {
+        "title": "Subscriptions configure a cost budget wired to an action group",
+        "plane": "azure",
+        "pillar": "cost",
+        "severity": "medium",
+        "claims": [
+          "ref:waf-cost-optimization-checklist#CO:03",
+          "ref:cost-management-budgets#alerts-dont-stop",
+          "ref:cost-management-budgets#action-group-scopes"
+        ],
+        "remediation": {
+          "kind": "lz-parameter",
+          "plane": "azure",
+          "name": "autoShutdownBudgetAction",
+          "to": "Lock"
+        }
+      },
+      "asm-cost-no-unattached-disks": {
+        "title": "Subscriptions have zero unattached managed disk cost recommendations",
+        "plane": "azure",
+        "pillar": "cost",
+        "severity": "low",
+        "claims": [
+          "ref:advisor-cost#unattached-disks",
+          "ref:waf-cost-optimization-checklist#CO:07"
+        ],
+        "remediation": {
+          "kind": "manual",
+          "plane": "azure",
+          "code": "outside-landing-zone"
+        }
+      },
+      "asm-cost-advisor-rightsize-reviewed": {
+        "title": "Subscriptions review Azure Advisor VM right-size and shutdown cost recommendations",
+        "plane": "azure",
+        "pillar": "cost",
+        "severity": "low",
+        "claims": [
+          "ref:advisor-cost#right-size-or-shutdown-vms",
+          "ref:waf-cost-optimization-checklist#CO:07"
+        ],
+        "remediation": {
+          "kind": "manual",
+          "plane": "azure",
+          "code": "process"
         }
       }
     }

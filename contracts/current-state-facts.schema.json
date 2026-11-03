@@ -142,6 +142,7 @@
                   }
                 },
                 "entraSso": { "enum": ["enabled", "disabled"] },
+                "costAllocationTag": { "$ref": "#/$defs/flag", "description": "Whether the host pool carries a cost allocation tag (such as cm-resource-parent, CostCenter, Application, Environment or Owner). Tag names and values are never copied" },
                 "directUserAssignments": { "$ref": "#/$defs/count" },
                 "intuneOrphans": { "$ref": "#/$defs/count" },
                 "rdpProperties": { "type": "array", "items": { "type": "string", "pattern": "^[a-z][a-z0-9 ]{1,40}$" }, "description": "Property names only, never values" },
@@ -196,7 +197,9 @@
                     "intuneNoncompliant": { "$ref": "#/$defs/count" },
                     "intuneSyncStale": { "$ref": "#/$defs/count" },
                     "intuneConfigErrors": { "$ref": "#/$defs/count" },
-                    "intuneBaselineApplied": { "$ref": "#/$defs/count" }
+                    "intuneBaselineApplied": { "$ref": "#/$defs/count" },
+                    "hibernation": { "$ref": "#/$defs/count", "description": "Hosts whose VM has hibernationEnabled on in additionalCapabilities" },
+                    "untaggedForCost": { "$ref": "#/$defs/count", "description": "Hosts whose VM was read and carries neither cm-resource-parent nor a cost allocation tag" }
                   }
                 },
                 "vmSizes": { "$ref": "#/$defs/countMap" },
@@ -313,6 +316,23 @@
             "properties": {
               "enterprisePoliciesCount": { "$ref": "#/$defs/count" },
               "vnetInjectedSubnets": { "$ref": "#/$defs/count" }
+            }
+          },
+          "budgets": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "total": { "$ref": "#/$defs/count" },
+              "withActionGroup": { "$ref": "#/$defs/count", "description": "Budgets with at least one enabled notification targeting an action group (contactGroups)" }
+            }
+          },
+          "advisor": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "recommendations": { "$ref": "#/$defs/countMap", "description": "Advisor recommendations by category (Cost, HighAvailability, Performance, Security, OperationalExcellence)" },
+              "unattachedDisks": { "$ref": "#/$defs/count", "description": "Advisor Cost recommendations for unattached managed disks" },
+              "rightSizeVms": { "$ref": "#/$defs/count", "description": "Advisor Cost recommendations to right-size or shut down underused virtual machines" }
             }
           }
         }

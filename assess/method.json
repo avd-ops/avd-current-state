@@ -1,6 +1,6 @@
 {
   "schema": "avd-assess-method/v1",
-  "version": 6,
+  "version": 7,
   "factRegister": 1,
   "landingZoneCommit": "ae6e80b574cccde570d0053d4c62b519d31052a8",
   "collection": [
@@ -1328,6 +1328,118 @@
       "claims": [
         "gap:intake",
         "gap:intune-scope"
+      ]
+    },
+    {
+      "fact": "c11.hostPool.sessionHosts.hibernation",
+      "from": "resource-graph",
+      "table": "Resources",
+      "type": "microsoft.compute/virtualmachines",
+      "property": "properties.additionalCapabilities.hibernationEnabled",
+      "claims": [
+        "ref:review-checklists-avd#E01.06",
+        "ref:avd-autoscale#hibernate-personal",
+        "gap:finops-scope"
+      ]
+    },
+    {
+      "fact": "c11.hostPool.costAllocationTag",
+      "from": "resource-graph",
+      "table": "Resources",
+      "type": "microsoft.desktopvirtualization/hostpools",
+      "property": "tags",
+      "claims": [
+        "ref:review-checklists-avd#E01.07",
+        "ref:avd-tagging#tag-host-pools-first",
+        "ref:avd-tagging#cm-resource-parent",
+        "gap:finops-scope"
+      ]
+    },
+    {
+      "fact": "c11.hostPool.sessionHosts.untaggedForCost",
+      "from": "resource-graph",
+      "table": "Resources",
+      "type": "microsoft.compute/virtualmachines",
+      "property": "tags",
+      "claims": [
+        "ref:review-checklists-avd#E01.07",
+        "ref:avd-tagging#cm-resource-parent",
+        "gap:finops-scope"
+      ]
+    },
+    {
+      "fact": "c11.subscription.budgets.total",
+      "from": "arm-rest",
+      "type": "microsoft.consumption/budgets",
+      "property": "properties.amount",
+      "claims": [
+        "ref:waf-cost-optimization-checklist#CO:03",
+        "ref:cost-management-budgets#alerts-dont-stop",
+        "gap:finops-scope"
+      ]
+    },
+    {
+      "fact": "c11.subscription.budgets.withActionGroup",
+      "from": "arm-rest",
+      "type": "microsoft.consumption/budgets",
+      "property": "properties.notifications",
+      "claims": [
+        "ref:waf-cost-optimization-checklist#CO:03",
+        "ref:cost-management-budgets#action-group-scopes",
+        "gap:finops-scope"
+      ]
+    },
+    {
+      "fact": "c11.advisor.recommendations",
+      "from": "resource-graph",
+      "table": "AdvisorResources",
+      "type": "microsoft.advisor/recommendations",
+      "property": "properties.category",
+      "claims": [
+        "ref:advisor-cost#right-size-or-shutdown-vms",
+        "gap:finops-scope"
+      ]
+    },
+    {
+      "fact": "c11.advisor.unattachedDisks",
+      "from": "resource-graph",
+      "table": "AdvisorResources",
+      "type": "microsoft.advisor/recommendations",
+      "property": "properties.shortDescription.problem",
+      "claims": [
+        "ref:advisor-cost#unattached-disks",
+        "gap:finops-scope"
+      ]
+    },
+    {
+      "fact": "c11.advisor.rightSizeVms",
+      "from": "resource-graph",
+      "table": "AdvisorResources",
+      "type": "microsoft.advisor/recommendations",
+      "property": "properties.shortDescription.problem",
+      "claims": [
+        "ref:advisor-cost#right-size-or-shutdown-vms",
+        "gap:finops-scope"
+      ]
+    },
+    {
+      "fact": "intake.userLicense",
+      "from": "intake",
+      "claims": [
+        "ref:avd-licensing#eligible-license-per-user",
+        "ref:avd-licensing#per-user-access-external-only",
+        "gap:finops-scope",
+        "gap:intake"
+      ]
+    },
+    {
+      "fact": "intake.computeCommitments",
+      "from": "intake",
+      "claims": [
+        "ref:advisor-cost#vm-reservations",
+        "ref:advisor-cost#savings-plan",
+        "gap:finops-scope",
+        "gap:intake"
       ]
     }
   ],
@@ -2842,6 +2954,181 @@
         "kind": "lz-setting",
         "plane": "intune",
         "name": "intune-cloudpc-compliance"
+      }
+    },
+    {
+      "id": "asm-personal-deallocation",
+      "plane": "azure",
+      "title": "Personal host pools with Start VM on Connect have a scaling plan attached",
+      "pillar": "cost",
+      "severity": "low",
+      "claims": [
+        "ref:review-checklists-avd#E01.06",
+        "ref:start-vm-on-connect-faq#no-automatic-deallocation",
+        "ref:avd-autoscale#hibernate-personal"
+      ],
+      "facts": [
+        "c11.hostPool.type",
+        "c11.hostPool.startVmOnConnect",
+        "c11.hostPool.scalingPlan.method",
+        "c11.hostPool.sessionHosts.hibernation"
+      ],
+      "rule": {
+        "each": "/subscriptions/*/hostPools/*",
+        "where": {
+          "type": {
+            "eq": "Personal"
+          },
+          "startVmOnConnect": {
+            "eq": true
+          }
+        },
+        "expect": {
+          "scalingPlan/method": {
+            "in": [
+              "power-management",
+              "dynamic"
+            ]
+          }
+        },
+        "onFail": "warn"
+      },
+      "informs": [
+        "hostPool.power"
+      ],
+      "remediation": {
+        "kind": "lz-setting",
+        "plane": "azure",
+        "name": "hostpool-scaling-plan"
+      }
+    },
+    {
+      "id": "asm-cost-allocation-tags",
+      "plane": "azure",
+      "title": "Host pools and session hosts carry cost allocation tags",
+      "pillar": "cost",
+      "severity": "low",
+      "claims": [
+        "ref:review-checklists-avd#E01.07",
+        "ref:avd-tagging#tag-host-pools-first",
+        "ref:avd-tagging#cm-resource-parent"
+      ],
+      "facts": [
+        "c11.hostPool.costAllocationTag",
+        "c11.hostPool.sessionHosts.untaggedForCost"
+      ],
+      "rule": {
+        "each": "/subscriptions/*/hostPools/*",
+        "expect": {
+          "costAllocationTag": {
+            "eq": true
+          },
+          "sessionHosts/untaggedForCost": {
+            "max": 0
+          }
+        },
+        "onFail": "warn"
+      },
+      "informs": [],
+      "remediation": {
+        "kind": "lz-parameter",
+        "plane": "azure",
+        "name": "tags"
+      }
+    },
+    {
+      "id": "asm-cost-budget-action-group",
+      "plane": "azure",
+      "title": "Subscriptions configure a cost budget wired to an action group",
+      "pillar": "cost",
+      "severity": "medium",
+      "claims": [
+        "ref:waf-cost-optimization-checklist#CO:03",
+        "ref:cost-management-budgets#alerts-dont-stop",
+        "ref:cost-management-budgets#action-group-scopes"
+      ],
+      "facts": [
+        "c11.subscription.budgets.total",
+        "c11.subscription.budgets.withActionGroup"
+      ],
+      "rule": {
+        "each": "/subscriptions/*",
+        "expect": {
+          "budgets/total": {
+            "min": 1
+          },
+          "budgets/withActionGroup": {
+            "min": 1
+          }
+        },
+        "onFail": "gap"
+      },
+      "informs": [],
+      "remediation": {
+        "kind": "lz-parameter",
+        "plane": "azure",
+        "name": "autoShutdownBudgetAction",
+        "to": "Lock"
+      }
+    },
+    {
+      "id": "asm-cost-no-unattached-disks",
+      "plane": "azure",
+      "title": "Subscriptions have zero unattached managed disk cost recommendations",
+      "pillar": "cost",
+      "severity": "low",
+      "claims": [
+        "ref:advisor-cost#unattached-disks",
+        "ref:waf-cost-optimization-checklist#CO:07"
+      ],
+      "facts": [
+        "c11.advisor.unattachedDisks"
+      ],
+      "rule": {
+        "each": "/subscriptions/*",
+        "expect": {
+          "advisor/unattachedDisks": {
+            "max": 0
+          }
+        },
+        "onFail": "warn"
+      },
+      "informs": [],
+      "remediation": {
+        "kind": "manual",
+        "plane": "azure",
+        "code": "outside-landing-zone"
+      }
+    },
+    {
+      "id": "asm-cost-advisor-rightsize-reviewed",
+      "plane": "azure",
+      "title": "Subscriptions review Azure Advisor VM right-size and shutdown cost recommendations",
+      "pillar": "cost",
+      "severity": "low",
+      "claims": [
+        "ref:advisor-cost#right-size-or-shutdown-vms",
+        "ref:waf-cost-optimization-checklist#CO:07"
+      ],
+      "facts": [
+        "c11.advisor.rightSizeVms"
+      ],
+      "rule": {
+        "each": "/subscriptions/*",
+        "expect": {
+          "advisor/rightSizeVms": {
+            "max": 0
+          }
+        },
+        "onFail": "warn"
+      },
+      "informs": [
+        "hostPool.vmSize"
+      ],
+      "remediation": {
+        "kind": "manual",
+        "plane": "azure",
+        "code": "process"
       }
     }
   ],

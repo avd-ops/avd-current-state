@@ -1263,7 +1263,7 @@
       "grain": "subscription",
       "unit": "countMap",
       "privacy": "count",
-      "status": "specified",
+      "status": "built",
       "evidences": []
     },
     {
@@ -1296,8 +1296,10 @@
       "grain": "hostPool",
       "unit": "hosts",
       "privacy": "count",
-      "status": "specified",
-      "evidences": []
+      "status": "built",
+      "evidences": [
+        "hostPool.power"
+      ]
     },
     {
       "id": "c11.hostPool.scalingPlan.method",
@@ -3142,6 +3144,96 @@
       "tier": "intake",
       "contract": "C19",
       "path": "/win365Scope",
+      "grain": "estate",
+      "unit": "enum",
+      "privacy": "public",
+      "status": "built",
+      "evidences": []
+    },
+    {
+      "id": "c11.hostPool.costAllocationTag",
+      "tier": "azure",
+      "contract": "C11",
+      "path": "/subscriptions/*/hostPools/*/costAllocationTag",
+      "grain": "hostPool",
+      "unit": "bool",
+      "privacy": "boolean",
+      "status": "built",
+      "evidences": []
+    },
+    {
+      "id": "c11.hostPool.sessionHosts.untaggedForCost",
+      "tier": "azure",
+      "contract": "C11",
+      "path": "/subscriptions/*/hostPools/*/sessionHosts/untaggedForCost",
+      "grain": "hostPool",
+      "unit": "hosts",
+      "privacy": "count",
+      "status": "built",
+      "evidences": []
+    },
+    {
+      "id": "c11.subscription.budgets.total",
+      "tier": "azure",
+      "contract": "C11",
+      "path": "/subscriptions/*/budgets/total",
+      "grain": "subscription",
+      "unit": "count",
+      "privacy": "count",
+      "status": "built",
+      "evidences": []
+    },
+    {
+      "id": "c11.subscription.budgets.withActionGroup",
+      "tier": "azure",
+      "contract": "C11",
+      "path": "/subscriptions/*/budgets/withActionGroup",
+      "grain": "subscription",
+      "unit": "count",
+      "privacy": "count",
+      "status": "built",
+      "evidences": []
+    },
+    {
+      "id": "c11.advisor.unattachedDisks",
+      "tier": "azure",
+      "contract": "C11",
+      "path": "/subscriptions/*/advisor/unattachedDisks",
+      "grain": "subscription",
+      "unit": "count",
+      "privacy": "count",
+      "status": "built",
+      "evidences": []
+    },
+    {
+      "id": "c11.advisor.rightSizeVms",
+      "tier": "azure",
+      "contract": "C11",
+      "path": "/subscriptions/*/advisor/rightSizeVms",
+      "grain": "subscription",
+      "unit": "count",
+      "privacy": "count",
+      "status": "built",
+      "evidences": [
+        "hostPool.vmSize"
+      ]
+    },
+    {
+      "id": "intake.userLicense",
+      "tier": "intake",
+      "contract": "C19",
+      "path": "/userLicense",
+      "grain": "estate",
+      "unit": "enum",
+      "privacy": "public",
+      "status": "built",
+      "evidences": []
+    },
+    {
+      "id": "intake.computeCommitments",
+      "tier": "intake",
+      "contract": "C19",
+      "path": "/computeCommitments",
       "grain": "estate",
       "unit": "enum",
       "privacy": "public",
