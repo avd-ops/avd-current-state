@@ -70,6 +70,15 @@ param(
     # Cost Management Reader on the same subscriptions (opt-in).
     [switch] $Cost,
 
+    # Desktop Virtualization Reader on the same subscriptions or resource groups (opt-in, for narrow AVD-only reads).
+    [switch] $DesktopVirtualizationReader,
+
+    # Optional path to write a read-only, zero-secret .mcp.json for local operator MCP investigation.
+    [string] $EmitMcpConfig,
+
+    # When used with -EmitMcpConfig, also include Azure/azure-api-mcp (--readonly) alongside microsoft/mcp.
+    [switch] $IncludeAzCliMcp,
+
     # A blob container's resource ID for the run's output (opt-in: Storage Blob Data Contributor there only).
     [string] $OutputContainer,
 
@@ -175,6 +184,11 @@ function Resolve-Scope {
     $wanted = New-Object System.Collections.Generic.List[object]
     if ($ResourceGroup.Count) { foreach ($g in $ResourceGroup) { $wanted.Add([pscustomobject]@{ Scope = "/subscriptions/$($subs[0])/resourceGroups/$g"; RoleId = $reader }) } }
     else { foreach ($s in $subs) { $wanted.Add([pscustomobject]@{ Scope = "/subscriptions/$s"; RoleId = $reader }) } }
+    if ($DesktopVirtualizationReader) {
+        $dvReader = (Get-AvdReaderRole -Name 'Desktop Virtualization Reader').Id
+        if ($ResourceGroup.Count) { foreach ($g in $ResourceGroup) { $wanted.Add([pscustomobject]@{ Scope = "/subscriptions/$($subs[0])/resourceGroups/$g"; RoleId = $dvReader }) } }
+        else { foreach ($s in $subs) { $wanted.Add([pscustomobject]@{ Scope = "/subscriptions/$s"; RoleId = $dvReader }) } }
+    }
     if ($Cost) { foreach ($s in $subs) { $wanted.Add([pscustomobject]@{ Scope = "/subscriptions/$s"; RoleId = (Get-AvdReaderRole -Name 'Cost Management Reader').Id }) } }
     foreach ($w in $LogAnalyticsWorkspace) {
         if ((Get-AvdReaderScopeKind -Scope $w) -ne 'Workspace') { throw "-LogAnalyticsWorkspace takes a workspace resource ID, got '$w'." }
@@ -233,9 +247,19 @@ function Get-RerunCommand {
         if ($v.Count) { $parts += "-$n $(($v | ForEach-Object { & $q $_ }) -join ',')" }
     }
     if ($RepoId) { $parts += "-RepoId $(& $q $RepoId) -OwnerId $(& $q $OwnerId)" }
+    if ($DesktopVirtualizationReader) { $parts += '-DesktopVirtualizationReader' }
     if ($Cost) { $parts += '-Cost' }
     if ($OutputContainer) { $parts += "-OutputContainer $(& $q $OutputContainer)" }
     $parts -join ' '
+}
+
+if ($EmitMcpConfig) {
+    $mcpCfg = Get-AvdReaderMcpConfig -IncludeAzCliMcp:$IncludeAzCliMcp
+    $mcpParent = Split-Path -Parent $EmitMcpConfig
+    if ($mcpParent -and -not (Test-Path $mcpParent)) { $null = New-Item -ItemType Directory -Path $mcpParent -Force }
+    ($mcpCfg | ConvertTo-Json -Depth 10) | Set-Content -Path $EmitMcpConfig -Encoding utf8
+    Write-Step Pass 'MCP read-only config' "Wrote $EmitMcpConfig"
+    if (-not $ClientId -and $Mode -eq 'Test' -and -not $Repo.Count -and -not $Subscription.Count) { exit 0 }
 }
 
 function Write-Finding {

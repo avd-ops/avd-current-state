@@ -77,6 +77,24 @@ Describe 'Get-AvdReaderDelegationCondition' {
         $c.Write | Should -Match '@Request\[Microsoft.Authorization/roleAssignments:RoleDefinitionId\]'
         $c.Delete | Should -Match '@Resource\[Microsoft.Authorization/roleAssignments:RoleDefinitionId\]'
         $c.Combined | Should -Match 'acdd72a7-3385-48ef-bd42-f606fba81ae7'
+        $c.Combined | Should -Match '49a72310-ab8d-41df-bbb0-79b649203868'
+    }
+}
+
+Describe 'Get-AvdReaderMcpConfig' {
+    It 'builds a read-only zero-secret MCP config for microsoft/mcp by default' {
+        $cfg = Get-AvdReaderMcpConfig
+        $cfg.mcpServers.Keys | Should -Be @('azure-mcp')
+        $cfg.mcpServers['azure-mcp'].args | Should -Contain '--read-only'
+        $cfg.mcpServers['azure-mcp'].args | Should -Contain 'virtualdesktop'
+    }
+    It 'adds az-cli-mcp with --readonly when -IncludeAzCliMcp is passed' {
+        $cfg = Get-AvdReaderMcpConfig -Namespace @('virtualdesktop', 'monitor') -IncludeAzCliMcp
+        $cfg.mcpServers.Keys | Should -Be @('azure-mcp', 'az-cli-mcp')
+        $cfg.mcpServers['az-cli-mcp'].args | Should -Be @('--readonly')
+    }
+    It 'refuses namespaces outside the read-only allowlist' {
+        { Get-AvdReaderMcpConfig -Namespace @('keyvault') } | Should -Throw '*allowlist*'
     }
 }
 
