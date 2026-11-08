@@ -526,6 +526,35 @@
         );
       }
     }
+    const diagBox = $('review-diagram');
+    if (diagBox) {
+      diagBox.replaceChildren();
+      const model = core.buildAsIsDiagramModel(r.assessment, state.answers);
+      if (model) {
+        const planeGrid = el('div', { className: 'diag-grid' });
+        for (const p of model.planes) {
+          planeGrid.append(el('div', { className: 'diag-card' }, [
+            el('strong', { textContent: p.label }),
+            el('span', { className: `outcome o-${p.worst}`, textContent: OUTCOME_WORD[p.worst] || p.worst }),
+            el('small', { textContent: `${p.counts.gap} gap, ${p.counts.warn} warn, ${p.counts.pass} pass` })
+          ]));
+        }
+        const zoneGrid = el('div', { className: 'diag-grid' });
+        for (const z of model.zones) {
+          const topStr = z.topFindings.map((f) => `${f.check} (${f.outcome})`).join(', ') || 'All checks passing';
+          zoneGrid.append(el('div', { className: 'diag-card' }, [
+            el('strong', { textContent: z.label }),
+            el('span', { className: `outcome o-${z.worst}`, textContent: OUTCOME_WORD[z.worst] || z.worst }),
+            el('small', { textContent: `${z.counts.gap} gap, ${z.counts.warn} warn, ${z.counts.pass} pass` }),
+            el('small', { textContent: topStr })
+          ]));
+        }
+        diagBox.append(planeGrid, zoneGrid);
+        blobLink('diagram-svg-download', core.buildAsIsSvg(r.assessment, state.answers), 'image/svg+xml');
+        blobLink('diagram-mmd-download', core.buildAsIsMermaid(r.assessment, state.answers), 'text/plain');
+        blobLink('diagram-drawio-download', core.buildAsIsDrawio(r.assessment, state.answers), 'application/xml');
+      }
+    }
     const hide = $('hide-pass').checked;
     const body = $('findings');
     body.replaceChildren();

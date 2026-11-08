@@ -267,6 +267,16 @@
       <div class="result-line" id="review-summary"></div>
       <div class="result-line" id="review-planes"></div>
       <div class="result-line hidden" id="review-sentiment"></div>
+      <details class="more" id="review-diagram-panel">
+        <summary>As-is architecture &amp; network diagram</summary>
+        <p class="muted">Generated from your <code>assessment.json</code> (C21) findings and <code>intake.json</code> (C19) answers across all five control planes and four Azure architecture zones.</p>
+        <div id="review-diagram"></div>
+        <div class="actions">
+          <a class="btnlink secondary" id="diagram-svg-download" href="#" download="as-is-architecture.svg">Export SVG (.svg)</a>
+          <a class="btnlink secondary" id="diagram-mmd-download" href="#" download="as-is-architecture.mmd">Export Mermaid (.mmd)</a>
+          <a class="btnlink secondary" id="diagram-drawio-download" href="#" download="as-is-architecture.drawio">Export Draw.io (.drawio)</a>
+        </div>
+      </details>
       <div class="row">
         <label class="switch"><input type="checkbox" id="hide-pass" checked><span><strong>Hide passing checks</strong></span></label>
         <label class="field"><span>Reviewed on</span><input type="text" id="reviewedOn" autocomplete="off" placeholder="2026-10-21"></label>
