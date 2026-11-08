@@ -404,3 +404,92 @@ test('supply chain & security review: SECURITY.md, docs/threat-model.md, secrets
   }
 });
 
+test('parses avd-linecheck intake and raw exports, strips free text, and rolls up banded sentiment and userNetworks', () => {
+  const intakeExport = JSON.stringify({
+    schema: 'avd-assess-user-network/v1',
+    allowsClientEndpoints: 'yes',
+    outboundUdpAllowed: 'unknown',
+    proxyInPath: 'possible',
+    targetRegion: 'eastus2',
+    targetRegionMedianMs: 28,
+    jitterMs: 6,
+    candidateRegionsRttMs: { eastus2: 28, centralus: 45 },
+    sentiment: { rating: 2, symptoms: ['slow-typing', 'disconnects', 'not-a-symptom'], comment: 'free text must be ignored' }
+  });
+  const rawExport = JSON.stringify({
+    schemaVersion: 1,
+    verdict: { status: 'ok' },
+    required: [{ id: 'rdweb', status: 'reach' }, { id: ' broker', status: 'reach' }],
+    webrtc: { stunStatus: 'block', turnStatus: 'block' },
+    connection: { proxyHint: { status: 'likely' } },
+    targetRegion: { id: 'eastus2', median: 40 },
+    consistency: { jitter: 10 },
+    regions: [{ id: 'eastus2', median: 40 }, { id: 'centralus', median: 55 }],
+    sentiment: { rating: 1, symptoms: ['sign-in', 'teams-audio-video'], comment: 'never read' }
+  });
+  const p1 = core.parseLinecheckExport(intakeExport, 'office');
+  const p2 = core.parseLinecheckExport(rawExport, 'office');
+  assert.equal(p1.error, '');
+  assert.equal(p2.error, '');
+  assert.equal(p1.entries[0].sentiment.comment, undefined, 'free text never enters normalized entry');
+  assert.deepEqual(p1.entries[0].sentiment.symptoms, ['slow-typing', 'disconnects']);
+
+  const rollup = core.summarizeLinecheckExports([...p1.entries, ...p2.entries]);
+  assert.deepEqual(rollup.userSentiment, {
+    sampleBand: '1-2',
+    ratingMedian: 1.5,
+    lowRatingShare: 1,
+    symptoms: ['slow-typing', 'teams-audio-video', 'disconnects', 'sign-in']
+  });
+  assert.deepEqual(rollup.reportedSymptoms, ['sign-in-fails', 'disconnects', 'slow-session']);
+  assert.equal(rollup.userNetworks.length, 1);
+  assert.equal(rollup.userNetworks[0].kind, 'office');
+  assert.equal(rollup.userNetworks[0].sampleBand, '1-2');
+  assert.equal(rollup.userNetworks[0].outboundUdpAllowed, 'no');
+  assert.equal(rollup.userNetworks[0].proxyInPath, 'possible');
+  assert.equal(rollup.userNetworks[0].targetRegionRttMs, 34);
+
+  const built = core.buildIntake({
+    ...answers,
+    reportedSymptoms: rollup.reportedSymptoms,
+    userNetworks: rollup.userNetworks,
+    userSentiment: rollup.userSentiment
+  });
+  assert.deepEqual(built.errors, []);
+  assert.deepEqual(built.intake.reportedSymptoms, ['sign-in-fails', 'disconnects', 'slow-session']);
+  assert.deepEqual(built.intake.userSentiment, rollup.userSentiment);
+  assert.equal(built.intake.userNetworks[0].kind, 'office');
+
+  assert.match(core.parseLinecheckExport('{"schema":"other"}').error, /isn't an avd-linecheck export/);
+  assert.equal(core.buildIntake({ ...answers, reportedSymptoms: ['none', 'slow-session'] }).intake, null);
+  assert.equal(core.buildIntake({ ...answers, userSentiment: { sampleBand: '99', ratingMedian: 3 } }).intake, null);
+});
+
+test('correlates user sentiment against assessment findings to surface blind spots and corroborated issues', () => {
+  const lowSent = {
+    userSentiment: { sampleBand: '10-25', ratingMedian: 2, lowRatingShare: 0.6, symptoms: ['slow-typing', 'disconnects'] },
+    reportedSymptoms: ['disconnects', 'slow-session']
+  };
+  const highSent = {
+    userSentiment: { sampleBand: '10-25', ratingMedian: 4.5, lowRatingShare: 0 }
+  };
+  const allPass = { counts: { gap: 0, warn: 0, unknown: 0, pass: 12 } };
+  const hasWarn = { counts: { gap: 1, warn: 2, unknown: 0, pass: 9 } };
+
+  const blindSpot = core.correlateSentimentWithAssessment(lowSent, allPass);
+  assert.equal(blindSpot.status, 'blind-spot');
+  assert.equal(blindSpot.outcome, 'gap');
+  assert.match(blindSpot.label, /Blind spot/);
+
+  const corroborated = core.correlateSentimentWithAssessment(lowSent, hasWarn);
+  assert.equal(corroborated.status, 'corroborated');
+  assert.equal(corroborated.outcome, 'warn');
+
+  const unfelt = core.correlateSentimentWithAssessment(highSent, hasWarn);
+  assert.equal(unfelt.status, 'unfelt-risk');
+
+  const healthy = core.correlateSentimentWithAssessment(highSent, allPass);
+  assert.equal(healthy.status, 'healthy');
+});
+
+

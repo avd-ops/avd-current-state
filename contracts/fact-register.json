@@ -2098,7 +2098,7 @@
       "grain": "estate",
       "unit": "list",
       "privacy": "public",
-      "status": "specified",
+      "status": "built",
       "evidences": [
         "network",
         "region"
@@ -2112,7 +2112,18 @@
       "grain": "estate",
       "unit": "enum",
       "privacy": "public",
-      "status": "specified",
+      "status": "built",
+      "evidences": []
+    },
+    {
+      "id": "intake.userSentiment",
+      "tier": "intake",
+      "contract": "C19",
+      "path": "/userSentiment",
+      "grain": "estate",
+      "unit": "score",
+      "privacy": "public",
+      "status": "built",
       "evidences": []
     },
     {

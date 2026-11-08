@@ -216,6 +216,12 @@
     <label class="field"><span class="private">notes on users and use cases</span><textarea class="prose" data-note="users" aria-label="Private notes on users and use cases"></textarea></label>
     <label class="field gap"><span class="private">notes, anything else</span><textarea class="prose" data-note="other" aria-label="Private notes, anything else"></textarea></label>
     <div class="row gap">
+      <label class="field"><span>Default network kind for imported user checks</span>
+        <select id="linecheck-kind"><option value="office">Office</option><option value="branch">Branch</option><option value="home">Home</option><option value="guest">Guest</option><option value="partner">Partner</option><option value="other">Other</option></select></label>
+      <label class="filedrop" id="linecheck-drop"><input type="file" id="linecheck-file" accept=".json,application/json" multiple aria-describedby="linecheck-hint"><span class="what">Load avd-linecheck JSON (optional)</span><span class="hint" id="linecheck-hint">Drop one or more user network and sentiment exports. Banded in your browser, never uploaded.</span><span class="file" id="linecheck-name"></span><span class="error" id="linecheck-error" role="alert"></span></label>
+    </div>
+    <div class="result-line hidden" id="linecheck-summary"></div>
+    <div class="row gap">
       <label class="field"><span>Estate</span><input type="text" id="estate" autocomplete="off" placeholder="est-0a1b2c3d" aria-describedby="estate-hint"><small id="estate-hint">Filled in from the Collect step.</small></label>
       <label class="field"><span>Answered on</span><input type="text" id="answeredOn" autocomplete="off" placeholder="2026-10-21"></label>
     </div>
@@ -227,7 +233,7 @@
       <div class="actions"><a class="btnlink secondary" id="intake-download" href="#" download="intake.json">Download intake.json</a><span class="quiet">It holds no names, so this block is safe to paste.</span></div>
     </div>
     <details class="more"><summary>About the notes and intake.json</summary>
-      <p>Notes only for now; the structured use case record comes with avd-assess's discovery guide. The block writes <code>intake.json</code> beside the evidence packages, where the validator reads it.</p>
+      <p>Notes only for now; the structured use case record comes with avd-assess's discovery guide. Importing <code>avd-linecheck</code> exports folds banded user ratings, symptom chips and per-network reachability into <code>intake.json</code> (with zero free text). The block writes <code>intake.json</code> beside the evidence packages, where the validator reads it.</p>
     </details>
   </section>
 
@@ -260,6 +266,7 @@
     <div id="review-body" class="hidden">
       <div class="result-line" id="review-summary"></div>
       <div class="result-line" id="review-planes"></div>
+      <div class="result-line hidden" id="review-sentiment"></div>
       <div class="row">
         <label class="switch"><input type="checkbox" id="hide-pass" checked><span><strong>Hide passing checks</strong></span></label>
         <label class="field"><span>Reviewed on</span><input type="text" id="reviewedOn" autocomplete="off" placeholder="2026-10-21"></label>

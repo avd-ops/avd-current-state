@@ -10,12 +10,12 @@
   'use strict';
   return {
     "method": 8,
-    "assessCommit": "06bc13b85c9c822e77bb77cb7d82973a01150470",
+    "assessCommit": "cbbeca7f1040862582d91e96b51003ecbc5cab25",
     "landingZoneCommit": "ae6e80b574cccde570d0053d4c62b519d31052a8",
     "checks": {
       "asm-personal-start-vm-on-connect": {
-        "title": "Personal host pools use Start VM on Connect",
         "plane": "azure",
+        "title": "Personal host pools use Start VM on Connect",
         "pillar": "cost",
         "severity": "low",
         "claims": [
@@ -29,8 +29,8 @@
         }
       },
       "asm-pooled-host-redundancy": {
-        "title": "Pooled host pools have at least two session hosts",
         "plane": "azure",
+        "title": "Pooled host pools have at least two session hosts",
         "pillar": "reliability",
         "severity": "medium",
         "claims": [
@@ -44,8 +44,8 @@
         }
       },
       "asm-files-private-endpoint": {
-        "title": "Premium file storage is reached through a private endpoint",
         "plane": "azure",
+        "title": "Premium file storage is reached through a private endpoint",
         "pillar": "security",
         "severity": "medium",
         "claims": [
@@ -58,8 +58,8 @@
         }
       },
       "asm-files-zone-redundant": {
-        "title": "Premium file storage is zone-redundant",
         "plane": "azure",
+        "title": "Premium file storage is zone-redundant",
         "pillar": "reliability",
         "severity": "high",
         "claims": [
@@ -74,8 +74,8 @@
         }
       },
       "asm-hosts-trusted-launch": {
-        "title": "Session hosts run Trusted launch with Secure Boot and vTPM on",
         "plane": "azure",
+        "title": "Session hosts run Trusted launch with Secure Boot and vTPM on",
         "pillar": "security",
         "severity": "medium",
         "claims": [
@@ -89,8 +89,8 @@
         }
       },
       "asm-drive-usb-redirection-off": {
-        "title": "Host pools turn drive and USB redirection off",
         "plane": "azure",
+        "title": "Host pools turn drive and USB redirection off",
         "pillar": "security",
         "severity": "medium",
         "claims": [
@@ -104,8 +104,8 @@
         }
       },
       "asm-defender-servers": {
-        "title": "Defender for Cloud's Servers plan is on",
         "plane": "azure",
+        "title": "Defender for Cloud's Servers plan is on",
         "pillar": "security",
         "severity": "medium",
         "claims": [
@@ -120,8 +120,8 @@
         }
       },
       "asm-files-smb-gcm": {
-        "title": "Premium file storage allows only GCM SMB channel encryption, AES-128-GCM included",
         "plane": "azure",
+        "title": "Premium file storage allows only GCM SMB channel encryption, AES-128-GCM included",
         "pillar": "security",
         "severity": "medium",
         "claims": [
@@ -134,8 +134,8 @@
         }
       },
       "asm-policy-guardrails-assigned": {
-        "title": "Subscriptions holding AVD have at least one Azure Policy assignment in scope",
         "plane": "azure",
+        "title": "Subscriptions holding AVD have at least one Azure Policy assignment in scope",
         "pillar": "operations",
         "severity": "low",
         "claims": [
@@ -149,8 +149,8 @@
         }
       },
       "asm-policy-enforced": {
-        "title": "No policy assignment in scope is left in DoNotEnforce mode",
         "plane": "azure",
+        "title": "No policy assignment in scope is left in DoNotEnforce mode",
         "pillar": "operations",
         "severity": "low",
         "claims": [
@@ -164,8 +164,8 @@
         }
       },
       "asm-entra-no-direct-user-rbac": {
-        "title": "Application groups use group-based assignment with no direct user assignments",
         "plane": "entra",
+        "title": "Application groups use group-based assignment with no direct user assignments",
         "pillar": "security",
         "severity": "medium",
         "claims": [
@@ -180,8 +180,8 @@
         }
       },
       "asm-entra-sso-enabled": {
-        "title": "Host pools with Entra-joined hosts enable Entra single sign-on",
         "plane": "entra",
+        "title": "Host pools with Entra-joined hosts enable Entra single sign-on",
         "pillar": "security",
         "severity": "low",
         "claims": [
@@ -196,8 +196,8 @@
         }
       },
       "asm-entra-ca-avd-mfa": {
-        "title": "Conditional Access enforces MFA for AVD and Windows Cloud Login",
         "plane": "entra",
+        "title": "Conditional Access enforces MFA for AVD and Windows Cloud Login",
         "pillar": "security",
         "severity": "high",
         "claims": [
@@ -213,8 +213,8 @@
         }
       },
       "asm-entra-ca-break-glass-excluded": {
-        "title": "AVD Conditional Access policies exclude emergency-access (break-glass) accounts",
         "plane": "entra",
+        "title": "AVD Conditional Access policies exclude emergency-access (break-glass) accounts",
         "pillar": "reliability",
         "severity": "high",
         "claims": [
@@ -228,8 +228,8 @@
         }
       },
       "asm-entra-files-kerberos-ready": {
-        "title": "Azure Files Entra Kerberos service principal is configured and excluded from MFA CA",
         "plane": "entra",
+        "title": "Azure Files Entra Kerberos service principal is configured and excluded from MFA CA",
         "pillar": "security",
         "severity": "medium",
         "claims": [
@@ -244,8 +244,8 @@
         }
       },
       "asm-intune-hosts-managed": {
-        "title": "Session hosts requesting Intune enrollment are managed in Intune",
         "plane": "intune",
+        "title": "Session hosts requesting Intune enrollment are managed in Intune",
         "pillar": "operations",
         "severity": "medium",
         "claims": [
@@ -259,8 +259,8 @@
         }
       },
       "asm-intune-hosts-compliant": {
-        "title": "Intune-managed session hosts have zero noncompliant devices",
         "plane": "intune",
+        "title": "Intune-managed session hosts have zero noncompliant devices",
         "pillar": "security",
         "severity": "high",
         "claims": [
@@ -274,8 +274,8 @@
         }
       },
       "asm-intune-secure-by-default": {
-        "title": "Intune tenant marks devices without a compliance policy as noncompliant",
         "plane": "intune",
+        "title": "Intune tenant marks devices without a compliance policy as noncompliant",
         "pillar": "security",
         "severity": "medium",
         "claims": [
@@ -290,8 +290,8 @@
         }
       },
       "asm-intune-fslogix-catalog-profile": {
-        "title": "Intune Settings Catalog delivers an FSLogix profile container policy",
         "plane": "intune",
+        "title": "Intune Settings Catalog delivers an FSLogix profile container policy",
         "pillar": "operations",
         "severity": "medium",
         "claims": [
@@ -305,8 +305,8 @@
         }
       },
       "asm-intune-no-orphaned-devices": {
-        "title": "Host pools have no orphaned Intune device records for deleted session hosts",
         "plane": "intune",
+        "title": "Host pools have no orphaned Intune device records for deleted session hosts",
         "pillar": "operations",
         "severity": "low",
         "claims": [
@@ -319,8 +319,8 @@
         }
       },
       "asm-m365-onedrive-kfm": {
-        "title": "OneDrive Silent Account Configuration and Known Folder Move are enabled for session hosts",
         "plane": "m365",
+        "title": "OneDrive Silent Account Configuration and Known Folder Move are enabled for session hosts",
         "pillar": "reliability",
         "severity": "medium",
         "claims": [
@@ -335,8 +335,8 @@
         }
       },
       "asm-m365-shared-computer-activation": {
-        "title": "Microsoft 365 Apps Shared Computer Activation is enabled for multi-session hosts",
         "plane": "m365",
+        "title": "Microsoft 365 Apps Shared Computer Activation is enabled for multi-session hosts",
         "pillar": "cost",
         "severity": "high",
         "claims": [
@@ -351,8 +351,8 @@
         }
       },
       "asm-m365-teams-vdi-optimization": {
-        "title": "Microsoft Teams VDI media optimization is enabled for session hosts",
         "plane": "m365",
+        "title": "Microsoft Teams VDI media optimization is enabled for session hosts",
         "pillar": "performance",
         "severity": "medium",
         "claims": [
@@ -367,8 +367,8 @@
         }
       },
       "asm-pp-dedicated-environment": {
-        "title": "Power Platform day-2 workflows run in a dedicated environment outside Default",
         "plane": "power-platform",
+        "title": "Power Platform day-2 workflows run in a dedicated environment outside Default",
         "pillar": "operations",
         "severity": "medium",
         "claims": [
@@ -382,8 +382,8 @@
         }
       },
       "asm-pp-dlp-blocks-unapproved": {
-        "title": "Power Platform DLP policy covers the AVD environment and blocks unapproved connectors",
         "plane": "power-platform",
+        "title": "Power Platform DLP policy covers the AVD environment and blocks unapproved connectors",
         "pillar": "security",
         "severity": "high",
         "claims": [
@@ -397,8 +397,8 @@
         }
       },
       "asm-pp-vnet-enterprise-policy": {
-        "title": "Power Platform enterprise policy injects environments into a delegated VNet subnet",
         "plane": "power-platform",
+        "title": "Power Platform enterprise policy injects environments into a delegated VNet subnet",
         "pillar": "security",
         "severity": "medium",
         "claims": [
@@ -413,8 +413,8 @@
         }
       },
       "asm-insights-rtt-target": {
-        "title": "AVD Insights p95 round-trip latency stays under 150 ms",
         "plane": "azure",
+        "title": "AVD Insights p95 round-trip latency stays under 150 ms",
         "pillar": "performance",
         "severity": "medium",
         "claims": [
@@ -428,8 +428,8 @@
         }
       },
       "asm-insights-input-delay-target": {
-        "title": "AVD Insights p95 user input delay stays within the 100 ms acceptable band",
         "plane": "azure",
+        "title": "AVD Insights p95 user input delay stays within the 100 ms acceptable band",
         "pillar": "performance",
         "severity": "medium",
         "claims": [
@@ -443,8 +443,8 @@
         }
       },
       "asm-insights-time-to-connect": {
-        "title": "AVD Insights p95 time to connect stays under 30 seconds",
         "plane": "azure",
+        "title": "AVD Insights p95 time to connect stays under 30 seconds",
         "pillar": "performance",
         "severity": "low",
         "claims": [
@@ -458,8 +458,8 @@
         }
       },
       "asm-insights-connection-reliability": {
-        "title": "AVD Insights connection failure rate stays at or below 5 percent",
         "plane": "azure",
+        "title": "AVD Insights connection failure rate stays at or below 5 percent",
         "pillar": "reliability",
         "severity": "medium",
         "claims": [
@@ -473,8 +473,8 @@
         }
       },
       "asm-hosts-accelerated-networking": {
-        "title": "Session host NICs enable accelerated networking",
         "plane": "azure",
+        "title": "Session host NICs enable accelerated networking",
         "pillar": "performance",
         "severity": "medium",
         "claims": [
@@ -488,8 +488,8 @@
         }
       },
       "asm-hosts-encryption-at-host": {
-        "title": "Session hosts enable encryption at host",
         "plane": "azure",
+        "title": "Session hosts enable encryption at host",
         "pillar": "security",
         "severity": "medium",
         "claims": [
@@ -504,8 +504,8 @@
         }
       },
       "asm-hosts-premium-os-disk": {
-        "title": "Session hosts run on Premium SSD or ephemeral OS disks",
         "plane": "azure",
+        "title": "Session hosts run on Premium SSD or ephemeral OS disks",
         "pillar": "performance",
         "severity": "medium",
         "claims": [
@@ -519,8 +519,8 @@
         }
       },
       "asm-hosts-zone-redundant": {
-        "title": "Session hosts are pinned to availability zones",
         "plane": "azure",
+        "title": "Session hosts are pinned to availability zones",
         "pillar": "reliability",
         "severity": "medium",
         "claims": [
@@ -534,8 +534,8 @@
         }
       },
       "asm-hostpool-diagnostics-enabled": {
-        "title": "Host pools forward required diagnostic log categories to a workspace",
         "plane": "azure",
+        "title": "Host pools forward required diagnostic log categories to a workspace",
         "pillar": "operations",
         "severity": "medium",
         "claims": [
@@ -551,8 +551,8 @@
         }
       },
       "asm-hosts-insights-agent": {
-        "title": "Session hosts have the Azure Monitor Agent and AVD Insights DCR associated",
         "plane": "azure",
+        "title": "Session hosts have the Azure Monitor Agent and AVD Insights DCR associated",
         "pillar": "operations",
         "severity": "medium",
         "claims": [
@@ -566,8 +566,8 @@
         }
       },
       "asm-pooled-autoscale-attached": {
-        "title": "Pooled host pools have an active AVD scaling plan attached",
         "plane": "azure",
+        "title": "Pooled host pools have an active AVD scaling plan attached",
         "pillar": "cost",
         "severity": "medium",
         "claims": [
@@ -582,8 +582,8 @@
         }
       },
       "asm-hostpool-scheduled-agent-updates": {
-        "title": "Host pools configure a maintenance window for scheduled agent updates",
         "plane": "azure",
+        "title": "Host pools configure a maintenance window for scheduled agent updates",
         "pillar": "operations",
         "severity": "low",
         "claims": [
@@ -598,8 +598,8 @@
         }
       },
       "asm-files-smb-multichannel": {
-        "title": "Premium Azure Files profile storage enables SMB Multichannel",
         "plane": "azure",
+        "title": "Premium Azure Files profile storage enables SMB Multichannel",
         "pillar": "performance",
         "severity": "medium",
         "claims": [
@@ -613,8 +613,8 @@
         }
       },
       "asm-files-backup-protected": {
-        "title": "Premium Azure Files profile storage is protected by Azure Backup",
         "plane": "azure",
+        "title": "Premium Azure Files profile storage is protected by Azure Backup",
         "pillar": "reliability",
         "severity": "high",
         "claims": [
@@ -629,8 +629,8 @@
         }
       },
       "asm-intune-assignment-filters-separate-platforms": {
-        "title": "Intune assignment filters separate multi-session AVD hosts, Cloud PCs and physical endpoints",
         "plane": "intune",
+        "title": "Intune assignment filters separate multi-session AVD hosts, Cloud PCs and physical endpoints",
         "pillar": "operations",
         "severity": "high",
         "claims": [
@@ -644,8 +644,8 @@
         }
       },
       "asm-win365-sso-enabled": {
-        "title": "Windows 365 provisioning policies enable Microsoft Entra single sign-on",
         "plane": "intune",
+        "title": "Windows 365 provisioning policies enable Microsoft Entra single sign-on",
         "pillar": "security",
         "severity": "medium",
         "claims": [
@@ -659,8 +659,8 @@
         }
       },
       "asm-win365-no-local-admin": {
-        "title": "Windows 365 user settings policies disable local administrator rights on Cloud PCs",
         "plane": "intune",
+        "title": "Windows 365 user settings policies disable local administrator rights on Cloud PCs",
         "pillar": "security",
         "severity": "high",
         "claims": [
@@ -673,8 +673,8 @@
         }
       },
       "asm-win365-restore-points-configured": {
-        "title": "Windows 365 user settings configure automatic point-in-time restore points every 12 hours or less",
         "plane": "intune",
+        "title": "Windows 365 user settings configure automatic point-in-time restore points every 12 hours or less",
         "pillar": "reliability",
         "severity": "medium",
         "claims": [
@@ -688,8 +688,8 @@
         }
       },
       "asm-win365-anc-healthy": {
-        "title": "Windows 365 Azure Network Connections pass all health checks",
         "plane": "intune",
+        "title": "Windows 365 Azure Network Connections pass all health checks",
         "pillar": "reliability",
         "severity": "high",
         "claims": [
@@ -702,8 +702,8 @@
         }
       },
       "asm-win365-cloudpcs-compliant": {
-        "title": "Intune-managed Windows 365 Cloud PCs have zero noncompliant devices",
         "plane": "intune",
+        "title": "Intune-managed Windows 365 Cloud PCs have zero noncompliant devices",
         "pillar": "security",
         "severity": "high",
         "claims": [
@@ -717,8 +717,8 @@
         }
       },
       "asm-personal-deallocation": {
-        "title": "Personal host pools with Start VM on Connect have a scaling plan attached",
         "plane": "azure",
+        "title": "Personal host pools with Start VM on Connect have a scaling plan attached",
         "pillar": "cost",
         "severity": "low",
         "claims": [
@@ -733,8 +733,8 @@
         }
       },
       "asm-cost-allocation-tags": {
-        "title": "Host pools and session hosts carry cost allocation tags",
         "plane": "azure",
+        "title": "Host pools and session hosts carry cost allocation tags",
         "pillar": "cost",
         "severity": "low",
         "claims": [
@@ -749,8 +749,8 @@
         }
       },
       "asm-cost-budget-action-group": {
-        "title": "Subscriptions configure a cost budget wired to an action group",
         "plane": "azure",
+        "title": "Subscriptions configure a cost budget wired to an action group",
         "pillar": "cost",
         "severity": "medium",
         "claims": [
@@ -766,8 +766,8 @@
         }
       },
       "asm-cost-no-unattached-disks": {
-        "title": "Subscriptions have zero unattached managed disk cost recommendations",
         "plane": "azure",
+        "title": "Subscriptions have zero unattached managed disk cost recommendations",
         "pillar": "cost",
         "severity": "low",
         "claims": [
@@ -781,8 +781,8 @@
         }
       },
       "asm-cost-advisor-rightsize-reviewed": {
-        "title": "Subscriptions review Azure Advisor VM right-size and shutdown cost recommendations",
         "plane": "azure",
+        "title": "Subscriptions review Azure Advisor VM right-size and shutdown cost recommendations",
         "pillar": "cost",
         "severity": "low",
         "claims": [
@@ -796,8 +796,8 @@
         }
       },
       "asm-hosts-zone-spread": {
-        "title": "Host pools with at least two session hosts spread them across two or more availability zones",
         "plane": "azure",
+        "title": "Host pools with at least two session hosts spread them across two or more availability zones",
         "pillar": "reliability",
         "severity": "medium",
         "claims": [
@@ -812,8 +812,8 @@
         }
       },
       "asm-pooled-hosts-not-backed-up": {
-        "title": "Pooled host pools do not back up stateless session host VMs with Azure Backup",
         "plane": "azure",
+        "title": "Pooled host pools do not back up stateless session host VMs with Azure Backup",
         "pillar": "reliability",
         "severity": "low",
         "claims": [
@@ -827,8 +827,8 @@
         }
       },
       "asm-personal-hosts-replicated": {
-        "title": "Personal host pools protect every session host with Azure Site Recovery",
         "plane": "azure",
+        "title": "Personal host pools protect every session host with Azure Site Recovery",
         "pillar": "reliability",
         "severity": "high",
         "claims": [
@@ -842,8 +842,8 @@
         }
       },
       "asm-image-replicated": {
-        "title": "Host pools backed by Azure Compute Gallery replicate image versions to at least two regions",
         "plane": "azure",
+        "title": "Host pools backed by Azure Compute Gallery replicate image versions to at least two regions",
         "pillar": "reliability",
         "severity": "medium",
         "claims": [
@@ -858,8 +858,8 @@
         }
       },
       "asm-profile-backup-ran": {
-        "title": "Protected Azure Files profile storage accounts have a succeeded most recent backup job",
         "plane": "azure",
+        "title": "Protected Azure Files profile storage accounts have a succeeded most recent backup job",
         "pillar": "reliability",
         "severity": "high",
         "claims": [
@@ -874,8 +874,8 @@
         }
       },
       "asm-profile-backup-offsite": {
-        "title": "Azure Files profile storage accounts use vaulted Azure Backup so backups survive storage account loss",
         "plane": "azure",
+        "title": "Azure Files profile storage accounts use vaulted Azure Backup so backups survive storage account loss",
         "pillar": "reliability",
         "severity": "medium",
         "claims": [
@@ -890,8 +890,8 @@
         }
       },
       "asm-hosts-edr-present": {
-        "title": "Session hosts report a healthy endpoint protection and EDR assessment in Defender for Cloud",
         "plane": "azure",
+        "title": "Session hosts report a healthy endpoint protection and EDR assessment in Defender for Cloud",
         "pillar": "security",
         "severity": "high",
         "claims": [
@@ -906,8 +906,8 @@
         }
       },
       "asm-hosts-vulnerability-assessment": {
-        "title": "Session hosts report zero unhealthy Defender for Cloud vulnerability assessment findings",
         "plane": "azure",
+        "title": "Session hosts report zero unhealthy Defender for Cloud vulnerability assessment findings",
         "pillar": "security",
         "severity": "medium",
         "claims": [
@@ -921,8 +921,8 @@
         }
       },
       "asm-hosts-no-public-rdp": {
-        "title": "Session host NSGs have zero rules allowing inbound TCP or UDP 3389 from the internet",
         "plane": "azure",
+        "title": "Session host NSGs have zero rules allowing inbound TCP or UDP 3389 from the internet",
         "pillar": "security",
         "severity": "high",
         "claims": [

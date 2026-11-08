@@ -2,13 +2,61 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://assess.avd-ops.dev/schemas/avd-intake/v1.json",
   "title": "avd-intake/v1: what telemetry can't know about an estate (intake.json)",
-  "description": "Contract C19. The operator answers these once per estate, in intake.json beside their landing zone parameters. It gives the fact register's intake.* facts their paths; hostSharing, avdMfa, reportedSymptoms, appDelivery, appCompatibility, profileSolution, hostAgents, clientAgents and agentRdpBypass are optional. Every answer is an enum, a public Azure region or a clock time: the schema has no field for a name, a domain, an address, an ID or free text. Why each question matters is in avd-assess methods/collection.md and gaps/intake.md.",
+  "description": "Contract C19. The operator answers these once per estate, in intake.json beside their landing zone parameters. It gives the fact register's intake.* facts their paths; hostSharing, avdMfa, reportedSymptoms, userNetworks, userSentiment, appDelivery, appCompatibility, profileSolution, hostAgents, clientAgents and agentRdpBypass are optional. Every answer is an enum, a banded sample count, a bounded score, a public Azure region or a clock time: the schema has no field for a name, a domain, an address, an ID or free text. Why each question matters is in avd-assess methods/collection.md and gaps/intake.md.",
   "type": "object",
   "required": ["schema", "estate", "answeredOn", "residency", "preferredRegions", "existingHub", "identityConstraints", "workingHours"],
   "additionalProperties": false,
   "$defs": {
     "region": { "type": "string", "pattern": "^[a-z0-9]{2,40}$", "description": "An Azure region's programmatic name, for example eastus2" },
-    "clock": { "type": "string", "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$" }
+    "clock": { "type": "string", "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$" },
+    "sampleBand": {
+      "enum": ["1-2", "3-9", "10-25", "26-100", "100+"],
+      "description": "Banded sample count so an individual user check cannot be singled out"
+    },
+    "linecheckSymptom": {
+      "enum": ["slow-typing", "frozen-blurry-screen", "teams-audio-video", "disconnects", "sign-in", "printing", "slow-apps"],
+      "description": "Closed symptom chip IDs from avd-linecheck (gaps/client-network.md)"
+    },
+    "userSentimentSummary": {
+      "type": "object",
+      "description": "Banded, PII-free rollup of user experience ratings (1..5) and symptom chips from avd-linecheck exports; never inferred from free text.",
+      "required": ["sampleBand"],
+      "additionalProperties": false,
+      "properties": {
+        "sampleBand": { "$ref": "#/$defs/sampleBand" },
+        "ratingMedian": { "type": "number", "minimum": 1, "maximum": 5 },
+        "lowRatingShare": { "type": "number", "minimum": 0, "maximum": 1, "description": "Share of rated samples with rating <= 2" },
+        "symptoms": {
+          "type": "array",
+          "uniqueItems": true,
+          "maxItems": 7,
+          "items": { "$ref": "#/$defs/linecheckSymptom" }
+        }
+      }
+    },
+    "userNetworkEntry": {
+      "type": "object",
+      "description": "One user network vantage point (office, branch, home, guest, partner) aggregated from avd-linecheck exports or operator testing (gaps/client-network.md).",
+      "required": ["kind", "allowsClientEndpoints", "outboundUdpAllowed", "proxyInPath"],
+      "additionalProperties": false,
+      "properties": {
+        "kind": { "enum": ["office", "branch", "home", "guest", "partner", "other"] },
+        "sampleBand": { "$ref": "#/$defs/sampleBand" },
+        "allowsClientEndpoints": { "enum": ["yes", "no", "unknown"] },
+        "outboundUdpAllowed": { "enum": ["yes", "no", "unknown"] },
+        "proxyInPath": { "enum": ["yes", "no", "possible", "unknown"] },
+        "tunnelInPath": { "enum": ["yes", "no", "possible", "unknown"] },
+        "targetRegion": { "$ref": "#/$defs/region" },
+        "targetRegionRttMs": { "type": "integer", "minimum": 0, "maximum": 10000 },
+        "jitterMs": { "type": "integer", "minimum": 0, "maximum": 10000 },
+        "candidateRegionsRttMs": {
+          "type": "object",
+          "propertyNames": { "$ref": "#/$defs/region" },
+          "additionalProperties": { "type": "integer", "minimum": 0, "maximum": 10000 }
+        },
+        "sentiment": { "$ref": "#/$defs/userSentimentSummary" }
+      }
+    }
   },
   "properties": {
     "$schema": { "type": "string" },
@@ -64,7 +112,7 @@
       "enum": ["required", "not-required", "unknown"]
     },
     "reportedSymptoms": {
-      "description": "Fact intake.reportedSymptoms (optional). The problems the operator reports, each picking a triage flow (avd-assess methods/diagnostics.md); none or unknown stand alone.",
+      "description": "Fact intake.reportedSymptoms (optional). The problems the operator reports or aggregates from user network checks, each picking a triage flow (avd-assess methods/diagnostics.md); none or unknown stand alone.",
       "type": "array",
       "minItems": 1,
       "uniqueItems": true,
@@ -73,6 +121,17 @@
         { "maxItems": 1 },
         { "items": { "not": { "enum": ["none", "unknown"] } } }
       ]
+    },
+    "userNetworks": {
+      "description": "Fact intake.userNetworks (optional). Per-network reachability, region latency and banded user sentiment from avd-linecheck or operator tests (avd-assess gaps/client-network.md).",
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 20,
+      "items": { "$ref": "#/$defs/userNetworkEntry" }
+    },
+    "userSentiment": {
+      "description": "Fact intake.userSentiment (optional). Estate-wide banded user sentiment and symptom rollup from avd-linecheck exports (avd-assess gaps/client-network.md, gaps/intake.md).",
+      "$ref": "#/$defs/userSentimentSummary"
     },
     "appDelivery": {
       "description": "Fact intake.appDelivery (optional). Every way apps reach the session hosts. host-deployment is software distribution to running hosts; app-layering is a third-party app layering or streaming product, as a category (avd-assess gaps/app-delivery-scope.md).",
