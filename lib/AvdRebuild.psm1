@@ -14,7 +14,7 @@
 Set-StrictMode -Version Latest
 
 $script:Tables = @('resources', 'resourcecontainers', 'desktopvirtualizationresources', 'insightsresources',
-    'recoveryservicesresources', 'authorizationresources', 'policyresources', 'securityresources')
+    'recoveryservicesresources', 'authorizationresources', 'policyresources', 'securityresources', 'advisorresources')
 
 # Property names whose values are never written, even to the private package (spec section 5.2). The key
 # stays, with a marker, so a rebuild knows a secret existed there and has to be recreated (section 5.3).

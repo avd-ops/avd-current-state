@@ -292,21 +292,5 @@
         }
       }
     }
-  },
-  "allOf": [
-    {
-      "if": {
-        "properties": {
-          "source": { "const": "estate" }
-        },
-        "required": ["source"]
-      },
-      "then": {
-        "required": ["consent"],
-        "properties": {
-          "consent": { "const": true }
-        }
-      }
-    }
-  ]
+  }
 }

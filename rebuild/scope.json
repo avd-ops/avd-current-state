@@ -57,7 +57,8 @@
     { "table": "resources", "type": "microsoft.network/applicationgateways", "serves": ["inventory:diagram"] },
     { "table": "resources", "type": "microsoft.compute/virtualmachinescalesets", "serves": ["inventory:diagram"] },
     { "table": "resources", "type": "microsoft.containerservice/managedclusters", "serves": ["inventory:diagram"] },
-    { "table": "resources", "type": "microsoft.powerplatform/enterprisepolicies", "serves": ["enableVnetEnterprisePolicy", "inventory:powerPlatform"] }
+    { "table": "resources", "type": "microsoft.powerplatform/enterprisepolicies", "serves": ["enableVnetEnterprisePolicy", "inventory:powerPlatform"] },
+    { "table": "advisorresources", "type": "microsoft.advisor/recommendations", "serves": ["estate:advisorCost"] }
   ],
   "rest": [
     { "name": "diagnostic-settings", "parentTypes": ["microsoft.desktopvirtualization/hostpools", "microsoft.desktopvirtualization/applicationgroups", "microsoft.desktopvirtualization/workspaces", "microsoft.desktopvirtualization/scalingplans", "microsoft.keyvault/vaults", "microsoft.recoveryservices/vaults", "microsoft.network/networksecuritygroups", "microsoft.automation/automationaccounts"], "path": "{id}/providers/Microsoft.Insights/diagnosticSettings", "apiVersion": "2021-05-01-preview", "serves": ["module:diagnostics"] },
@@ -75,8 +76,9 @@
     "azure": {
       "permissions": ["Reader"],
       "calls": [
-        { "plane": "azure", "transport": "resource-graph", "method": "SELECT/PROJECT", "uriPattern": "/providers/Microsoft.ResourceGraph/resources?api-version=2022-10-01", "facts": ["c11.hostPool.type", "c11.hostPool.entraSso", "c11.hostPool.directUserAssignments", "c11.hostPool.sessionHosts.entraJoined", "c11.hostPool.sessionHosts.domainJoined", "c11.powerPlatform.enterprisePoliciesCount", "c11.powerPlatform.vnetInjectedSubnets"] },
+        { "plane": "azure", "transport": "resource-graph", "method": "SELECT/PROJECT", "uriPattern": "/providers/Microsoft.ResourceGraph/resources?api-version=2022-10-01", "facts": ["c11.hostPool.type", "c11.hostPool.entraSso", "c11.hostPool.directUserAssignments", "c11.hostPool.costAllocationTag", "c11.hostPool.sessionHosts.entraJoined", "c11.hostPool.sessionHosts.domainJoined", "c11.hostPool.sessionHosts.hibernation", "c11.hostPool.sessionHosts.untaggedForCost", "c11.advisor.recommendations", "c11.advisor.unattachedDisks", "c11.advisor.rightSizeVms", "c11.powerPlatform.enterprisePoliciesCount", "c11.powerPlatform.vnetInjectedSubnets"] },
         { "plane": "azure", "transport": "arm-rest", "method": "GET", "uriPattern": "{id}/fileServices/default?api-version=2023-05-01", "facts": ["c11.storage.smbChannelEncryption"] },
+        { "plane": "azure", "transport": "arm-rest", "method": "GET", "uriPattern": "{id}/providers/Microsoft.Consumption/budgets?api-version=2023-11-01", "facts": ["c11.subscription.budgets.total", "c11.subscription.budgets.withActionGroup"] },
         { "plane": "azure", "transport": "log-analytics-kql", "method": "SELECT/PROJECT", "uriPattern": "https://api.loganalytics.io/v1/workspaces/{workspaceId}/query", "facts": ["c11.insights.rttP50", "c11.insights.rttP95", "c11.insights.inputDelayP95", "c11.insights.timeToConnectP95", "c11.insights.connectionFailureRate"] }
       ]
     },

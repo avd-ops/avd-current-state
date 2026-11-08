@@ -348,4 +348,66 @@ Describe 'avd_current_state_facts.ps1' {
     $r.Data.powerPlatform.dlpDefaultGroupClassification | Should -Be 'Blocked'
     $r.Data.subscriptions[0].powerPlatform.enterprisePoliciesCount | Should -Be 1
   }
+
+  It 'collects FinOps facts (scaling plan, budgets, Advisor, hibernation, cost tags) without leaking resource names' {
+    $dir = Join-Path $TestDrive 'finops'
+    $pkg = New-TestCollector $dir -Stamp '20261011T090000'
+    $subDir = Join-Path $pkg 'Contoso_Production'
+    Write-TestJson "$subDir/rebuild/resources/microsoft.compute-virtualmachines.json" @(0..2 | ForEach-Object {
+        $vm = @{ id = "/subscriptions/$($script:subId)/resourceGroups/rg-contoso-avd/providers/Microsoft.Compute/virtualMachines/avdhost-$_"; name = "avdhost-$_"; type = 'microsoft.compute/virtualmachines'; properties = @{ hardwareProfile = @{ vmSize = 'Standard_D4ads_v5' } } }
+        if ($_ -ne 0) { $vm.properties.securityProfile = @{ securityType = 'TrustedLaunch'; uefiSettings = @{ secureBootEnabled = $true; vTpmEnabled = $true } } }
+        if ($_ -eq 1) { $vm.properties.additionalCapabilities = @{ hibernationEnabled = $true } }
+        $vm })
+    Write-TestJson "$subDir/rebuild/resources/microsoft.desktopvirtualization-scalingplans.json" @(
+      @{ id = "/subscriptions/$($script:subId)/resourceGroups/rg-contoso-avd/providers/Microsoft.DesktopVirtualization/scalingPlans/sp-contoso-pooled"; name = 'sp-contoso-pooled'
+        properties = @{ hostPoolReferences = @(@{ hostPoolArmPath = $script:hpId; scalingPlanEnabled = $true }) } })
+    Write-TestJson "$subDir/rebuild/rest/budgets.json" @(
+      @{ parentId = "/subscriptions/$($script:subId)"; status = 'ok'; error = ''
+        items = @(
+          @{ id = "/subscriptions/$($script:subId)/providers/Microsoft.Consumption/budgets/Contoso-AVD-Budget"; name = 'Contoso-AVD-Budget'
+            properties = @{ notifications = @{ Actual_80 = @{ enabled = $true; contactGroups = @("/subscriptions/$($script:subId)/resourceGroups/rg-contoso-avd/providers/microsoft.insights/actionGroups/ag-contoso-finops") } } } }
+          @{ id = "/subscriptions/$($script:subId)/providers/Microsoft.Consumption/budgets/Contoso-Email-Only-Budget"; name = 'Contoso-Email-Only-Budget'
+            properties = @{ notifications = @{ Actual_100 = @{ enabled = $true; contactEmails = @('jane.doe@contoso.com'); contactGroups = @() } } } }) })
+    Write-TestJson "$subDir/rebuild/resources/microsoft.advisor-recommendations.json" @(
+      @{ id = "/subscriptions/$($script:subId)/providers/Microsoft.Advisor/recommendations/rec-disk-1"; name = 'rec-disk-1'
+        properties = @{ category = 'Cost'; impactedField = 'Microsoft.Compute/disks'; impactedValue = 'osdisk-contoso-orphan-01'; shortDescription = @{ problem = 'Delete unattached disks to save money' } } }
+      @{ id = "/subscriptions/$($script:subId)/providers/Microsoft.Advisor/recommendations/rec-vm-1"; name = 'rec-vm-1'
+        properties = @{ category = 'Cost'; impactedField = 'Microsoft.Compute/virtualMachines'; impactedValue = 'avdhost-0'; shortDescription = @{ problem = 'Right-size or shutdown underutilized virtual machines' } } }
+      @{ id = "/subscriptions/$($script:subId)/providers/Microsoft.Advisor/recommendations/rec-ha-1"; name = 'rec-ha-1'
+        properties = @{ category = 'HighAvailability'; impactedField = 'Microsoft.Compute/virtualMachines'; impactedValue = 'avdhost-1' } })
+
+    $out = Join-Path $TestDrive 'out-finops'
+    & $script:facts -PackagePath $dir -KeyPath $script:key -OutputPath $out -Assess 6>$null | Out-Null
+    $snapFile = Get-ChildItem $out -Filter 'avd-current-state-facts-*'
+    $repFile = Get-ChildItem $out -Filter 'avd-assessment-*'
+    $snapText = Get-Content $snapFile.FullName -Raw
+    $repText = Get-Content $repFile.FullName -Raw
+    $errs = $null
+    Test-Json -Json $snapText -SchemaFile $script:schema -ErrorVariable errs -ErrorAction SilentlyContinue | Should -BeTrue -Because "$errs"
+    foreach ($s in ($script:secrets + @('sp-contoso-pooled', 'Contoso-AVD-Budget', 'Contoso-Email-Only-Budget', 'ag-contoso-finops', 'osdisk-contoso-orphan-01'))) {
+      $snapText | Should -Not -Match ([regex]::Escape($s))
+      $repText | Should -Not -Match ([regex]::Escape($s))
+    }
+    $snap = $snapText | ConvertFrom-Json
+    $sub = $snap.subscriptions[0]
+    $hp = $sub.hostPools[0]
+    $hp.costAllocationTag | Should -BeTrue
+    $hp.scalingPlan.method | Should -Be 'power-management'
+    $hp.sessionHosts.hibernation | Should -Be 1
+    $hp.sessionHosts.untaggedForCost | Should -Be 0
+    $sub.budgets.total | Should -Be 2
+    $sub.budgets.withActionGroup | Should -Be 1
+    $sub.advisor.recommendations.Cost | Should -Be 2
+    $sub.advisor.recommendations.HighAvailability | Should -Be 1
+    $sub.advisor.unattachedDisks | Should -Be 1
+    $sub.advisor.rightSizeVms | Should -Be 1
+
+    $rep = $repText | ConvertFrom-Json
+    $outcome = @{}; foreach ($row in $rep.results) { $outcome[$row.check] = $row.outcome }
+    $outcome['asm-pooled-autoscale-attached'] | Should -Be 'pass'
+    $outcome['asm-cost-allocation-tags'] | Should -Be 'pass'
+    $outcome['asm-cost-budget-action-group'] | Should -Be 'pass'
+    $outcome['asm-cost-no-unattached-disks'] | Should -Be 'warn'
+    $outcome['asm-cost-advisor-rightsize-reviewed'] | Should -Be 'warn'
+  }
 }
