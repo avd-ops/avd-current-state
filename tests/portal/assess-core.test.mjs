@@ -4,7 +4,7 @@
 // Run: node --test "tests/portal/*.test.mjs"
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
@@ -390,3 +390,17 @@ test('a report redacts what this repo\'s scripts print, the settings and the ope
   const again = redact.redact(`${r.body}\nand Fabrikam Dev too`, core.reportOptions({ subscriptions: 'Fabrikam Production\nFabrikam Dev' }, ['Fabrikam'])).text;
   assert.doesNotMatch(again, /Fabrikam/, 'an edited report is redacted again with the same options');
 });
+
+test('supply chain & security review: SECURITY.md, docs/threat-model.md, secrets.yml, and 40-char SHA action pins', () => {
+  assert.match(read('SECURITY.md'), /# Security policy/);
+  assert.match(read('docs/threat-model.md'), /# Threat model: avd-current-state/);
+  assert.match(read('.github/workflows/secrets.yml'), /zricethezav\/gitleaks/);
+  const wfDir = join(root, '.github/workflows');
+  for (const f of readdirSync(wfDir).filter((n) => n.endsWith('.yml') || n.endsWith('.yaml'))) {
+    const text = read(`.github/workflows/${f}`);
+    for (const m of text.matchAll(/^\s*-?\s*uses:\s*([^\s#]+)/gm)) {
+      assert.match(m[1], /@[0-9a-f]{40}$/, `${f} uses unpinned action reference: ${m[1]}`);
+    }
+  }
+});
+
