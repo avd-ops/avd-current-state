@@ -2446,6 +2446,11 @@ function Invoke-PostDeploymentValidation {
     }
 
     # -----------------------------------------
+    # Estate tripwires (opt-in)
+    # -----------------------------------------
+    Test-EstateTripwires
+
+    # -----------------------------------------
     # Endpoint reachability (opt-in)
     # -----------------------------------------
     Write-Section 'Endpoint Reachability'
@@ -2456,6 +2461,149 @@ function Invoke-PostDeploymentValidation {
             -Recommendation 'Re-run with -IncludeNetworkProbe from a session host for a meaningful result.'
     } else {
         Test-AvdEndpoints
+    }
+}
+
+function Get-TripwirePosture {
+    <#
+    .SYNOPSIS
+        Evaluates estate tripwire wiring from read-only ARM metadata without reading secret values or emitting secret names.
+    #>
+    param(
+        [object[]]$KeyVaultSecrets = @(),
+        [object[]]$KeyVaultDiagnostics = @(),
+        [object[]]$ActivityLogAlerts = @(),
+        [object[]]$ScheduledQueryRules = @(),
+        [bool]$SharedKeyAccessEnabled = $false,
+        [bool]$VaultedBackupEnabled = $false
+    )
+    $decoyPresent = $false
+    foreach ($sec in @($KeyVaultSecrets)) {
+        if ($null -eq $sec) { continue }
+        $ct = "$(Get-FirstProp $sec @('ContentType', 'contentType') '')"
+        $props = Get-FirstProp $sec @('Properties', 'properties') $null
+        if (-not $ct -and $null -ne $props) { $ct = "$(Get-FirstProp $props @('contentType', 'ContentType') '')" }
+        $attr = Get-FirstProp $sec @('Attributes', 'attributes') $(if ($null -ne $props) { Get-FirstProp $props @('attributes', 'Attributes') $null } else { $null })
+        $enabled = if ($null -ne $attr -and $null -ne (Get-FirstProp $attr @('Enabled', 'enabled') $null)) { [bool](Get-FirstProp $attr @('Enabled', 'enabled') $true) } else { [bool](Get-FirstProp $sec @('Enabled', 'enabled') $true) }
+        if ($enabled -and $ct -match '(?i)(canary|tripwire)') {
+            $decoyPresent = $true
+            break
+        }
+    }
+
+    $auditDiagEnabled = $false
+    foreach ($diag in @($KeyVaultDiagnostics)) {
+        if ($null -eq $diag) { continue }
+        $wsId = "$(Get-FirstProp $diag @('WorkspaceId', 'workspaceId') '')"
+        $dProps = Get-FirstProp $diag @('Properties', 'properties') $null
+        if (-not $wsId -and $null -ne $dProps) { $wsId = "$(Get-FirstProp $dProps @('workspaceId', 'WorkspaceId') '')" }
+        if ([string]::IsNullOrWhiteSpace($wsId)) { continue }
+        $logs = @(Get-FirstProp $diag @('Log', 'Logs', 'logs') $(if ($null -ne $dProps) { Get-FirstProp $dProps @('logs', 'Logs') @() } else { @() }))
+        foreach ($l in $logs) {
+            $cat = "$(Get-FirstProp $l @('Category', 'category', 'CategoryGroup', 'categoryGroup') '')"
+            $en = [bool](Get-FirstProp $l @('Enabled', 'enabled') $false)
+            if ($en -and $cat -in @('AuditEvent', 'audit', 'allLogs')) {
+                $auditDiagEnabled = $true
+                break
+            }
+        }
+    }
+
+    $t2AlertWired = $false
+    foreach ($al in @($ActivityLogAlerts)) {
+        if ($null -eq $al) { continue }
+        $aProps = Get-FirstProp $al @('Properties', 'properties') $al
+        $en = [bool](Get-FirstProp $aProps @('Enabled', 'enabled') $true)
+        $actions = Get-FirstProp $aProps @('Actions', 'actions') $null
+        $agList = if ($null -ne $actions) { @(Get-FirstProp $actions @('ActionGroups', 'actionGroups') @()) } else { @(Get-FirstProp $aProps @('ActionGroup', 'actionGroups') @()) }
+        $condText = ($al | ConvertTo-Json -Depth 8 -Compress)
+        if ($en -and $agList.Count -gt 0 -and $condText -match '(?i)listKeys') {
+            $t2AlertWired = $true
+            break
+        }
+    }
+
+    $storageKeyAlertStatus = if ($SharedKeyAccessEnabled -or $VaultedBackupEnabled) {
+        'incompatible'
+    } elseif ($t2AlertWired) {
+        'wired'
+    } else {
+        'missing'
+    }
+
+    $kvAlertEnabled = $false
+    foreach ($sq in @($ScheduledQueryRules)) {
+        if ($null -eq $sq) { continue }
+        $sqName = "$(Get-FirstProp $sq @('Name', 'name') '')"
+        $sqProps = Get-FirstProp $sq @('Properties', 'properties') $sq
+        $sqEn = [bool](Get-FirstProp $sqProps @('Enabled', 'enabled') $true)
+        if ($sqEn -and $sqName -match '(?i)tripwire-keyvault') {
+            $kvAlertEnabled = $true
+            break
+        }
+    }
+
+    $status = if (-not $decoyPresent -and -not $kvAlertEnabled -and -not $t2AlertWired) {
+        'INFO'
+    } elseif ($decoyPresent -and $auditDiagEnabled -and $storageKeyAlertStatus -in @('wired', 'incompatible')) {
+        'PASS'
+    } else {
+        'WARN'
+    }
+
+    return [pscustomobject]@{
+        Status                 = $status
+        DecoyPresent           = [bool]$decoyPresent
+        AuditDiagnosticsEnabled = [bool]$auditDiagEnabled
+        StorageKeyAlertStatus  = $storageKeyAlertStatus
+        KeyVaultAlertEnabled   = [bool]$kvAlertEnabled
+    }
+}
+
+function Test-EstateTripwires {
+    <#
+    .SYNOPSIS
+        Read-only post-deployment check for optional estate tripwires (ARM secret metadata, Key Vault audit diagnostics, T2 storage key alert).
+    #>
+    Invoke-Check -Category 'Security' -Check 'Estate tripwires' -Scope $targetSubscription.Name -Body {
+        $kvResources = @(Get-AzResource -ResourceType 'Microsoft.KeyVault/vaults' -ErrorAction SilentlyContinue)
+        if ($kvResources.Count -eq 0) {
+            Add-Check -Category 'Security' -Check 'Estate tripwires' -Status 'INFO' `
+                -Detail 'No Key Vault found in subscription; optional estate tripwires are not deployed.' -Scope $targetSubscription.Name
+            return
+        }
+        $secretMeta = @()
+        $kvDiags = @()
+        foreach ($kv in $kvResources) {
+            $kvId = "$(Get-Prop $kv 'ResourceId' (Get-Prop $kv 'Id' ''))"
+            if (-not $kvId) { continue }
+            $secResp = Invoke-AzRestMethod -Method GET -Path "${kvId}/secrets?api-version=2023-07-01" -ErrorAction SilentlyContinue
+            if ($null -ne $secResp -and $secResp.StatusCode -eq 200 -and $secResp.Content) {
+                $parsed = $secResp.Content | ConvertFrom-Json -ErrorAction SilentlyContinue
+                if ($null -ne $parsed -and $null -ne $parsed.value) { $secretMeta += @($parsed.value) }
+            }
+            $diagResp = Invoke-AzRestMethod -Method GET -Path "${kvId}/providers/Microsoft.Insights/diagnosticSettings?api-version=2021-05-01-preview" -ErrorAction SilentlyContinue
+            if ($null -ne $diagResp -and $diagResp.StatusCode -eq 200 -and $diagResp.Content) {
+                $parsedDiag = $diagResp.Content | ConvertFrom-Json -ErrorAction SilentlyContinue
+                if ($null -ne $parsedDiag -and $null -ne $parsedDiag.value) { $kvDiags += @($parsedDiag.value) }
+            }
+        }
+        $actAlerts = @(Get-AzResource -ResourceType 'Microsoft.Insights/activityLogAlerts' -ExpandProperties -ErrorAction SilentlyContinue)
+        $sqRules = @(Get-AzResource -ResourceType 'Microsoft.Insights/scheduledQueryRules' -ExpandProperties -ErrorAction SilentlyContinue)
+        $posture = Get-TripwirePosture -KeyVaultSecrets $secretMeta -KeyVaultDiagnostics $kvDiags -ActivityLogAlerts $actAlerts -ScheduledQueryRules $sqRules
+        if ($posture.Status -eq 'INFO') {
+            Add-Check -Category 'Security' -Check 'Estate tripwires' -Status 'INFO' `
+                -Detail 'Optional estate tripwire kit is not enabled (deployTripwires = false).' -Scope $targetSubscription.Name
+        } elseif ($posture.Status -eq 'PASS') {
+            Add-Check -Category 'Security' -Check 'Estate tripwires' -Status 'PASS' `
+                -Detail "Tripwire decoy metadata present, Key Vault AuditEvent diagnostics wired, storage key alert status: $($posture.StorageKeyAlertStatus)." `
+                -Scope $targetSubscription.Name
+        } else {
+            Add-Check -Category 'Security' -Check 'Estate tripwires' -Status 'WARN' `
+                -Detail "Tripwire kit incomplete (decoyPresent=$($posture.DecoyPresent), auditDiagnostics=$($posture.AuditDiagnosticsEnabled), storageKeyAlert=$($posture.StorageKeyAlertStatus))." `
+                -Recommendation 'Redeploy with deployTripwires = true and ensure Key Vault AuditEvent diagnostics and storage key alerts are intact.' `
+                -Scope $targetSubscription.Name
+        }
     }
 }
 

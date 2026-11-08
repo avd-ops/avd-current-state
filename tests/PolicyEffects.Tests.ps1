@@ -10,7 +10,7 @@ BeforeAll {
   $script:parseErrors = $null
   $ast = [System.Management.Automation.Language.Parser]::ParseFile($validator, [ref]$null, [ref]$script:parseErrors)
   $wanted = 'Get-Prop', 'Get-FirstProp', 'Get-PolicyParameterValue', 'Resolve-PolicyParameterReference',
-    'Get-PolicyMemberParameterValue', 'Get-PolicyDefinitionEffect'
+    'Get-PolicyMemberParameterValue', 'Get-PolicyDefinitionEffect', 'Get-TripwirePosture'
   $ast.FindAll({ param($n) $n -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $wanted -contains $n.Name }, $false) |
     ForEach-Object { . ([scriptblock]::Create($_.Extent.Text)) }
   . ([scriptblock]::Create(($ast.FindAll({ param($n) $n -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $n.Name -eq 'Get-ResourceNameFromId' }, $false) | Select-Object -First 1).Extent.Text))
@@ -171,5 +171,42 @@ Describe 'Policy section' {
     $cap = $rows | Where-Object Check -eq 'Policy lookup cap'
     $cap.Status | Should -Be 'INFO'
     $cap.Detail | Should -Match '5 assignment\(s\)'
+  }
+}
+
+Describe 'Get-TripwirePosture' {
+  It 'returns INFO when optional tripwires are not deployed' {
+    $res = Get-TripwirePosture
+    $res.Status | Should -Be 'INFO'
+    $res.DecoyPresent | Should -BeFalse
+    $res.AuditDiagnosticsEnabled | Should -BeFalse
+    $res.StorageKeyAlertStatus | Should -Be 'missing'
+  }
+
+  It 'returns PASS when decoy secret metadata, Key Vault AuditEvent diagnostics and T2 alert are wired' {
+    $sec = @(ConvertTo-Object '{ "properties": { "contentType": "Canary credential — do not use", "attributes": { "enabled": true } } }')
+    $diag = @(ConvertTo-Object '{ "properties": { "workspaceId": "/subscriptions/x/resourceGroups/rg/providers/Microsoft.OperationalInsights/workspaces/law", "logs": [ { "category": "AuditEvent", "enabled": true } ] } }')
+    $alert = @(ConvertTo-Object '{ "properties": { "enabled": true, "condition": { "allOf": [ { "field": "operationName", "equals": "Microsoft.Storage/storageAccounts/listKeys/action" } ] }, "actions": { "actionGroups": [ { "actionGroupId": "/subscriptions/x/resourceGroups/rg/providers/Microsoft.Insights/actionGroups/ag" } ] } } }')
+    $res = Get-TripwirePosture -KeyVaultSecrets $sec -KeyVaultDiagnostics $diag -ActivityLogAlerts $alert
+    $res.Status | Should -Be 'PASS'
+    $res.DecoyPresent | Should -BeTrue
+    $res.AuditDiagnosticsEnabled | Should -BeTrue
+    $res.StorageKeyAlertStatus | Should -Be 'wired'
+  }
+
+  It 'marks T2 as incompatible (and still PASS when T1 and audit diagnostics are present) when vaulted backup is on' {
+    $sec = @(ConvertTo-Object '{ "properties": { "contentType": "Canary credential — do not use", "attributes": { "enabled": true } } }')
+    $diag = @(ConvertTo-Object '{ "properties": { "workspaceId": "/subscriptions/x/resourceGroups/rg/providers/Microsoft.OperationalInsights/workspaces/law", "logs": [ { "categoryGroup": "allLogs", "enabled": true } ] } }')
+    $res = Get-TripwirePosture -KeyVaultSecrets $sec -KeyVaultDiagnostics $diag -VaultedBackupEnabled $true
+    $res.Status | Should -Be 'PASS'
+    $res.StorageKeyAlertStatus | Should -Be 'incompatible'
+  }
+
+  It 'returns WARN when decoy secret is present but Key Vault audit diagnostics are missing' {
+    $sec = @(ConvertTo-Object '{ "properties": { "contentType": "Canary credential — do not use", "attributes": { "enabled": true } } }')
+    $res = Get-TripwirePosture -KeyVaultSecrets $sec
+    $res.Status | Should -Be 'WARN'
+    $res.DecoyPresent | Should -BeTrue
+    $res.AuditDiagnosticsEnabled | Should -BeFalse
   }
 }

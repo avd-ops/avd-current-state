@@ -1,6 +1,6 @@
 {
   "schema": "avd-assess-method/v1",
-  "version": 7,
+  "version": 8,
   "factRegister": 1,
   "landingZoneCommit": "ae6e80b574cccde570d0053d4c62b519d31052a8",
   "collection": [
@@ -1439,6 +1439,163 @@
         "ref:advisor-cost#vm-reservations",
         "ref:advisor-cost#savings-plan",
         "gap:finops-scope",
+        "gap:intake"
+      ]
+    },
+    {
+      "fact": "c11.hostPool.sessionHosts.backupProtected",
+      "from": "resource-graph",
+      "table": "RecoveryServicesResources",
+      "type": "microsoft.recoveryservices/vaults/backupfabrics",
+      "property": "properties.sourceResourceId",
+      "claims": [
+        "ref:caf-avd-bcdr#hosts-stateless-no-vm-backup",
+        "ref:resource-graph-tables#recovery-services-table",
+        "gap:reliability-scope"
+      ]
+    },
+    {
+      "fact": "c11.hostPool.sessionHosts.replicated",
+      "from": "resource-graph",
+      "table": "RecoveryServicesResources",
+      "type": "microsoft.recoveryservices/vaults/replicationfabrics",
+      "property": "properties.providerSpecificDetails.dataSourceInfo.resourceId",
+      "claims": [
+        "ref:avd-multiregion-bcdr#personal-site-recovery",
+        "ref:resource-graph-tables#recovery-services-table",
+        "gap:reliability-scope"
+      ]
+    },
+    {
+      "fact": "c11.hostPool.sessionHosts.notReplicated",
+      "from": "resource-graph",
+      "table": "RecoveryServicesResources",
+      "type": "microsoft.recoveryservices/vaults/replicationfabrics",
+      "property": "properties.providerSpecificDetails.dataSourceInfo.resourceId",
+      "claims": [
+        "ref:avd-multiregion-bcdr#personal-site-recovery",
+        "ref:resource-graph-tables#recovery-services-table",
+        "gap:reliability-scope"
+      ]
+    },
+    {
+      "fact": "c11.hostPool.imageSource",
+      "from": "resource-graph",
+      "table": "Resources",
+      "type": "microsoft.compute/virtualmachines",
+      "property": "properties.storageProfile.imageReference.id",
+      "claims": [
+        "ref:compute-gallery#versioning-and-replication",
+        "gap:reliability-scope"
+      ]
+    },
+    {
+      "fact": "c11.hostPool.imageRegions",
+      "from": "resource-graph",
+      "table": "Resources",
+      "type": "microsoft.compute/galleries/images/versions",
+      "property": "properties.publishingProfile.targetRegions",
+      "claims": [
+        "ref:avd-multiregion-bcdr#image-in-both-regions",
+        "ref:compute-gallery#versioning-and-replication",
+        "gap:reliability-scope"
+      ]
+    },
+    {
+      "fact": "c11.storage.backupTier",
+      "from": "arm-rest",
+      "type": "microsoft.recoveryservices/vaults/backupfabrics",
+      "property": "properties.policyName",
+      "claims": [
+        "ref:azure-files-backup#vaulted-survives-source-loss",
+        "ref:review-checklists-avd#A03.02",
+        "gap:reliability-scope"
+      ]
+    },
+    {
+      "fact": "c11.storage.lastBackupJob",
+      "from": "arm-rest",
+      "type": "microsoft.recoveryservices/vaults/backupfabrics",
+      "property": "properties.lastBackupStatus",
+      "claims": [
+        "ref:azure-files-backup#snapshot-and-vaulted",
+        "ref:review-checklists-avd#A03.02",
+        "gap:reliability-scope"
+      ]
+    },
+    {
+      "fact": "c11.hostPool.sessionHosts.edrMissing",
+      "from": "resource-graph",
+      "table": "SecurityResources",
+      "type": "microsoft.security/assessments",
+      "property": "properties.status.code",
+      "claims": [
+        "ref:defender-cloud-edr-detection#agentless-edr-check",
+        "ref:avd-security-guide#edr-microsoft-or-third-party",
+        "gap:security-agents-scope"
+      ]
+    },
+    {
+      "fact": "c11.hostPool.sessionHosts.vulnerabilityFindings",
+      "from": "resource-graph",
+      "table": "SecurityResources",
+      "type": "microsoft.security/assessments",
+      "property": "properties.status.code",
+      "claims": [
+        "ref:defender-compute-recommendations#vm-recommendations",
+        "ref:mcsb-avd-baseline#PV-6",
+        "gap:security-agents-scope"
+      ]
+    },
+    {
+      "fact": "c11.network.hostPublicRdp",
+      "from": "resource-graph",
+      "table": "Resources",
+      "type": "microsoft.network/networksecuritygroups",
+      "property": "properties.securityRules",
+      "claims": [
+        "ref:mcsb-avd-baseline#NS-2",
+        "ref:review-checklists-avd#F01.04",
+        "gap:network-scope"
+      ]
+    },
+    {
+      "fact": "intake.recoveryTime",
+      "from": "intake",
+      "claims": [
+        "gap:reliability-scope",
+        "gap:intake"
+      ]
+    },
+    {
+      "fact": "intake.recoveryPoint",
+      "from": "intake",
+      "claims": [
+        "gap:reliability-scope",
+        "gap:intake"
+      ]
+    },
+    {
+      "fact": "intake.regionRecovery",
+      "from": "intake",
+      "claims": [
+        "gap:reliability-scope",
+        "gap:intake"
+      ]
+    },
+    {
+      "fact": "intake.recoveryDependencies",
+      "from": "intake",
+      "claims": [
+        "gap:reliability-scope",
+        "gap:intake"
+      ]
+    },
+    {
+      "fact": "intake.profileData",
+      "from": "intake",
+      "claims": [
+        "gap:reliability-scope",
         "gap:intake"
       ]
     }
@@ -3129,6 +3286,314 @@
         "kind": "manual",
         "plane": "azure",
         "code": "process"
+      }
+    },
+    {
+      "id": "asm-hosts-zone-spread",
+      "plane": "azure",
+      "title": "Host pools with at least two session hosts spread them across two or more availability zones",
+      "pillar": "reliability",
+      "severity": "medium",
+      "claims": [
+        "ref:avd-multiregion-bcdr#spread-and-overprovision",
+        "ref:availability-zones#zonal-needs-multiple",
+        "ref:review-checklists-avd#A01.04"
+      ],
+      "facts": [
+        "c11.hostPool.sessionHosts.total",
+        "c11.hostPool.sessionHosts.zones"
+      ],
+      "rule": {
+        "each": "/subscriptions/*/hostPools/*",
+        "where": {
+          "sessionHosts/total": {
+            "min": 2
+          }
+        },
+        "expect": {
+          "sessionHosts/zones": {
+            "min": 2
+          }
+        },
+        "onFail": "warn"
+      },
+      "informs": [],
+      "remediation": {
+        "kind": "lz-parameter",
+        "plane": "azure",
+        "name": "availabilityZones"
+      }
+    },
+    {
+      "id": "asm-pooled-hosts-not-backed-up",
+      "plane": "azure",
+      "title": "Pooled host pools do not back up stateless session host VMs with Azure Backup",
+      "pillar": "reliability",
+      "severity": "low",
+      "claims": [
+        "ref:caf-avd-bcdr#hosts-stateless-no-vm-backup",
+        "ref:review-checklists-avd#A03.03"
+      ],
+      "facts": [
+        "c11.hostPool.type",
+        "c11.hostPool.sessionHosts.backupProtected"
+      ],
+      "rule": {
+        "each": "/subscriptions/*/hostPools/*",
+        "where": {
+          "type": {
+            "eq": "Pooled"
+          }
+        },
+        "expect": {
+          "sessionHosts/backupProtected": {
+            "max": 0
+          }
+        },
+        "onFail": "warn"
+      },
+      "informs": [],
+      "remediation": {
+        "kind": "manual",
+        "plane": "azure",
+        "code": "outside-landing-zone"
+      }
+    },
+    {
+      "id": "asm-personal-hosts-replicated",
+      "plane": "azure",
+      "title": "Personal host pools protect every session host with Azure Site Recovery",
+      "pillar": "reliability",
+      "severity": "high",
+      "claims": [
+        "ref:avd-multiregion-bcdr#personal-site-recovery",
+        "ref:review-checklists-avd#A03.04"
+      ],
+      "facts": [
+        "c11.hostPool.type",
+        "c11.hostPool.sessionHosts.notReplicated"
+      ],
+      "rule": {
+        "each": "/subscriptions/*/hostPools/*",
+        "where": {
+          "type": {
+            "eq": "Personal"
+          }
+        },
+        "expect": {
+          "sessionHosts/notReplicated": {
+            "max": 0
+          }
+        },
+        "onFail": "gap"
+      },
+      "informs": [],
+      "remediation": {
+        "kind": "manual",
+        "plane": "azure",
+        "code": "outside-landing-zone"
+      }
+    },
+    {
+      "id": "asm-image-replicated",
+      "plane": "azure",
+      "title": "Host pools backed by Azure Compute Gallery replicate image versions to at least two regions",
+      "pillar": "reliability",
+      "severity": "medium",
+      "claims": [
+        "ref:avd-multiregion-bcdr#image-in-both-regions",
+        "ref:compute-gallery#versioning-and-replication",
+        "ref:review-checklists-avd#A03.01"
+      ],
+      "facts": [
+        "c11.hostPool.imageSource",
+        "c11.hostPool.imageRegions"
+      ],
+      "rule": {
+        "each": "/subscriptions/*/hostPools/*",
+        "where": {
+          "imageSource": {
+            "eq": "gallery"
+          }
+        },
+        "expect": {
+          "imageRegions": {
+            "min": 2
+          }
+        },
+        "onFail": "warn"
+      },
+      "informs": [],
+      "remediation": {
+        "kind": "manual",
+        "plane": "azure",
+        "code": "outside-landing-zone"
+      }
+    },
+    {
+      "id": "asm-profile-backup-ran",
+      "plane": "azure",
+      "title": "Protected Azure Files profile storage accounts have a succeeded most recent backup job",
+      "pillar": "reliability",
+      "severity": "high",
+      "claims": [
+        "ref:azure-files-backup#snapshot-and-vaulted",
+        "ref:review-checklists-avd#A03.02"
+      ],
+      "facts": [
+        "c11.storage.kind",
+        "c11.storage.backupProtected",
+        "c11.storage.lastBackupJob"
+      ],
+      "rule": {
+        "each": "/subscriptions/*/storageAccounts/*",
+        "where": {
+          "kind": {
+            "eq": "FileStorage"
+          },
+          "backupProtected": {
+            "eq": true
+          }
+        },
+        "expect": {
+          "lastBackupJob": {
+            "eq": "succeeded"
+          }
+        },
+        "onFail": "gap"
+      },
+      "informs": [],
+      "remediation": {
+        "kind": "lz-parameter",
+        "plane": "azure",
+        "name": "enableProfileBackup",
+        "to": true
+      }
+    },
+    {
+      "id": "asm-profile-backup-offsite",
+      "plane": "azure",
+      "title": "Azure Files profile storage accounts use vaulted Azure Backup so backups survive storage account loss",
+      "pillar": "reliability",
+      "severity": "medium",
+      "claims": [
+        "ref:azure-files-backup#vaulted-survives-source-loss",
+        "ref:review-checklists-avd#A03.02"
+      ],
+      "facts": [
+        "c11.storage.kind",
+        "c11.storage.backupTier"
+      ],
+      "rule": {
+        "each": "/subscriptions/*/storageAccounts/*",
+        "where": {
+          "kind": {
+            "eq": "FileStorage"
+          }
+        },
+        "expect": {
+          "backupTier": {
+            "eq": "vaulted"
+          }
+        },
+        "onFail": "warn"
+      },
+      "informs": [],
+      "remediation": {
+        "kind": "lz-parameter",
+        "plane": "azure",
+        "name": "enableProfileBackup",
+        "to": true
+      }
+    },
+    {
+      "id": "asm-hosts-edr-present",
+      "plane": "azure",
+      "title": "Session hosts report a healthy endpoint protection and EDR assessment in Defender for Cloud",
+      "pillar": "security",
+      "severity": "high",
+      "claims": [
+        "ref:defender-cloud-edr-detection#agentless-edr-check",
+        "ref:avd-security-guide#edr-microsoft-or-third-party",
+        "ref:review-checklists-avd#G03.01"
+      ],
+      "facts": [
+        "c11.hostPool.sessionHosts.edrMissing"
+      ],
+      "rule": {
+        "each": "/subscriptions/*/hostPools/*",
+        "expect": {
+          "sessionHosts/edrMissing": {
+            "max": 0
+          }
+        },
+        "onFail": "gap"
+      },
+      "informs": [],
+      "remediation": {
+        "kind": "manual",
+        "plane": "azure",
+        "code": "outside-landing-zone"
+      }
+    },
+    {
+      "id": "asm-hosts-vulnerability-assessment",
+      "plane": "azure",
+      "title": "Session hosts report zero unhealthy Defender for Cloud vulnerability assessment findings",
+      "pillar": "security",
+      "severity": "medium",
+      "claims": [
+        "ref:defender-compute-recommendations#vm-recommendations",
+        "ref:mcsb-avd-baseline#PV-6"
+      ],
+      "facts": [
+        "c11.hostPool.sessionHosts.vulnerabilityFindings"
+      ],
+      "rule": {
+        "each": "/subscriptions/*/hostPools/*",
+        "expect": {
+          "sessionHosts/vulnerabilityFindings": {
+            "max": 0
+          }
+        },
+        "onFail": "warn"
+      },
+      "informs": [],
+      "remediation": {
+        "kind": "manual",
+        "plane": "azure",
+        "code": "process"
+      }
+    },
+    {
+      "id": "asm-hosts-no-public-rdp",
+      "plane": "azure",
+      "title": "Session host NSGs have zero rules allowing inbound TCP or UDP 3389 from the internet",
+      "pillar": "security",
+      "severity": "high",
+      "claims": [
+        "ref:mcsb-avd-baseline#NS-2",
+        "ref:review-checklists-avd#F01.04"
+      ],
+      "facts": [
+        "c11.network.hostPublicRdp"
+      ],
+      "rule": {
+        "each": "/subscriptions/*",
+        "expect": {
+          "network/hostPublicRdp": {
+            "max": 0
+          }
+        },
+        "onFail": "gap"
+      },
+      "informs": [
+        "network"
+      ],
+      "remediation": {
+        "kind": "lz-setting",
+        "plane": "azure",
+        "name": "session-host-nsg-no-public-rdp"
       }
     }
   ],

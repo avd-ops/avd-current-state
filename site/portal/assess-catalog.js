@@ -9,8 +9,8 @@
 })(typeof self !== 'undefined' ? self : this, function () {
   'use strict';
   return {
-    "method": 7,
-    "assessCommit": "004394b9328aa540d9b7f7488a0c749b4a18be60",
+    "method": 8,
+    "assessCommit": "06bc13b85c9c822e77bb77cb7d82973a01150470",
     "landingZoneCommit": "ae6e80b574cccde570d0053d4c62b519d31052a8",
     "checks": {
       "asm-personal-start-vm-on-connect": {
@@ -793,6 +793,146 @@
           "kind": "manual",
           "plane": "azure",
           "code": "process"
+        }
+      },
+      "asm-hosts-zone-spread": {
+        "title": "Host pools with at least two session hosts spread them across two or more availability zones",
+        "plane": "azure",
+        "pillar": "reliability",
+        "severity": "medium",
+        "claims": [
+          "ref:avd-multiregion-bcdr#spread-and-overprovision",
+          "ref:availability-zones#zonal-needs-multiple",
+          "ref:review-checklists-avd#A01.04"
+        ],
+        "remediation": {
+          "kind": "lz-parameter",
+          "plane": "azure",
+          "name": "availabilityZones"
+        }
+      },
+      "asm-pooled-hosts-not-backed-up": {
+        "title": "Pooled host pools do not back up stateless session host VMs with Azure Backup",
+        "plane": "azure",
+        "pillar": "reliability",
+        "severity": "low",
+        "claims": [
+          "ref:caf-avd-bcdr#hosts-stateless-no-vm-backup",
+          "ref:review-checklists-avd#A03.03"
+        ],
+        "remediation": {
+          "kind": "manual",
+          "plane": "azure",
+          "code": "outside-landing-zone"
+        }
+      },
+      "asm-personal-hosts-replicated": {
+        "title": "Personal host pools protect every session host with Azure Site Recovery",
+        "plane": "azure",
+        "pillar": "reliability",
+        "severity": "high",
+        "claims": [
+          "ref:avd-multiregion-bcdr#personal-site-recovery",
+          "ref:review-checklists-avd#A03.04"
+        ],
+        "remediation": {
+          "kind": "manual",
+          "plane": "azure",
+          "code": "outside-landing-zone"
+        }
+      },
+      "asm-image-replicated": {
+        "title": "Host pools backed by Azure Compute Gallery replicate image versions to at least two regions",
+        "plane": "azure",
+        "pillar": "reliability",
+        "severity": "medium",
+        "claims": [
+          "ref:avd-multiregion-bcdr#image-in-both-regions",
+          "ref:compute-gallery#versioning-and-replication",
+          "ref:review-checklists-avd#A03.01"
+        ],
+        "remediation": {
+          "kind": "manual",
+          "plane": "azure",
+          "code": "outside-landing-zone"
+        }
+      },
+      "asm-profile-backup-ran": {
+        "title": "Protected Azure Files profile storage accounts have a succeeded most recent backup job",
+        "plane": "azure",
+        "pillar": "reliability",
+        "severity": "high",
+        "claims": [
+          "ref:azure-files-backup#snapshot-and-vaulted",
+          "ref:review-checklists-avd#A03.02"
+        ],
+        "remediation": {
+          "kind": "lz-parameter",
+          "plane": "azure",
+          "name": "enableProfileBackup",
+          "to": true
+        }
+      },
+      "asm-profile-backup-offsite": {
+        "title": "Azure Files profile storage accounts use vaulted Azure Backup so backups survive storage account loss",
+        "plane": "azure",
+        "pillar": "reliability",
+        "severity": "medium",
+        "claims": [
+          "ref:azure-files-backup#vaulted-survives-source-loss",
+          "ref:review-checklists-avd#A03.02"
+        ],
+        "remediation": {
+          "kind": "lz-parameter",
+          "plane": "azure",
+          "name": "enableProfileBackup",
+          "to": true
+        }
+      },
+      "asm-hosts-edr-present": {
+        "title": "Session hosts report a healthy endpoint protection and EDR assessment in Defender for Cloud",
+        "plane": "azure",
+        "pillar": "security",
+        "severity": "high",
+        "claims": [
+          "ref:defender-cloud-edr-detection#agentless-edr-check",
+          "ref:avd-security-guide#edr-microsoft-or-third-party",
+          "ref:review-checklists-avd#G03.01"
+        ],
+        "remediation": {
+          "kind": "manual",
+          "plane": "azure",
+          "code": "outside-landing-zone"
+        }
+      },
+      "asm-hosts-vulnerability-assessment": {
+        "title": "Session hosts report zero unhealthy Defender for Cloud vulnerability assessment findings",
+        "plane": "azure",
+        "pillar": "security",
+        "severity": "medium",
+        "claims": [
+          "ref:defender-compute-recommendations#vm-recommendations",
+          "ref:mcsb-avd-baseline#PV-6"
+        ],
+        "remediation": {
+          "kind": "manual",
+          "plane": "azure",
+          "code": "process"
+        }
+      },
+      "asm-hosts-no-public-rdp": {
+        "title": "Session host NSGs have zero rules allowing inbound TCP or UDP 3389 from the internet",
+        "plane": "azure",
+        "pillar": "security",
+        "severity": "high",
+        "claims": [
+          "ref:mcsb-avd-baseline#NS-2",
+          "ref:review-checklists-avd#F01.04"
+        ],
+        "remediation": {
+          "kind": "lz-setting",
+          "plane": "azure",
+          "name": "session-host-nsg-no-public-rdp"
         }
       }
     }
