@@ -160,7 +160,7 @@ jobs:
       # the schemas at the avd-assess commit the method is pinned to (assess/PINS.json).
       - name: Plan fixtures match avd-assess contracts C21, C23 and C24
         env:
-          ASSESS_COMMIT: 0682312d60185074756537caab7fc2856f84923c
+          ASSESS_COMMIT: 5c5696cc5050ba216dbe6a8268a4c0a7592b177d
         run: |
           pip install --quiet jsonschema
           base="https://raw.githubusercontent.com/avd-ops/avd-assess/$ASSESS_COMMIT/contracts/schemas"
