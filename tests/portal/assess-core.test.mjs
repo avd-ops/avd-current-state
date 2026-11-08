@@ -492,4 +492,41 @@ test('correlates user sentiment against assessment findings to surface blind spo
   assert.equal(healthy.status, 'healthy');
 });
 
+test('builds as-is architecture diagram model, Mermaid, Draw.io XML, SVG, and planMarkdown diagram', () => {
+  const { assessment, sha, review } = methodReview();
+  const sampleAnswers = {
+    existingHub: 'azure-hub',
+    identityConstraints: 'entra-only',
+    preferredRegions: 'eastus2, centralus'
+  };
 
+  const model = core.buildAsIsDiagramModel(assessment, sampleAnswers);
+  assert.equal(model.estate, 'est-0a1b2c3d');
+  assert.equal(model.intakeContext.existingHub, 'azure-hub');
+  assert.equal(model.intakeContext.identityConstraints, 'entra-only');
+  assert.deepEqual(model.intakeContext.regions, ['eastus2', 'centralus']);
+  assert.equal(model.planes.length, 5);
+  assert.equal(model.zones.length, 4);
+  const storageZone = model.zones.find((z) => z.id === 'storage');
+  assert.equal(storageZone.worst, 'gap');
+
+  const mmd = core.buildAsIsMermaid(assessment, sampleAnswers);
+  assert.match(mmd, /^flowchart LR/);
+  assert.match(mmd, /Discovery & Context \(est-0a1b2c3d\)/);
+  assert.match(mmd, /ZN_storage\["FSLogix Profile Storage \[GAP\]/);
+
+  const drawio = core.buildAsIsDrawio(assessment, sampleAnswers);
+  assert.match(drawio, /^<mxfile host="avd-ops\.dev"/);
+  assert.match(drawio, /As-Is Assessment Architecture \(est-0a1b2c3d\)/);
+  assert.match(drawio, /<mxCell id="zn_2"/);
+
+  const svg = core.buildAsIsSvg(assessment, sampleAnswers);
+  assert.match(svg, /^<svg viewBox="0 0 920 330"/);
+  assert.match(svg, /As-Is Estate: est-0a1b2c3d/);
+  assert.match(svg, /FSLogix Profile Storage \[GAP\]/);
+
+  const { plan, skipped } = core.buildPlan(assessment, sha, review, 'b'.repeat(64), catalog, '2026-10-22');
+  const md = core.planMarkdown(plan, skipped, catalog);
+  assert.match(md, /## Remediation architecture diagram/);
+  assert.match(md, /```mermaid\nflowchart LR\n  EST\["Estate est-0a1b2c3d \(5 planned\)"\]/);
+});

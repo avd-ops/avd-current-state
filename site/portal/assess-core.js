@@ -808,6 +808,26 @@
     ];
     if (plan.basis.landingZoneCommit) out.push(`Landing zone names come from avd-landing-zone at ${plan.basis.landingZoneCommit.slice(0, 7)} (bicep/main.bicep).`, '');
     if (!plan.items.length) out.push('_Nothing to change: every finding passed, or was accepted or deferred in the review._', '');
+    if (plan.items.length) {
+      out.push('## Remediation architecture diagram', '', '```mermaid', 'flowchart LR', `  EST["Estate ${plan.estate} (${plan.items.length} planned)"]`);
+      const byPlane = {};
+      for (const it of plan.items) {
+        const p = it.plane || 'azure';
+        if (!byPlane[p]) byPlane[p] = [];
+        byPlane[p].push(it);
+      }
+      for (const p of PLANES) {
+        const list = byPlane[p];
+        if (!list || !list.length) continue;
+        const pid = `PL_${p.replace(/[^a-z0-9]/gi, '_')}`;
+        out.push(`  EST --> ${pid}["${PLANE_LABELS[p] || p} (${list.length})"]`);
+        for (const it of list) {
+          const cid = `CHK_${it.order}`;
+          out.push(`  ${pid} --> ${cid}["#${it.order} ${it.check} (${it.outcome}, ${it.severity})"]`);
+        }
+      }
+      out.push('```', '');
+    }
     for (const it of plan.items) {
       out.push(`## ${it.order}. ${titleOf(it.check, catalog)}`, '',
         `- Check: \`${it.check}\` (${it.outcome}, ${it.plane || 'azure'}, ${it.pillar}, ${it.severity})${it.source === 'unreviewed' ? ', not reviewed' : ''}`,
@@ -828,6 +848,205 @@
   // A block that writes plan.json beside the packages, the same way as intake.json and review.json.
   function planCommand(plan) {
     return fileCommand('plan.json', plan);
+  }
+
+  // ---- As-is architecture & network diagrams (SVG, Mermaid, Draw.io) --------------------------------
+  function xmlEsc(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  function inferPlane(r) {
+    if (r && r.plane && PLANES.includes(r.plane)) return r.plane;
+    const id = String((r && r.check) || '');
+    if (/^asm-(entra|ca|sso|mfa|identity)-/.test(id)) return 'entra';
+    if (/^asm-(intune|mdm|device|compliance)-/.test(id)) return 'intune';
+    if (/^asm-(m365|teams|onedrive|office|kfm)-/.test(id)) return 'm365';
+    if (/^asm-(pp|power-platform|dlp)-/.test(id)) return 'power-platform';
+    return 'azure';
+  }
+
+  function inferAzureZone(checkId) {
+    const id = String(checkId || '');
+    if (/^asm-(files|fslogix|storage|profile)-/.test(id)) return 'storage';
+    if (/^asm-(network|private|shortpath|nsg|udr|dns|vnet|nat|firewall)-/.test(id)) return 'network';
+    if (/^asm-(personal|pooled|host-pool|workspace|app-group|session-host)-/.test(id)) return 'controlPlane';
+    return 'securityOps';
+  }
+
+  function summarizeBucket(rows) {
+    const counts = { gap: 0, warn: 0, unknown: 0, pass: 0 };
+    for (const r of rows) {
+      if (counts[r.outcome] !== undefined) counts[r.outcome]++;
+    }
+    const worst = counts.gap > 0 ? 'gap' : counts.warn > 0 ? 'warn' : counts.unknown > 0 ? 'unknown' : 'pass';
+    const topFindings = rows.filter((r) => r.outcome !== 'pass' && r.outcome !== 'not-applicable').slice(0, 3).map((r) => ({
+      check: r.check,
+      outcome: r.outcome
+    }));
+    return { counts, worst, total: rows.length, topFindings };
+  }
+
+  function buildAsIsDiagramModel(assessment, answers) {
+    if (!assessment || !Array.isArray(assessment.results)) return null;
+    const ans = answers || {};
+    const planes = PLANES.map((p) => {
+      const rows = assessment.results.filter((r) => inferPlane(r) === p);
+      const sum = summarizeBucket(rows);
+      const planeScore = assessment.planes && assessment.planes[p] && typeof assessment.planes[p].score === 'number'
+        ? Math.round(assessment.planes[p].score * 100)
+        : null;
+      return {
+        id: p,
+        label: PLANE_LABELS[p] || p,
+        scorePercent: planeScore,
+        counts: sum.counts,
+        worst: sum.worst,
+        total: sum.total,
+        topFindings: sum.topFindings
+      };
+    });
+
+    const azureRows = assessment.results.filter((r) => inferPlane(r) === 'azure');
+    const zoneDefs = [
+      ['controlPlane', 'AVD Control Plane & Host Pools'],
+      ['network', 'Network, Private Link & Shortpath'],
+      ['storage', 'FSLogix Profile Storage'],
+      ['securityOps', 'Security, Images & Operations']
+    ];
+    const zones = zoneDefs.map(([key, label]) => {
+      const rows = azureRows.filter((r) => inferAzureZone(r.check) === key);
+      const sum = summarizeBucket(rows);
+      return {
+        id: key,
+        label,
+        counts: sum.counts,
+        worst: sum.worst,
+        total: sum.total,
+        topFindings: sum.topFindings
+      };
+    });
+
+    const hub = HUBS.includes(ans.existingHub) ? ans.existingHub : 'unanswered';
+    const identity = IDENTITY.includes(ans.identityConstraints) ? ans.identityConstraints : 'unanswered';
+    const regions = regionList(ans.preferredRegions || ans.residencyRegions);
+    const netCount = Array.isArray(ans.userNetworks) ? ans.userNetworks.length : 0;
+
+    return {
+      estate: assessment.estate,
+      generatedUtc: assessment.generatedUtc,
+      counts: assessment.counts,
+      intakeContext: {
+        existingHub: hub,
+        identityConstraints: identity,
+        regions,
+        userNetworkCount: netCount
+      },
+      planes,
+      zones
+    };
+  }
+
+  function buildAsIsMermaid(assessment, answers) {
+    const m = buildAsIsDiagramModel(assessment, answers);
+    if (!m) return '';
+    const lines = [
+      'flowchart LR',
+      `  subgraph INTAKE["Discovery & Context (${m.estate})"]`,
+      `    CTX_HUB["Network hub: ${m.intakeContext.existingHub}"]`,
+      `    CTX_ID["Identity lane: ${m.intakeContext.identityConstraints}"]`,
+      `    CTX_REG["Regions: ${m.intakeContext.regions.join(', ') || 'unspecified'}"]`,
+      '  end',
+      '  subgraph PLANES["Control Planes (C21 Outcomes)"]'
+    ];
+    for (const p of m.planes) {
+      const pid = `CP_${p.id.replace(/[^a-z0-9]/gi, '_')}`;
+      const scoreStr = p.scorePercent !== null ? ` ${p.scorePercent}%` : '';
+      lines.push(`    ${pid}["${p.label}${scoreStr}: ${p.counts.gap} gap, ${p.counts.warn} warn, ${p.counts.pass} pass"]`);
+    }
+    lines.push('  end');
+    lines.push('  subgraph AZURE["Azure Estate Zones"]');
+    for (const z of m.zones) {
+      const zid = `ZN_${z.id}`;
+      const findings = z.topFindings.map((f) => `${f.check} (${f.outcome})`).join(', ') || 'all checks passing';
+      lines.push(`    ${zid}["${z.label} [${z.worst.toUpperCase()}]: ${findings}"]`);
+    }
+    lines.push('  end');
+    lines.push('  CTX_ID --> CP_entra');
+    lines.push('  CTX_HUB --> CP_azure');
+    lines.push('  CP_azure --> ZN_controlPlane');
+    lines.push('  CP_azure --> ZN_network');
+    lines.push('  CP_azure --> ZN_storage');
+    lines.push('  CP_azure --> ZN_securityOps');
+    return lines.join('\n') + '\n';
+  }
+
+  function buildAsIsDrawio(assessment, answers) {
+    const m = buildAsIsDiagramModel(assessment, answers);
+    if (!m) return '';
+    const styleFor = (worst) => {
+      if (worst === 'gap') return 'rounded=1;whiteSpace=wrap;html=1;fillColor=#fbe7e7;strokeColor=#b42323;fontColor=#152232;';
+      if (worst === 'warn') return 'rounded=1;whiteSpace=wrap;html=1;fillColor=#fbf0d9;strokeColor=#8a5a00;fontColor=#152232;';
+      if (worst === 'unknown') return 'rounded=1;whiteSpace=wrap;html=1;fillColor=#eef2f6;strokeColor=#566578;fontColor=#152232;';
+      return 'rounded=1;whiteSpace=wrap;html=1;fillColor=#e1f3e9;strokeColor=#18794e;fontColor=#152232;';
+    };
+    const cells = [
+      '<mxCell id="0"/>',
+      '<mxCell id="1" parent="0"/>',
+      `<mxCell id="hdr" value="${xmlEsc(`As-Is Assessment Architecture (${m.estate}) - Hub: ${m.intakeContext.existingHub}, Identity: ${m.intakeContext.identityConstraints}, Regions: ${m.intakeContext.regions.join(', ') || 'unspecified'}`)}" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e0f2ef;strokeColor=#0b7a6e;fontColor=#152232;fontStyle=1;" vertex="1" parent="1"><mxGeometry x="20" y="20" width="880" height="45" as="geometry"/></mxCell>`
+    ];
+    m.planes.forEach((p, idx) => {
+      const x = 20 + idx * 178;
+      const label = `${p.label}: ${p.counts.gap} gap, ${p.counts.warn} warn, ${p.counts.pass} pass`;
+      cells.push(`<mxCell id="cp_${idx}" value="${xmlEsc(label)}" style="${styleFor(p.worst)}" vertex="1" parent="1"><mxGeometry x="${x}" y="80" width="168" height="55" as="geometry"/></mxCell>`);
+    });
+    m.zones.forEach((z, idx) => {
+      const x = 20 + (idx % 2) * 445;
+      const y = 155 + Math.floor(idx / 2) * 95;
+      const findings = z.topFindings.map((f) => `${f.check} (${f.outcome})`).join(', ') || 'all passing';
+      const label = `${z.label} [${z.worst.toUpperCase()}]: ${z.counts.gap} gap, ${z.counts.warn} warn, ${z.counts.pass} pass | ${findings}`;
+      cells.push(`<mxCell id="zn_${idx}" value="${xmlEsc(label)}" style="${styleFor(z.worst)}" vertex="1" parent="1"><mxGeometry x="${x}" y="${y}" width="435" height="80" as="geometry"/></mxCell>`);
+    });
+    return '<mxfile host="avd-ops.dev" version="1.0"><diagram id="avd-as-is" name="As-Is Assessment Diagram"><mxGraphModel dx="940" dy="380" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="920" pageHeight="360"><root>' +
+      cells.join('') + '</root></mxGraphModel></diagram></mxfile>\n';
+  }
+
+  function buildAsIsSvg(assessment, answers) {
+    const m = buildAsIsDiagramModel(assessment, answers);
+    if (!m) return '';
+    const xmlns = 'http' + '://www.w3.org/2000/svg';
+    const fillFor = (w) => (w === 'gap' ? '#fbe7e7' : w === 'warn' ? '#fbf0d9' : w === 'unknown' ? '#eef2f6' : '#e1f3e9');
+    const strokeFor = (w) => (w === 'gap' ? '#b42323' : w === 'warn' ? '#8a5a00' : w === 'unknown' ? '#566578' : '#18794e');
+    const parts = [
+      `<svg viewBox="0 0 920 330" role="img" aria-label="As-is assessment architecture diagram for ${xmlEsc(m.estate)}" xmlns="${xmlns}">`,
+      `<rect x="16" y="14" width="888" height="44" rx="6" fill="#e0f2ef" stroke="#0b7a6e" stroke-width="1.5"/>`,
+      `<text x="30" y="34" font-family="sans-serif" font-size="13" font-weight="700" fill="#152232">As-Is Estate: ${xmlEsc(m.estate)} (${m.counts.gap} gap, ${m.counts.warn} warn, ${m.counts.unknown} unknown, ${m.counts.pass} pass)</text>`,
+      `<text x="30" y="50" font-family="monospace" font-size="11" fill="#566578">Hub: ${xmlEsc(m.intakeContext.existingHub)} | Identity: ${xmlEsc(m.intakeContext.identityConstraints)} | Regions: ${xmlEsc(m.intakeContext.regions.join(', ') || 'unspecified')}</text>`
+    ];
+    m.planes.forEach((p, idx) => {
+      const x = 16 + idx * 179;
+      parts.push(
+        `<rect x="${x}" y="70" width="171" height="54" rx="6" fill="${fillFor(p.worst)}" stroke="${strokeFor(p.worst)}" stroke-width="1.5"/>`,
+        `<text x="${x + 10}" y="91" font-family="sans-serif" font-size="12" font-weight="700" fill="#152232">${xmlEsc(p.label)} (${xmlEsc(p.worst.toUpperCase())})</text>`,
+        `<text x="${x + 10}" y="110" font-family="monospace" font-size="10.5" fill="#566578">${p.counts.gap} gap, ${p.counts.warn} warn, ${p.counts.pass} pass</text>`
+      );
+    });
+    m.zones.forEach((z, idx) => {
+      const x = 16 + (idx % 2) * 450;
+      const y = 138 + Math.floor(idx / 2) * 90;
+      const topText = z.topFindings.map((f) => `${f.check} (${f.outcome})`).join(', ') || 'All checks in zone passed';
+      parts.push(
+        `<rect x="${x}" y="${y}" width="438" height="78" rx="6" fill="${fillFor(z.worst)}" stroke="${strokeFor(z.worst)}" stroke-width="1.5"/>`,
+        `<text x="${x + 12}" y="${y + 22}" font-family="sans-serif" font-size="12" font-weight="700" fill="#152232">${xmlEsc(z.label)} [${xmlEsc(z.worst.toUpperCase())}]</text>`,
+        `<text x="${x + 12}" y="${y + 42}" font-family="monospace" font-size="11" fill="#152232">Counts: ${z.counts.gap} gap, ${z.counts.warn} warn, ${z.counts.unknown} unknown, ${z.counts.pass} pass</text>`,
+        `<text x="${x + 12}" y="${y + 60}" font-family="monospace" font-size="10.5" fill="#566578">${xmlEsc(topText.slice(0, 62))}</text>`
+      );
+    });
+    parts.push('</svg>\n');
+    return parts.join('');
   }
 
   // ---- Report a problem (decision 5 of the spec; the engine's redact.js) ------------------------------
@@ -909,7 +1128,9 @@
     regionList, buildIntake, intakeCommand, notesMarkdown,
     REASONS, REASON_LABELS, sha256Hex, parseAssessment, checkTitle, startReview, buildReview, reviewCommand,
     reviewText, titleOf, buildPlan, planMarkdown, planCommand, CODE_SHORT, skippedWhy,
+    buildAsIsDiagramModel, buildAsIsMermaid, buildAsIsDrawio, buildAsIsSvg,
     reportOptions, buildReport, reportSummary,
     PLATFORMS, PLACES, validRunIn, isDefaultRunIn, scriptsIn, support, forRunIn
   };
 });
+
