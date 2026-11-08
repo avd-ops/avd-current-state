@@ -193,7 +193,247 @@
     ]).join('\n');
   }
 
-  // ---- Discover: intake.json (C19) and the private notes --------------------------------------------
+  // ---- Discover: intake.json (C19), avd-linecheck sentiment/network rollup and private notes --------
+
+  const LINECHECK_SYMPTOMS = ['slow-typing', 'frozen-blurry-screen', 'teams-audio-video', 'disconnects', 'sign-in', 'printing', 'slow-apps'];
+  const LINECHECK_SYMPTOM_MAP = {
+    'slow-typing': 'slow-session',
+    'frozen-blurry-screen': 'slow-session',
+    'teams-audio-video': 'slow-session',
+    disconnects: 'disconnects',
+    'sign-in': 'sign-in-fails',
+    printing: 'slow-session',
+    'slow-apps': 'slow-session'
+  };
+  const REPORTED_SYMPTOMS = ['no-resources', 'sign-in-fails', 'cannot-connect', 'disconnects', 'slow-logon', 'slow-session', 'profile-failed', 'host-unhealthy', 'none', 'unknown'];
+  const NETWORK_KINDS = ['office', 'branch', 'home', 'guest', 'partner', 'other'];
+  const SAMPLE_BANDS = ['1-2', '3-9', '10-25', '26-100', '100+'];
+
+  function sampleBand(count) {
+    const c = Number(count) || 0;
+    if (c <= 0) return null;
+    if (c <= 2) return '1-2';
+    if (c <= 9) return '3-9';
+    if (c <= 25) return '10-25';
+    if (c <= 100) return '26-100';
+    return '100+';
+  }
+
+  function medianNum(nums, decimals) {
+    const sorted = (nums || []).filter((v) => typeof v === 'number' && isFinite(v)).slice().sort((a, b) => a - b);
+    if (!sorted.length) return null;
+    const mid = Math.floor(sorted.length / 2);
+    const raw = sorted.length % 2 === 1 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
+    const factor = Math.pow(10, decimals || 0);
+    return Math.round(raw * factor) / factor;
+  }
+
+  function normalizeOneLinecheck(doc, defaultKind) {
+    if (!doc || typeof doc !== 'object' || Array.isArray(doc)) return null;
+    const isIntake = doc.schema === 'avd-assess-user-network/v1';
+    const isRaw = doc.schemaVersion === 1 && doc.verdict && typeof doc.verdict === 'object';
+    if (!isIntake && !isRaw) return null;
+    const kind = NETWORK_KINDS.includes(doc.kind) ? doc.kind : (NETWORK_KINDS.includes(defaultKind) ? defaultKind : 'office');
+    // Sentiment is never inferred from free text; only integer 1..5 ratings and closed symptom chips are read.
+    const rawSent = doc.sentiment && typeof doc.sentiment === 'object' ? doc.sentiment : {};
+    const rating = Number.isInteger(rawSent.rating) && rawSent.rating >= 1 && rawSent.rating <= 5 ? rawSent.rating : null;
+    const symptoms = Array.isArray(rawSent.symptoms) ? LINECHECK_SYMPTOMS.filter((s) => rawSent.symptoms.includes(s)) : [];
+    let allowsClientEndpoints = 'unknown';
+    let outboundUdpAllowed = 'unknown';
+    let proxyInPath = 'unknown';
+    let targetRegion = null;
+    let targetRegionRttMs = null;
+    let jitterMs = null;
+    const candidateRegionsRttMs = {};
+    if (isIntake) {
+      if (['yes', 'no', 'unknown'].includes(doc.allowsClientEndpoints)) allowsClientEndpoints = doc.allowsClientEndpoints;
+      if (['yes', 'no', 'unknown'].includes(doc.outboundUdpAllowed)) outboundUdpAllowed = doc.outboundUdpAllowed;
+      if (['yes', 'no', 'possible', 'unknown'].includes(doc.proxyInPath)) proxyInPath = doc.proxyInPath;
+      if (typeof doc.targetRegion === 'string' && REGION_RE.test(doc.targetRegion)) targetRegion = doc.targetRegion;
+      const rtt = doc.targetRegionRttMs !== undefined ? doc.targetRegionRttMs : doc.targetRegionMedianMs;
+      if (typeof rtt === 'number' && isFinite(rtt) && rtt >= 0 && rtt <= 10000) targetRegionRttMs = Math.round(rtt);
+      if (typeof doc.jitterMs === 'number' && isFinite(doc.jitterMs) && doc.jitterMs >= 0 && doc.jitterMs <= 10000) jitterMs = Math.round(doc.jitterMs);
+      if (doc.candidateRegionsRttMs && typeof doc.candidateRegionsRttMs === 'object') {
+        for (const [k, v] of Object.entries(doc.candidateRegionsRttMs)) {
+          if (REGION_RE.test(k) && typeof v === 'number' && isFinite(v) && v >= 0 && v <= 10000) candidateRegionsRttMs[k] = Math.round(v);
+        }
+      }
+    } else {
+      const req = Array.isArray(doc.required) ? doc.required : [];
+      if (req.length) allowsClientEndpoints = req.every((r) => r && r.status === 'reach') ? 'yes' : 'no';
+      if (doc.webrtc && typeof doc.webrtc === 'object') {
+        if (doc.webrtc.stunStatus === 'reach' || doc.webrtc.turnStatus === 'reach') outboundUdpAllowed = 'yes';
+        else if (doc.webrtc.stunStatus === 'block' && doc.webrtc.turnStatus === 'block') outboundUdpAllowed = 'no';
+      }
+      if (doc.connection && doc.connection.proxyHint && doc.connection.proxyHint.status === 'likely') proxyInPath = 'possible';
+      if (doc.targetRegion && typeof doc.targetRegion.id === 'string' && REGION_RE.test(doc.targetRegion.id)) {
+        targetRegion = doc.targetRegion.id;
+        if (typeof doc.targetRegion.median === 'number' && isFinite(doc.targetRegion.median) && doc.targetRegion.median >= 0 && doc.targetRegion.median <= 10000) {
+          targetRegionRttMs = Math.round(doc.targetRegion.median);
+        }
+      }
+      if (doc.consistency && typeof doc.consistency.jitter === 'number' && isFinite(doc.consistency.jitter) && doc.consistency.jitter >= 0 && doc.consistency.jitter <= 10000) {
+        jitterMs = Math.round(doc.consistency.jitter);
+      }
+      for (const r of Array.isArray(doc.regions) ? doc.regions : []) {
+        if (r && typeof r.id === 'string' && REGION_RE.test(r.id) && typeof r.median === 'number' && isFinite(r.median) && r.median >= 0 && r.median <= 10000) {
+          candidateRegionsRttMs[r.id] = Math.round(r.median);
+        }
+      }
+    }
+    return {
+      kind,
+      allowsClientEndpoints,
+      outboundUdpAllowed,
+      proxyInPath,
+      targetRegion,
+      targetRegionRttMs,
+      jitterMs,
+      candidateRegionsRttMs,
+      sentiment: { rating, symptoms }
+    };
+  }
+
+  // Parses an avd-linecheck JSON export (either avd-assess-user-network/v1, raw schemaVersion 1, or an array of them).
+  function parseLinecheckExport(text, defaultKind) {
+    let parsed;
+    try { parsed = JSON.parse(String(text || '')); } catch (e) { return { entries: [], error: 'This isn\'t JSON. Load an avd-linecheck export or intake JSON file.' }; }
+    const list = Array.isArray(parsed) ? parsed : [parsed];
+    if (!list.length) return { entries: [], error: 'The JSON file holds no avd-linecheck entries.' };
+    const entries = [];
+    for (const item of list) {
+      const norm = normalizeOneLinecheck(item, defaultKind);
+      if (!norm) return { entries: [], error: 'This file isn\'t an avd-linecheck export (avd-assess-user-network/v1 or schemaVersion 1).' };
+      entries.push(norm);
+    }
+    return { entries, error: '' };
+  }
+
+  function rollupSentiment(entries) {
+    const list = Array.isArray(entries) ? entries : [];
+    const band = sampleBand(list.length);
+    if (!band) return null;
+    const ratings = list.map((e) => e && e.sentiment ? e.sentiment.rating : null).filter((r) => Number.isInteger(r) && r >= 1 && r <= 5);
+    const symSet = new Set();
+    for (const e of list) {
+      for (const s of (e && e.sentiment && Array.isArray(e.sentiment.symptoms) ? e.sentiment.symptoms : [])) {
+        if (LINECHECK_SYMPTOMS.includes(s)) symSet.add(s);
+      }
+    }
+    const symptoms = LINECHECK_SYMPTOMS.filter((s) => symSet.has(s));
+    const out = { sampleBand: band };
+    if (ratings.length) {
+      out.ratingMedian = medianNum(ratings, 1);
+      out.lowRatingShare = Math.round((ratings.filter((r) => r <= 2).length / ratings.length) * 100) / 100;
+    }
+    if (symptoms.length) out.symptoms = symptoms;
+    return out;
+  }
+
+  // Summarizes 1..N normalized avd-linecheck entries into banded C19 intake fields: userSentiment, userNetworks, reportedSymptoms.
+  function summarizeLinecheckExports(entries) {
+    const list = (Array.isArray(entries) ? entries : []).filter(Boolean);
+    if (!list.length) return null;
+    const userSentiment = rollupSentiment(list);
+    const mappedSet = new Set();
+    for (const s of (userSentiment.symptoms || [])) {
+      if (LINECHECK_SYMPTOM_MAP[s]) mappedSet.add(LINECHECK_SYMPTOM_MAP[s]);
+    }
+    const reportedSymptoms = REPORTED_SYMPTOMS.filter((s) => mappedSet.has(s));
+    const byKind = {};
+    for (const e of list) {
+      const k = NETWORK_KINDS.includes(e.kind) ? e.kind : 'office';
+      if (!byKind[k]) byKind[k] = [];
+      byKind[k].push(e);
+    }
+    const userNetworks = NETWORK_KINDS.filter((k) => byKind[k]).slice(0, 20).map((k) => {
+      const group = byKind[k];
+      const allows = group.some((g) => g.allowsClientEndpoints === 'no') ? 'no' : group.some((g) => g.allowsClientEndpoints === 'yes') ? 'yes' : 'unknown';
+      const udp = group.some((g) => g.outboundUdpAllowed === 'no') ? 'no' : group.some((g) => g.outboundUdpAllowed === 'yes') ? 'yes' : 'unknown';
+      const proxy = group.some((g) => g.proxyInPath === 'yes') ? 'yes' : group.some((g) => g.proxyInPath === 'possible') ? 'possible' : group.some((g) => g.proxyInPath === 'no') ? 'no' : 'unknown';
+      const net = {
+        kind: k,
+        sampleBand: sampleBand(group.length),
+        allowsClientEndpoints: allows,
+        outboundUdpAllowed: udp,
+        proxyInPath: proxy
+      };
+      const targets = group.map((g) => g.targetRegion).filter(Boolean);
+      if (targets.length) net.targetRegion = targets[0];
+      const rtt = medianNum(group.map((g) => g.targetRegionRttMs), 0);
+      if (rtt !== null) net.targetRegionRttMs = rtt;
+      const jit = medianNum(group.map((g) => g.jitterMs), 0);
+      if (jit !== null) net.jitterMs = jit;
+      const candKeys = new Set();
+      for (const g of group) for (const rk of Object.keys(g.candidateRegionsRttMs || {})) candKeys.add(rk);
+      if (candKeys.size) {
+        net.candidateRegionsRttMs = {};
+        for (const rk of [...candKeys].sort()) {
+          const m = medianNum(group.map((g) => g.candidateRegionsRttMs && g.candidateRegionsRttMs[rk]), 0);
+          if (m !== null) net.candidateRegionsRttMs[rk] = m;
+        }
+      }
+      const sent = rollupSentiment(group);
+      if (sent && (sent.ratingMedian !== undefined || (sent.symptoms && sent.symptoms.length))) net.sentiment = sent;
+      return net;
+    });
+    const ratingPart = userSentiment.ratingMedian !== undefined
+      ? `median rating ${userSentiment.ratingMedian}/5 (${Math.round((userSentiment.lowRatingShare || 0) * 100)}% low)`
+      : 'no star rating';
+    const symptomPart = reportedSymptoms.length ? `reported symptoms: ${reportedSymptoms.join(', ')}` : 'no symptoms checked';
+    const headline = `${userSentiment.sampleBand} checks across ${plural(userNetworks.length, 'network')}: ${ratingPart}; ${symptomPart}.`;
+    return {
+      count: list.length,
+      userSentiment,
+      userNetworks,
+      reportedSymptoms,
+      headline
+    };
+  }
+
+  // Compares banded user sentiment + symptoms against an assessment report (C21) to surface perceived-vs-measured signals.
+  function correlateSentimentWithAssessment(sentimentOrSummary, assessment) {
+    if (!sentimentOrSummary || !assessment || !assessment.counts) return null;
+    const sent = sentimentOrSummary.userSentiment || sentimentOrSummary;
+    if (!sent || !SAMPLE_BANDS.includes(sent.sampleBand)) return null;
+    const symptoms = Array.isArray(sent.symptoms) ? sent.symptoms : [];
+    const mapped = Array.isArray(sentimentOrSummary.reportedSymptoms)
+      ? sentimentOrSummary.reportedSymptoms
+      : [...new Set(symptoms.map((s) => LINECHECK_SYMPTOM_MAP[s]).filter(Boolean))];
+    const lowRating = (typeof sent.ratingMedian === 'number' && sent.ratingMedian <= 2.5) || (typeof sent.lowRatingShare === 'number' && sent.lowRatingShare >= 0.4);
+    const somePain = lowRating || (typeof sent.ratingMedian === 'number' && sent.ratingMedian <= 3) || mapped.length > 0;
+    const hasFindings = (assessment.counts.gap || 0) > 0 || (assessment.counts.warn || 0) > 0;
+    if (somePain && !hasFindings) {
+      return {
+        status: 'blind-spot',
+        outcome: 'gap',
+        label: 'Blind spot: users report pain while Azure checks pass',
+        detail: `Users (${sent.sampleBand} samples${sent.ratingMedian !== undefined ? `, median ${sent.ratingMedian}/5` : ''}) reported ${mapped.length ? mapped.join(', ') : 'low experience'}, but 0 gap and 0 warn checks fired in Azure. Check client networks, proxy/UDP path and session host runtime counters.`
+      };
+    }
+    if (somePain && hasFindings) {
+      return {
+        status: 'corroborated',
+        outcome: 'warn',
+        label: 'Corroborated: user symptoms align with assessment findings',
+        detail: `Users (${sent.sampleBand} samples${sent.ratingMedian !== undefined ? `, median ${sent.ratingMedian}/5` : ''}) reported ${mapped.length ? mapped.join(', ') : 'session friction'}, matching ${assessment.counts.gap} gap and ${assessment.counts.warn} warn findings.`
+      };
+    }
+    if (!somePain && hasFindings) {
+      return {
+        status: 'unfelt-risk',
+        outcome: 'ok',
+        label: 'Latent risk: users feel healthy, but configuration findings exist',
+        detail: `Users (${sent.sampleBand} samples${sent.ratingMedian !== undefined ? `, median ${sent.ratingMedian}/5` : ''}) reported no active symptoms, while ${assessment.counts.gap} gap and ${assessment.counts.warn} warn checks need review for resilience, security or cost.`
+      };
+    }
+    return {
+      status: 'healthy',
+      outcome: 'pass',
+      label: 'Aligned: healthy user sentiment and passing checks',
+      detail: `Users (${sent.sampleBand} samples${sent.ratingMedian !== undefined ? `, median ${sent.ratingMedian}/5` : ''}) and Azure checks both report healthy status.`
+    };
+  }
 
   function regionList(text) {
     return String(text || '').split(/[\s,]+/).map((s) => s.trim().toLowerCase()).filter(Boolean);
@@ -229,6 +469,56 @@
     if (m365PlaneScope && !PLANE_SCOPES.includes(m365PlaneScope)) err('m365PlaneScope', 'Pick whether Microsoft 365 is in scope.');
     const powerPlatformPlaneScope = String(ans.powerPlatformPlaneScope || '').trim();
     if (powerPlatformPlaneScope && !PLANE_SCOPES.includes(powerPlatformPlaneScope)) err('powerPlatformPlaneScope', 'Pick whether Power Platform is in scope.');
+    let reportedSymptoms = null;
+    if (Array.isArray(ans.reportedSymptoms) && ans.reportedSymptoms.length) {
+      const uniq = [...new Set(ans.reportedSymptoms)];
+      if (uniq.some((s) => !REPORTED_SYMPTOMS.includes(s))) err('reportedSymptoms', 'Reported symptoms must use the C19 symptom codes.');
+      else if (uniq.length > 1 && (uniq.includes('none') || uniq.includes('unknown'))) err('reportedSymptoms', 'none or unknown stands alone in reportedSymptoms.');
+      else reportedSymptoms = uniq;
+    }
+    let userSentiment = null;
+    if (ans.userSentiment && typeof ans.userSentiment === 'object') {
+      const s = ans.userSentiment;
+      if (!SAMPLE_BANDS.includes(s.sampleBand)) err('userSentiment', 'userSentiment needs a valid sampleBand.');
+      else {
+        userSentiment = { sampleBand: s.sampleBand };
+        if (s.ratingMedian !== undefined) {
+          if (typeof s.ratingMedian !== 'number' || s.ratingMedian < 1 || s.ratingMedian > 5) err('userSentiment', 'ratingMedian must be between 1 and 5.');
+          else userSentiment.ratingMedian = s.ratingMedian;
+        }
+        if (s.lowRatingShare !== undefined) {
+          if (typeof s.lowRatingShare !== 'number' || s.lowRatingShare < 0 || s.lowRatingShare > 1) err('userSentiment', 'lowRatingShare must be between 0 and 1.');
+          else userSentiment.lowRatingShare = s.lowRatingShare;
+        }
+        if (Array.isArray(s.symptoms) && s.symptoms.length) {
+          const sym = [...new Set(s.symptoms)];
+          if (sym.some((x) => !LINECHECK_SYMPTOMS.includes(x))) err('userSentiment', 'userSentiment symptoms must use the avd-linecheck symptom codes.');
+          else userSentiment.symptoms = sym;
+        }
+      }
+    }
+    let userNetworks = null;
+    if (Array.isArray(ans.userNetworks) && ans.userNetworks.length) {
+      if (ans.userNetworks.length > 20) err('userNetworks', 'Twenty user networks at most.');
+      else {
+        userNetworks = [];
+        for (const net of ans.userNetworks) {
+          if (!net || typeof net !== 'object' || !NETWORK_KINDS.includes(net.kind) || !['yes', 'no', 'unknown'].includes(net.allowsClientEndpoints) || !['yes', 'no', 'unknown'].includes(net.outboundUdpAllowed) || !['yes', 'no', 'possible', 'unknown'].includes(net.proxyInPath)) {
+            err('userNetworks', 'Every user network needs a valid kind, endpoint reachability, UDP status and proxy status.');
+            break;
+          }
+          const copy = { kind: net.kind, allowsClientEndpoints: net.allowsClientEndpoints, outboundUdpAllowed: net.outboundUdpAllowed, proxyInPath: net.proxyInPath };
+          if (net.sampleBand && SAMPLE_BANDS.includes(net.sampleBand)) copy.sampleBand = net.sampleBand;
+          if (net.tunnelInPath && ['yes', 'no', 'possible', 'unknown'].includes(net.tunnelInPath)) copy.tunnelInPath = net.tunnelInPath;
+          if (net.targetRegion && REGION_RE.test(net.targetRegion)) copy.targetRegion = net.targetRegion;
+          if (typeof net.targetRegionRttMs === 'number' && net.targetRegionRttMs >= 0 && net.targetRegionRttMs <= 10000) copy.targetRegionRttMs = Math.round(net.targetRegionRttMs);
+          if (typeof net.jitterMs === 'number' && net.jitterMs >= 0 && net.jitterMs <= 10000) copy.jitterMs = Math.round(net.jitterMs);
+          if (net.candidateRegionsRttMs && typeof net.candidateRegionsRttMs === 'object') copy.candidateRegionsRttMs = net.candidateRegionsRttMs;
+          if (net.sentiment && typeof net.sentiment === 'object' && SAMPLE_BANDS.includes(net.sentiment.sampleBand)) copy.sentiment = net.sentiment;
+          userNetworks.push(copy);
+        }
+      }
+    }
     if (errors.length) return { intake: null, errors };
     const intake = {
       schema: 'avd-intake/v1',
@@ -240,6 +530,9 @@
       identityConstraints: ans.identityConstraints,
       workingHours: { start, end, days, timeZone }
     };
+    if (reportedSymptoms) intake.reportedSymptoms = reportedSymptoms;
+    if (userNetworks) intake.userNetworks = userNetworks;
+    if (userSentiment) intake.userSentiment = userSentiment;
     if (m365PlaneScope) intake.m365PlaneScope = m365PlaneScope;
     if (powerPlatformPlaneScope) intake.powerPlatformPlaneScope = powerPlatformPlaneScope;
     return {
@@ -609,6 +902,8 @@
 
   return {
     STAGES, PLANES, PLANE_LABELS, PLANE_SCOPES, HUBS, IDENTITY, DAYS, TOPICS,
+    LINECHECK_SYMPTOMS, LINECHECK_SYMPTOM_MAP, REPORTED_SYMPTOMS, NETWORK_KINDS, SAMPLE_BANDS,
+    sampleBand, parseLinecheckExport, summarizeLinecheckExports, correlateSentimentWithAssessment,
     parseStateLines, latestStates, summarizeCollect, summarizeAnalyze,
     setSource, repoWebUrl, psQuote, nameList, planeArg, collectCommand, analyzeCommand, readerCommand,
     regionList, buildIntake, intakeCommand, notesMarkdown,

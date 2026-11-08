@@ -1441,6 +1441,34 @@
         "gap:finops-scope",
         "gap:intake"
       ]
+    },
+    {
+      "fact": "intake.userNetworks",
+      "from": "intake",
+      "claims": [
+        "ref:avd-required-fqdn#client-list",
+        "ref:avd-prerequisites#rtt-under-150",
+        "gap:client-network",
+        "gap:intake"
+      ]
+    },
+    {
+      "fact": "intake.reportedSymptoms",
+      "from": "intake",
+      "claims": [
+        "gap:diagnostics-scope",
+        "gap:client-network",
+        "gap:intake"
+      ]
+    },
+    {
+      "fact": "intake.userSentiment",
+      "from": "intake",
+      "claims": [
+        "ref:avd-prerequisites#rtt-under-150",
+        "gap:client-network",
+        "gap:intake"
+      ]
     }
   ],
   "checks": [

@@ -284,12 +284,51 @@
   // ---- Discover ----
   const TEXT = ['estate', 'answeredOn', 'residencyRegions', 'preferredRegions', 'existingHub', 'identityConstraints', 'start', 'end', 'timeZone'];
   const today = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
+  let linecheckEntries = [];
   function readAnswers() {
     const a = {};
     for (const id of TEXT) a[id] = $(id).value.trim();
     a.residencyRequired = $('residencyRequired').checked;
     a.days = [...document.querySelectorAll('#days input:checked')].map((i) => i.value);
+    const lc = core.summarizeLinecheckExports(linecheckEntries);
+    if (lc) {
+      if (lc.reportedSymptoms && lc.reportedSymptoms.length) a.reportedSymptoms = lc.reportedSymptoms;
+      if (lc.userNetworks && lc.userNetworks.length) a.userNetworks = lc.userNetworks;
+      if (lc.userSentiment) a.userSentiment = lc.userSentiment;
+    } else {
+      if (Array.isArray(state.answers.reportedSymptoms) && state.answers.reportedSymptoms.length) a.reportedSymptoms = state.answers.reportedSymptoms;
+      if (Array.isArray(state.answers.userNetworks) && state.answers.userNetworks.length) a.userNetworks = state.answers.userNetworks;
+      if (state.answers.userSentiment) a.userSentiment = state.answers.userSentiment;
+    }
     return a;
+  }
+  function renderLinecheckSummary() {
+    const box = $('linecheck-summary');
+    if (!box) return;
+    box.replaceChildren();
+    const lc = core.summarizeLinecheckExports(linecheckEntries);
+    const sent = lc ? lc.userSentiment : state.answers.userSentiment;
+    const nets = lc ? lc.userNetworks : state.answers.userNetworks;
+    const syms = lc ? lc.reportedSymptoms : state.answers.reportedSymptoms;
+    if (!sent && (!nets || !nets.length)) {
+      box.classList.add('hidden');
+      return;
+    }
+    box.classList.remove('hidden');
+    const text = lc ? lc.headline : `User sentiment loaded (${sent ? sent.sampleBand : 'banded'} samples${syms && syms.length ? `, symptoms: ${syms.join(', ')}` : ''}).`;
+    const clearBtn = document.createElement('button');
+    clearBtn.type = 'button'; clearBtn.className = 'linkbtn'; clearBtn.textContent = 'Clear';
+    clearBtn.addEventListener('click', () => {
+      linecheckEntries = [];
+      delete state.answers.reportedSymptoms;
+      delete state.answers.userNetworks;
+      delete state.answers.userSentiment;
+      if ($('linecheck-name')) $('linecheck-name').textContent = '';
+      if ($('linecheck-error')) $('linecheck-error').textContent = '';
+      save(); renderLinecheckSummary(); renderReview();
+    });
+    const span = document.createElement('span'); span.className = 'muted'; span.textContent = text;
+    box.append(span, clearBtn);
   }
   function readNotes() {
     const n = {};
@@ -305,6 +344,7 @@
     if (Array.isArray(a.days)) for (const i of document.querySelectorAll('#days input')) i.checked = a.days.includes(i.value);
     for (const t of document.querySelectorAll('[data-note]')) t.value = state.notes[t.dataset.note] || '';
     syncResidency();
+    renderLinecheckSummary();
   }
   function syncResidency() { $('residencyRegions').disabled = !$('residencyRequired').checked; }
   for (const sec of document.querySelectorAll('.wz-stage.discover')) {
@@ -363,15 +403,48 @@
       r.readAsArrayBuffer(f);
     });
   }
+  function readFiles(input) {
+    const files = input.files ? [...input.files] : [];
+    if (!files.length) return Promise.reject(new Error('No file chosen.'));
+    return Promise.all(files.map((f) => new Promise((resolve, reject) => {
+      if (f.size > 5 * 1024 * 1024) return reject(new Error('That file is larger than an avd-linecheck export should be (5 MB).'));
+      const r = new FileReader();
+      r.onload = () => resolve({ name: f.name, size: f.size, buffer: r.result });
+      r.onerror = () => reject(new Error('The browser could not read the file.'));
+      r.readAsArrayBuffer(f);
+    })));
+  }
   const kb = (n) => (n < 1024 ? `${n} bytes` : `${(n / 1024).toFixed(1)} KB`);
-  for (const id of ['assessment-drop', 'prior-drop']) {
+  for (const id of ['assessment-drop', 'prior-drop', 'linecheck-drop']) {
     const el = $(id);
+    if (!el) continue;
     el.addEventListener('dragover', (e) => { e.preventDefault(); el.classList.add('over'); });
     el.addEventListener('dragleave', () => el.classList.remove('over'));
     el.addEventListener('drop', (e) => {
       e.preventDefault(); el.classList.remove('over');
       const input = el.querySelector('input[type=file]');
       if (e.dataTransfer && e.dataTransfer.files.length) { input.files = e.dataTransfer.files; input.dispatchEvent(new Event('change')); }
+    });
+  }
+  if ($('linecheck-file')) {
+    $('linecheck-file').addEventListener('change', async () => {
+      $('linecheck-error').textContent = '';
+      try {
+        const files = await readFiles($('linecheck-file'));
+        const defaultKind = $('linecheck-kind') ? $('linecheck-kind').value : 'office';
+        const added = [];
+        for (const f of files) {
+          const text = new TextDecoder().decode(f.buffer);
+          const { entries, error } = core.parseLinecheckExport(text, defaultKind);
+          if (error) throw new Error(`${f.name}: ${error}`);
+          added.push(...entries);
+        }
+        linecheckEntries.push(...added);
+        $('linecheck-name').textContent = `${linecheckEntries.length} sample(s) loaded`;
+        state.answers = readAnswers();
+        save(); renderLinecheckSummary(); renderReview();
+      } catch (e) { $('linecheck-error').textContent = e.message; }
+      $('linecheck-file').value = '';
     });
   }
   $('assessment-file').addEventListener('change', async () => {
@@ -435,6 +508,22 @@
           const pct = ps.score !== null && ps.score !== undefined ? `${Math.round(ps.score * 100)}%` : 'not assessed';
           planeBox.append(el('span', { className: 'muted', textContent: `${label}: ${pct}` }));
         }
+      }
+    }
+    const sentBox = $('review-sentiment');
+    if (sentBox) {
+      sentBox.replaceChildren();
+      const corr = core.correlateSentimentWithAssessment(
+        state.answers.userSentiment ? { userSentiment: state.answers.userSentiment, reportedSymptoms: state.answers.reportedSymptoms } : null,
+        r.assessment
+      );
+      sentBox.classList.toggle('hidden', !corr);
+      if (corr) {
+        const badgeClass = corr.outcome === 'gap' ? 'o-gap' : corr.outcome === 'warn' ? 'o-warn' : 'o-pass';
+        sentBox.append(
+          el('span', { className: `outcome ${badgeClass}`, textContent: corr.label }),
+          el('span', { className: 'muted', textContent: corr.detail })
+        );
       }
     }
     const hide = $('hide-pass').checked;

@@ -3349,7 +3349,7 @@
       "title": "Azure MCP Server tools for Azure Virtual Desktop and server startup modes",
       "url": "https://learn.microsoft.com/azure/developer/azure-mcp-server/tools/azure-virtual-desktop",
       "pin": "Learn git_commit_id 7c4a91e2b803f512d4a96c1830e7b42f9a51c308, updated_at 2026-10-20",
-      "read": "2026-11-03",
+      "read": "2026-11-08",
       "license": "Microsoft Learn content (link only)",
       "areas": [
         "collection",
@@ -3360,7 +3360,7 @@
         "diagnostics",
         "security-posture"
       ],
-      "notes": "Microsoft's Azure MCP Server (`microsoft/mcp`, MIT) startup parameters (`--mode all`, `--read-only`, `--namespace virtualdesktop`), typed AVD read tools, and comparison against CLI wrapper MCP servers (`Azure/azure-api-mcp`, MIT) for collection vs. investigation.",
+      "notes": "Microsoft's Azure MCP Server (`microsoft/mcp`, MIT) startup parameters (`--mode all`, `--read-only`, `--namespace virtualdesktop`), verified typed AVD read tools (`virtualdesktop_hostpool_list`, `virtualdesktop_hostpool_host_list`, `virtualdesktop_hostpool_host_user-list`), and comparison against CLI wrapper MCP servers (`Azure/azure-api-mcp`, MIT) for collection vs. investigation.",
       "claims": [
         {
           "id": "read-only-flag",
@@ -3374,7 +3374,7 @@
         },
         {
           "id": "typed-vs-cli-wrapper",
-          "says": "The Azure MCP Server's `virtualdesktop` namespace exposes typed, read-only tools for host pools, session hosts and user sessions, whereas `Azure/azure-api-mcp` (`--readonly`) wraps free-form `az` CLI commands for ad-hoc exploration; deterministic collectors and test harnesses run direct PowerShell or Bicep without MCP.",
+          "says": "The Azure MCP Server's `virtualdesktop` namespace exposes three typed, read-only tools (`virtualdesktop_hostpool_list`, `virtualdesktop_hostpool_host_list`, and `virtualdesktop_hostpool_host_user-list`), whereas `Azure/azure-api-mcp` (`--readonly`) wraps free-form `az` CLI commands for ad-hoc exploration; deterministic collectors and test harnesses run direct PowerShell or Bicep without MCP.",
           "kind": "guidance"
         }
       ]
@@ -9355,6 +9355,18 @@
       "date": "2026-10-20"
     },
     {
+      "id": "sandbox-standing-meter-tradeoffs",
+      "claim": "ref:waf-cost-optimization-checklist#CO:08",
+      "verdict": "extends",
+      "observed": "Keeping a nonproduction sandbox retrieval stack under 1 USD/month standing (or about 10 USD/month with Static Web Apps Standard) uses deliberate tradeoffs against standing hourly meters. Instead of Azure AI Search Basic (about 73 USD/month standing; F0 caps at 50 MB without managed identity), WVD* and Perf stay in Pay-As-You-Go Log Analytics inside the 5 GB/month free allowance (31-day retention, 0.5 GB/day cap) queried via KQL catalog IDs and the read-only Azure MCP Server, while semantic memory lives in Git or Cosmos DB NoSQL Serverless vector search. Container Apps Consumption (minReplicas 0), Content Safety F0, LRS storage (shared keys off), Entra-only auth instead of Private Endpoints (about 7.30 USD/month each), and code-first KQL checks keep idle spend near zero.",
+      "evidence": [
+        "https://github.com/avd-ops/avd-second-brain/blob/e54cbe5454ccb5d6563d4c3e77b5d4e7ab2aeb45/docs/knowledge/cost/README.md",
+        "https://github.com/avd-ops/avd-second-brain/blob/f5785b94124f0965bf2ef7c384f86e2f66deeecd/docs/operations-redteam.md",
+        "https://github.com/avd-ops/avd-swarm/blob/85debfcf9cca0566101bc789945edb4ae36e506f/docs/core-and-adapters.md"
+      ],
+      "date": "2026-11-08"
+    },
+    {
       "id": "scaling-and-start-on-connect-by-default",
       "claim": "ref:avd-autoscale#scales-to-save-cost",
       "verdict": "not-yet-tested",
@@ -9401,12 +9413,13 @@
       "id": "transport-column-names-disagree",
       "claim": "ref:configure-rdp-shortpath#verify-transport",
       "verdict": "not-yet-tested",
-      "observed": "Two Learn pages query a WVDConnections UdpUse column, while the table reference lists TransportType (Shortpath, TURN, Websocket) and no UdpUse, and Insights uses a third set of values. The family's connection query reads TransportType but hasn't run against a real workspace yet; one sandbox connection settles which column exists. Until then the method maps all three (gap:transport-classification).",
+      "observed": "Two Learn pages query a WVDConnections UdpUse column, while the table reference lists TransportType (Shortpath, TURN, Websocket) and no UdpUse, and Insights uses a third set of values. Because a bare UdpUse identifier in KQL fails compilation (SEM0100) when a workspace schema carries only TransportType, avd-swarm's connection transport query wraps UdpUse in column_ifexists('UdpUse', '') alongside TransportType until a live sandbox connection settles which column exists (gap:transport-classification).",
       "evidence": [
-        "https://github.com/avd-ops/avd-second-brain/blob/81a76a9e6fc51ce0e33c89b10f5166b0732d9f2b/docs/knowledge/agents/README.md",
-        "https://github.com/avd-ops/avd-landing-zone/blob/f466762f69a3c850dca3b6eed82ee2330af543ae/scripts/ops/kql/user-connection.kql"
+        "https://github.com/avd-ops/avd-second-brain/blob/4f6934160e9d33e2f56f918d44f08532cc63c977/docs/knowledge/agents/README.md",
+        "https://github.com/avd-ops/avd-landing-zone/blob/f466762f69a3c850dca3b6eed82ee2330af543ae/scripts/ops/kql/user-connection.kql",
+        "https://github.com/avd-ops/avd-swarm/blob/25e3eb1d76ca0e7bd19b1d707f4710e6e7ff4bf4/catalog/kql/wvd-connection-transport-rtt-24h.kql"
       ],
-      "date": "2026-10-21"
+      "date": "2026-11-08"
     },
     {
       "id": "trusted-launch-by-default",
