@@ -410,4 +410,78 @@ Describe 'avd_current_state_facts.ps1' {
     $outcome['asm-cost-no-unattached-disks'] | Should -Be 'warn'
     $outcome['asm-cost-advisor-rightsize-reviewed'] | Should -Be 'warn'
   }
+
+  It 'collects DR and security posture facts (zones, backup, replication, gallery replicas, EDR, vulnerabilities, public RDP) without leaking resource names' {
+    $dir = Join-Path $TestDrive 'dr-security'
+    $pkg = New-TestCollector $dir -Stamp '20261012T090000'
+    $subDir = Join-Path $pkg 'Contoso_Production'
+    $galVerId = "/subscriptions/$($script:subId)/resourceGroups/rg-contoso-avd/providers/Microsoft.Compute/galleries/gal_contoso/images/win11-avd/versions/1.0.0"
+    Write-TestJson "$subDir/rebuild/resources/microsoft.compute-virtualmachines.json" @(0..2 | ForEach-Object {
+        $vm = @{
+          id         = "/subscriptions/$($script:subId)/resourceGroups/rg-contoso-avd/providers/Microsoft.Compute/virtualMachines/avdhost-$_"
+          name       = "avdhost-$_"
+          type       = 'microsoft.compute/virtualmachines'
+          zones      = @("$(($_ % 2) + 1)")
+          properties = @{
+            hardwareProfile = @{ vmSize = 'Standard_D4ads_v5' }
+            securityProfile = @{ securityType = 'TrustedLaunch'; uefiSettings = @{ secureBootEnabled = $true; vTpmEnabled = $true } }
+            storageProfile  = @{ imageReference = @{ id = $galVerId } }
+          }
+        }
+        $vm })
+    Write-TestJson "$subDir/rebuild/resources/microsoft.compute-galleries-images-versions.json" @(
+      @{ id = $galVerId; name = '1.0.0'; properties = @{ publishingProfile = @{ targetRegions = @(@{ name = 'eastus2' }, @{ name = 'centralus' }) } } })
+    Write-TestJson "$subDir/rebuild/resources/microsoft.recoveryservices-vaults-backupfabrics-protectioncontainers-protecteditems.json" @(
+      @{ id = "/subscriptions/$($script:subId)/resourceGroups/rg-contoso-avd/providers/Microsoft.RecoveryServices/vaults/rsv-contoso/backupFabrics/Azure/protectionContainers/StorageContainer;storage;rg-contoso-avd;stcontosoprofiles/protectedItems/AzureFileShare;profiles"
+        name = 'AzureFileShare;profiles'
+        properties = @{ sourceResourceId = $script:stId; protectionPolicyType = 'Vaulted'; lastBackupStatus = 'Completed' } })
+    Write-TestJson "$subDir/rebuild/resources/microsoft.recoveryservices-vaults-replicationfabrics-replicationprotectioncontainers-replicationprotecteditems.json" @()
+    Write-TestJson "$subDir/rebuild/resources/microsoft.security-assessments.json" @(
+      @{ id = "/subscriptions/$($script:subId)/resourceGroups/rg-contoso-avd/providers/Microsoft.Compute/virtualMachines/avdhost-0/providers/Microsoft.Security/assessments/edr-1"
+        name = 'edr-1'; properties = @{ displayName = 'Endpoint protection should be installed on machines'; status = @{ code = 'Healthy' } } }
+      @{ id = "/subscriptions/$($script:subId)/resourceGroups/rg-contoso-avd/providers/Microsoft.Compute/virtualMachines/avdhost-1/providers/Microsoft.Security/assessments/vuln-1"
+        name = 'vuln-1'; properties = @{ displayName = 'Machines should have vulnerability findings resolved'; status = @{ code = 'Unhealthy' } } })
+    Write-TestJson "$subDir/nsg-rules.json" @(
+      @{ NSGName = 'nsg-contoso'; Name = 'Deny-Internet-RDP'; Direction = 'Inbound'; Access = 'Deny'; SourceAddressPrefix = 'Internet'; DestinationPortRange = '3389' })
+
+    $out = Join-Path $TestDrive 'out-dr-security'
+    & $script:facts -PackagePath $dir -KeyPath $script:key -OutputPath $out -Assess 6>$null | Out-Null
+    $snapFile = Get-ChildItem $out -Filter 'avd-current-state-facts-*'
+    $repFile = Get-ChildItem $out -Filter 'avd-assessment-*'
+    $snapText = Get-Content $snapFile.FullName -Raw
+    $repText = Get-Content $repFile.FullName -Raw
+    $errs = $null
+    Test-Json -Json $snapText -SchemaFile $script:schema -ErrorVariable errs -ErrorAction SilentlyContinue | Should -BeTrue -Because "$errs"
+    foreach ($s in ($script:secrets + @('gal_contoso', 'rsv-contoso', 'nsg-contoso'))) {
+      $snapText | Should -Not -Match ([regex]::Escape($s))
+      $repText | Should -Not -Match ([regex]::Escape($s))
+    }
+    $snap = $snapText | ConvertFrom-Json
+    $sub = $snap.subscriptions[0]
+    $hp = $sub.hostPools[0]
+    $hp.imageSource | Should -Be 'gallery'
+    $hp.imageRegions | Should -Be 2
+    $hp.sessionHosts.zones | Should -Be 2
+    $hp.sessionHosts.unpinnedZones | Should -Be 0
+    $hp.sessionHosts.backupProtected | Should -Be 0
+    $hp.sessionHosts.replicated | Should -Be 0
+    $hp.sessionHosts.notReplicated | Should -Be 3
+    $hp.sessionHosts.edrMissing | Should -Be 0
+    $hp.sessionHosts.vulnerabilityFindings | Should -Be 1
+    $sub.storageAccounts[0].backupProtected | Should -BeTrue
+    $sub.storageAccounts[0].backupTier | Should -Be 'vaulted'
+    $sub.storageAccounts[0].lastBackupJob | Should -Be 'succeeded'
+    $sub.network.hostPublicRdp | Should -Be 0
+
+    $rep = $repText | ConvertFrom-Json
+    $outcome = @{}; foreach ($row in $rep.results) { $outcome[$row.check] = $row.outcome }
+    $outcome['asm-hosts-zone-spread'] | Should -Be 'pass'
+    $outcome['asm-pooled-hosts-not-backed-up'] | Should -Be 'pass'
+    $outcome['asm-image-replicated'] | Should -Be 'pass'
+    $outcome['asm-profile-backup-ran'] | Should -Be 'pass'
+    $outcome['asm-profile-backup-offsite'] | Should -Be 'pass'
+    $outcome['asm-hosts-edr-present'] | Should -Be 'pass'
+    $outcome['asm-hosts-vulnerability-assessment'] | Should -Be 'warn'
+    $outcome['asm-hosts-no-public-rdp'] | Should -Be 'pass'
+  }
 }

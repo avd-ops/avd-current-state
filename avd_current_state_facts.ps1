@@ -497,6 +497,88 @@ function Get-SubscriptionFact {
             if ($plan -cmatch '^[A-Za-z][A-Za-z0-9]{1,40}$' -and $tier -in @('Free', 'Standard')) { $defenderPlans[$plan] = $tier }
         }
     }
+    $galleryVerFile = Join-Path $rebuild 'resources/microsoft.compute-galleries-images-versions.json'
+    $galleryRegionsById = $null
+    if (Test-Path -LiteralPath $galleryVerFile) {
+        $galleryRegionsById = @{}
+        foreach ($gv in @(Read-JsonFile -Path $galleryVerFile)) {
+            Add-KnownName (Get-Prop $gv 'name')
+            Add-KnownName (Get-Prop $gv 'id')
+            $gvId = "$(Get-Prop $gv 'id' '')".ToLowerInvariant()
+            $regCount = @(Get-PathValue $gv 'properties.publishingProfile.targetRegions' @()).Count
+            if ($gvId) {
+                $galleryRegionsById[$gvId] = [int]$regCount
+                if ($gvId -match '^(.*?/galleries/[^/]+/images/[^/]+)/versions/') {
+                    $defId = $Matches[1]
+                    if (-not $galleryRegionsById.ContainsKey($defId) -or $regCount -gt $galleryRegionsById[$defId]) {
+                        $galleryRegionsById[$defId] = [int]$regCount
+                    }
+                }
+            }
+        }
+    }
+    $backupItemsFile = Join-Path $rebuild 'resources/microsoft.recoveryservices-vaults-backupfabrics-protectioncontainers-protecteditems.json'
+    $hasBackupItems = Test-Path -LiteralPath $backupItemsFile
+    $backupVmIds = @{}
+    $backupStById = @{}
+    if ($hasBackupItems) {
+        foreach ($bi in @(Read-JsonFile -Path $backupItemsFile)) {
+            Add-KnownName (Get-Prop $bi 'name')
+            Add-KnownName (Get-Prop $bi 'id')
+            $srcId = "$(Get-PathValue $bi 'properties.sourceResourceId' (Get-PathValue $bi 'properties.virtualMachineId' ''))".ToLowerInvariant()
+            if ($srcId) {
+                Add-KnownName $srcId
+                if ($srcId -match '/providers/microsoft\.compute/virtualmachines/') {
+                    $backupVmIds[$srcId] = $true
+                } elseif ($srcId -match '/providers/microsoft\.storage/storageaccounts/') {
+                    $rawTier = "$(Get-PathValue $bi 'properties.protectionPolicyType' (Get-PathValue $bi 'properties.backupTier' 'vaulted'))".ToLowerInvariant()
+                    $tierVal = if ($rawTier -match 'snapshot') { 'snapshot' } else { 'vaulted' }
+                    $rawJob = "$(Get-PathValue $bi 'properties.lastBackupStatus' '')".ToLowerInvariant()
+                    $jobVal = if ($rawJob -in @('completed', 'succeeded')) { 'succeeded' }
+                    elseif ($rawJob -eq 'failed') { 'failed' }
+                    elseif ($rawJob -in @('inprogress', 'in-progress')) { 'in-progress' }
+                    else { 'none' }
+                    $backupStById[$srcId] = @{ Tier = $tierVal; LastJob = $jobVal }
+                }
+            }
+        }
+    }
+    $asrItemsFile = Join-Path $rebuild 'resources/microsoft.recoveryservices-vaults-replicationfabrics-replicationprotectioncontainers-replicationprotecteditems.json'
+    $hasAsrItems = Test-Path -LiteralPath $asrItemsFile
+    $replicatedVmIds = @{}
+    if ($hasAsrItems) {
+        foreach ($ri in @(Read-JsonFile -Path $asrItemsFile)) {
+            Add-KnownName (Get-Prop $ri 'name')
+            Add-KnownName (Get-Prop $ri 'id')
+            $srcVmId = "$(Get-PathValue $ri 'properties.providerSpecificDetails.dataSourceInfo.resourceId' (Get-PathValue $ri 'properties.sourceResourceId' ''))".ToLowerInvariant()
+            if ($srcVmId) {
+                Add-KnownName $srcVmId
+                $replicatedVmIds[$srcVmId] = $true
+            }
+        }
+    }
+    $secAssessFile = Join-Path $rebuild 'resources/microsoft.security-assessments.json'
+    $hasSecAssess = Test-Path -LiteralPath $secAssessFile
+    $edrMissingVms = @{}
+    $vulnFindingVms = @{}
+    if ($hasSecAssess) {
+        foreach ($sa in @(Read-JsonFile -Path $secAssessFile)) {
+            Add-KnownName (Get-Prop $sa 'name')
+            Add-KnownName (Get-Prop $sa 'id')
+            $resId = "$(Get-PathValue $sa 'properties.resourceDetails.Id' (Get-PathValue $sa 'properties.resourceDetails.id' ''))".ToLowerInvariant()
+            if (-not $resId) {
+                $saId = "$(Get-Prop $sa 'id' '')".ToLowerInvariant()
+                if ($saId -match '^(.*?)/providers/microsoft\.security/assessments/') { $resId = $Matches[1] }
+            }
+            if ($resId) { Add-KnownName $resId }
+            $code = "$(Get-PathValue $sa 'properties.status.code' '')".ToLowerInvariant()
+            if ($resId -and $code -eq 'unhealthy') {
+                $disp = "$(Get-PathValue $sa 'properties.displayName' '') $(Get-Prop $sa 'name' '')"
+                if ($disp -match '(?i)(endpoint protection|edr|mde|defender for endpoint)') { $edrMissingVms[$resId] = $true }
+                if ($disp -match '(?i)(vulnerability|vulnerabilities)') { $vulnFindingVms[$resId] = $true }
+            }
+        }
+    }
 
     $vmById = @{}
     foreach ($vm in $ds['virtual-machines']) {
@@ -612,6 +694,34 @@ function Get-SubscriptionFact {
             $entry.sessionHosts.notTrustedLaunch = $rbVms.Count - $trusted
             $hibernating = @($rbVms | Where-Object { Test-True (Get-PathValue $_ 'properties.additionalCapabilities.hibernationEnabled') }).Count
             $entry.sessionHosts.hibernation = [int]$hibernating
+            if (@($rbVms | Where-Object { $null -ne (Get-Prop $_ 'zones') }).Count -gt 0) {
+                $distinctZones = @($rbVms | ForEach-Object { @(Get-Prop $_ 'zones' @()) } | Where-Object { "$_" -ne '' } | ForEach-Object { "$_" } | Sort-Object -Unique)
+                $unpinned = @($rbVms | Where-Object { @(Get-Prop $_ 'zones' @()).Count -eq 0 }).Count
+                $entry.sessionHosts.zones = [int]$distinctZones.Count
+                $entry.sessionHosts.unpinnedZones = [int]$unpinned
+            }
+            $imgRefs = @($rbVms | ForEach-Object { Get-PathValue $_ 'properties.storageProfile.imageReference' } | Where-Object { $null -ne $_ })
+            if ($imgRefs.Count -gt 0) {
+                $firstRef = $imgRefs[0]
+                $imgRefId = "$(Get-Prop $firstRef 'id' '')".ToLowerInvariant()
+                $imgPub = "$(Get-Prop $firstRef 'publisher' '')"
+                if ($imgRefId -match '/providers/microsoft\.compute/galleries/') {
+                    $entry.imageSource = 'gallery'
+                    if ($null -ne $galleryRegionsById) {
+                        if ($galleryRegionsById.ContainsKey($imgRefId)) {
+                            $entry.imageRegions = [int]$galleryRegionsById[$imgRefId]
+                        } elseif ($imgRefId -match '^(.*?/galleries/[^/]+/images/[^/]+)' -and $galleryRegionsById.ContainsKey($Matches[1])) {
+                            $entry.imageRegions = [int]$galleryRegionsById[$Matches[1]]
+                        }
+                    }
+                } elseif ($imgRefId -match '/providers/microsoft\.compute/images/') {
+                    $entry.imageSource = 'managed'
+                } elseif ($imgPub -ne '') {
+                    $entry.imageSource = 'marketplace'
+                } else {
+                    $entry.imageSource = 'custom'
+                }
+            }
             $hpRow = $hpRowByName[$pool]
             $hpArmId = "$(Get-Prop $hpRow 'Id' '')".ToLowerInvariant()
             $hpCostTag = Test-CostAllocationTag -Row $hpRow -RebuildRow $(if ($hpArmId -and $rbById.ContainsKey($hpArmId)) { $rbById[$hpArmId] } else { $null })
@@ -631,6 +741,18 @@ function Get-SubscriptionFact {
             if ($tagChecked -gt 0) {
                 $entry.sessionHosts.untaggedForCost = [int]$untagged
             }
+        }
+        if ($hasBackupItems) {
+            $entry.sessionHosts.backupProtected = [int]@($hosts | Where-Object { $backupVmIds.ContainsKey("$(Get-Prop $_ 'ResourceId' '')".ToLowerInvariant()) }).Count
+        }
+        if ($hasAsrItems) {
+            $repCount = [int]@($hosts | Where-Object { $replicatedVmIds.ContainsKey("$(Get-Prop $_ 'ResourceId' '')".ToLowerInvariant()) }).Count
+            $entry.sessionHosts.replicated = $repCount
+            $entry.sessionHosts.notReplicated = [int]($hosts.Count - $repCount)
+        }
+        if ($hasSecAssess) {
+            $entry.sessionHosts.edrMissing = [int]@($hosts | Where-Object { $edrMissingVms.ContainsKey("$(Get-Prop $_ 'ResourceId' '')".ToLowerInvariant()) }).Count
+            $entry.sessionHosts.vulnerabilityFindings = [int]@($hosts | Where-Object { $vulnFindingVms.ContainsKey("$(Get-Prop $_ 'ResourceId' '')".ToLowerInvariant()) }).Count
         }
         if ($extRows.Count -gt 0 -or $ds['vm-extensions'].Count -gt 0) {
             $hostVmNames = @{}
@@ -736,6 +858,17 @@ function Get-SubscriptionFact {
                 $source = "$(Get-PathValue $rbById[$stId] 'properties.azureFilesIdentityBasedAuthentication.directoryServiceOptions' 'None')"
                 $st.filesIdentity = $(if ($source -in @('AADKERB', 'AD', 'AADDS', 'None')) { $source } else { 'other' })
             }
+            if ($hasBackupItems) {
+                if ($backupStById.ContainsKey($stId)) {
+                    $st.backupProtected = $true
+                    $st.backupTier = $backupStById[$stId].Tier
+                    $st.lastBackupJob = $backupStById[$stId].LastJob
+                } else {
+                    $st.backupProtected = $false
+                    $st.backupTier = 'none'
+                    $st.lastBackupJob = 'none'
+                }
+            }
             $st
         } | Where-Object { $_.id })
 
@@ -802,6 +935,37 @@ function Get-SubscriptionFact {
             roles       = Get-CountMap $roles '^[A-Za-z][A-Za-z ]{1,63}$'
             objectTypes = Get-CountMap @($ds['role-assignments'] | ForEach-Object { Get-Prop $_ 'ObjectType' }) '^[A-Za-z]{2,40}$'
         }
+    }
+    $nsgRebuildFile = Join-Path $rebuild 'resources/microsoft.network-networksecuritygroups.json'
+    if ($ds['nsg-rules'].Count -gt 0 -or (Test-Path -LiteralPath $nsgRebuildFile)) {
+        $publicRdp = 0
+        if ($ds['nsg-rules'].Count -gt 0) {
+            foreach ($r in $ds['nsg-rules']) {
+                $dir = "$(Get-Prop $r 'Direction' '')".ToLowerInvariant()
+                $acc = "$(Get-Prop $r 'Access' '')".ToLowerInvariant()
+                $src = "$(Get-Prop $r 'SourceAddressPrefix' '')".ToLowerInvariant()
+                $dstPort = "$(Get-Prop $r 'DestinationPortRange' '')"
+                if ($dir -eq 'inbound' -and $acc -eq 'allow' -and $src -match '(^|,\s*)(\*|internet|any|0\.0\.0\.0/0)($|,)' -and $dstPort -match '(^|,\s*)(\*|3389)($|,)') {
+                    $publicRdp++
+                }
+            }
+        } else {
+            foreach ($nsg in @(Read-JsonFile -Path $nsgRebuildFile)) {
+                Add-KnownName (Get-Prop $nsg 'name')
+                Add-KnownName (Get-Prop $nsg 'id')
+                foreach ($r in @(Get-PathValue $nsg 'properties.securityRules' @())) {
+                    Add-KnownName (Get-Prop $r 'name')
+                    $dir = "$(Get-PathValue $r 'properties.direction' '')".ToLowerInvariant()
+                    $acc = "$(Get-PathValue $r 'properties.access' '')".ToLowerInvariant()
+                    $srcs = @(@(Get-PathValue $r 'properties.sourceAddressPrefix') + @(Get-PathValue $r 'properties.sourceAddressPrefixes' @())) | Where-Object { $null -ne $_ -and "$_" -ne '' }
+                    $ports = @(@(Get-PathValue $r 'properties.destinationPortRange') + @(Get-PathValue $r 'properties.destinationPortRanges' @())) | Where-Object { $null -ne $_ -and "$_" -ne '' }
+                    $isPub = @($srcs | Where-Object { "$_" -match '^(?i)(\*|internet|any|0\.0\.0\.0/0)$' }).Count -gt 0
+                    $isRdp = @($ports | Where-Object { "$_" -in @('*', '3389') }).Count -gt 0
+                    if ($dir -eq 'inbound' -and $acc -eq 'allow' -and $isPub -and $isRdp) { $publicRdp++ }
+                }
+            }
+        }
+        $result.network.hostPublicRdp = [int]$publicRdp
     }
     if ($null -ne $defenderPlans) { $result.defenderPlans = $defenderPlans }
     if ($null -ne $budgetsFact) { $result.budgets = $budgetsFact }

@@ -200,6 +200,26 @@
       "description": "Fact intake.computeCommitments (optional). Whether the organization holds VM reservations or a compute savings plan covering the estate (avd-assess gaps/finops-scope.md).",
       "enum": ["reservation", "savings-plan", "both", "none", "unknown"]
     },
+    "recoveryTime": {
+      "description": "Fact intake.recoveryTime (optional). After an outage, deletion or bad change, how long users of the most critical workload can be without their desktops (avd-assess gaps/reliability-scope.md).",
+      "enum": ["under-1h", "1h-to-8h", "8h-to-24h", "over-24h", "undecided"]
+    },
+    "recoveryPoint": {
+      "description": "Fact intake.recoveryPoint (optional). For the most critical workload, how much recent profile and app data may be lost (avd-assess gaps/reliability-scope.md).",
+      "enum": ["minutes", "under-24h", "over-24h", "undecided"]
+    },
+    "regionRecovery": {
+      "description": "Fact intake.regionRecovery (optional). Whether the estate must come back after a whole region is lost (avd-assess gaps/reliability-scope.md).",
+      "enum": ["required", "not-required", "undecided"]
+    },
+    "recoveryDependencies": {
+      "description": "Fact intake.recoveryDependencies (optional). Whether identity, DNS, network paths and line-of-business apps are available in the recovery region (avd-assess gaps/reliability-scope.md).",
+      "enum": ["all", "some", "none", "unknown"]
+    },
+    "profileData": {
+      "description": "Fact intake.profileData (optional). What the profile containers hold (avd-assess gaps/reliability-scope.md).",
+      "enum": ["settings-only", "user-data", "unknown"]
+    },
     "extensions": {
       "type": "object",
       "description": "Optional, for upper layers only, keyed by namespace (contracts/README.md rule 1). A foundation reader ignores it.",
