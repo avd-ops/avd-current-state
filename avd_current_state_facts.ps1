@@ -1603,6 +1603,21 @@ try {
         $statusMdFile = Join-Path (Split-Path -Parent $outFile) "avd-status-$stamp.md"
         [System.IO.File]::WriteAllText($statusMdFile, (($statusMd -join "`n") + "`n"), (New-Object System.Text.UTF8Encoding $false))
         Write-FactsLog "Status report: $statusMdFile"
+        $statusJsonObj = [ordered]@{
+            schema       = 'avd-status-bundle/v1'
+            estate       = $snapshot.estate
+            generatedUtc = $snapshot.generatedUtc
+            facts        = ($json | ConvertFrom-Json)
+            assessment   = $assessment
+        }
+        $statusJsonText = ($statusJsonObj | ConvertTo-Json -Depth 14) + "`n"
+        $statusJsonLeaks = @(Find-Leak -Node $statusJsonObj)
+        if ($statusJsonLeaks.Count) {
+            throw "Refusing to write the status JSON bundle: it looks like it holds tenant data ($(($statusJsonLeaks | Select-Object -First 5) -join '; '))."
+        }
+        $statusJsonFile = Join-Path (Split-Path -Parent $outFile) "avd-status-$stamp.json"
+        [System.IO.File]::WriteAllText($statusJsonFile, $statusJsonText, (New-Object System.Text.UTF8Encoding $false))
+        Write-FactsLog "Status JSON bundle: $statusJsonFile"
         $asset = Get-AvdcsReportAsset -Root $PSScriptRoot
         if ($null -ne $asset) {
             $statusHtml = ConvertTo-AvdcsReportHtml -Markdown $statusMd -Asset $asset -Kind 'Estate status'
