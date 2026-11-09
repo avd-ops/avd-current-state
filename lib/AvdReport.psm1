@@ -360,7 +360,7 @@ function ConvertTo-AvdcsStatusMarkdown {
         [Parameter(Mandatory = $true)][object]$Snapshot,
         [object]$Assessment
     )
-    if ("$(Get-AvdcsStatusProp $Snapshot 'schema')" -ne 'avd-current-state-facts/v1') {
+    if ("$(Get-AvdcsStatusProp $Snapshot 'schema')" -notin @('avd-current-state-facts/v1', 'avd-estate-facts/v1')) {
         throw "The snapshot isn't avd-current-state-facts/v1."
     }
     $estate = "$(Get-AvdcsStatusProp $Snapshot 'estate')"
@@ -514,10 +514,13 @@ function ConvertTo-AvdcsStatusMarkdown {
             $hp = $entry.Pool
             $hpId = "$(Get-AvdcsStatusProp $hp 'id')"
             $hpType = "$(Get-AvdcsStatusProp $hp 'type' 'unknown')"
-            $hpLb = "$(Get-AvdcsStatusProp $hp 'loadBalancerType' 'unknown')"
+            $hpLbRaw = Get-AvdcsStatusProp $hp 'loadBalancerType'
+            if ($null -eq $hpLbRaw -or "$hpLbRaw" -eq '') { $hpLbRaw = Get-AvdcsStatusProp $hp 'loadBalancer' 'unknown' }
+            $hpLb = "$hpLbRaw"
             $sh = Get-AvdcsStatusProp $hp 'sessionHosts'
             $total = [int](Get-AvdcsStatusProp $sh 'total' 0)
             $byStatus = Get-AvdcsStatusProp $sh 'byStatus'
+            if ($null -eq $byStatus) { $byStatus = Get-AvdcsStatusProp $sh 'status' }
             $avail = [int](Get-AvdcsStatusProp $byStatus 'Available' 0)
             $unavail = [int](Get-AvdcsStatusProp $byStatus 'Unavailable' 0)
             $hpPill = if ($unavail -gt 0) { 'FAIL' } elseif ($total -eq 0 -or $avail -lt $total) { 'WARN' } else { 'PASS' }
