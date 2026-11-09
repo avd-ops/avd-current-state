@@ -1,0 +1,161 @@
+# Sample: a scheduled, read-only estate status dashboard workflow for the operator's PRIVATE companion repository.
+# Never run it in a public repository: the collector's log names your resources, and the raw package goes only
+# to your private storage container.
+#
+# Personal project, not for production use. Provided as is, without warranty of any kind (MIT License).
+# Not affiliated with the author's employer, with Liquidware or with Microsoft.
+#
+# What it produces on every run:
+#   1. Runs avd_current_state_collector.ps1 as avd-ops-reader (federated OIDC, no secret).
+#   2. Runs avd_current_state_facts.ps1 -Assess -StatusReport to emit:
+#      - avd-current-state-facts-<timestamp>.json (C11 redacted facts)
+#      - avd-assessment-<timestamp>.json          (C21 assessment report across 5 control planes + WAF pillars)
+#      - avd-status-<timestamp>.md                (redacted Markdown status dashboard)
+#      - avd-status-<timestamp>.html              (single-file offline HTML dashboard in the avd-ops look)
+#   3. Updates a single living GitHub Issue ("Status: <environment>") in your private repository with the
+#      redacted Markdown dashboard, and uploads the HTML dashboard + JSON contracts to your private blob container.
+#
+# Before the first run:
+#   - Set up avd-ops-reader for this private repository (docs/reader-identity.md).
+#   - Set repository variables AVD_READER_CLIENT_ID, AVD_TENANT_ID, AVD_SUBSCRIPTION_ID, AVD_ENVIRONMENT,
+#     AVD_OUTPUT_ACCOUNT and AVD_OUTPUT_CONTAINER.
+#   - Store the 32-byte base64 estate pseudonymization key in the avd-reader environment secret AVD_FACTS_KEY_B64
+#     so host pool and subscription pseudonyms (est-*, sub-*, hp-*) stay consistent across runs.
+name: estate-status-dashboard
+
+on:
+  schedule:
+    - cron: '47 6 * * *'   # Daily, 06:47 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+  issues: write
+
+concurrency:
+  group: estate-status-dashboard
+  cancel-in-progress: false
+
+jobs:
+  status:
+    runs-on: ubuntu-latest
+    environment: avd-reader
+    timeout-minutes: 45
+    env:
+      AVD_CURRENT_STATE_COMMIT: 0000000000000000000000000000000000000000
+      AVD_ENVIRONMENT: ${{ vars.AVD_ENVIRONMENT }}
+    steps:
+      - name: Health check (the repository is private)
+        env:
+          GH_TOKEN: ${{ github.token }}
+          MASK_TENANT: ${{ vars.AVD_TENANT_ID }}
+          MASK_SUBSCRIPTION: ${{ vars.AVD_SUBSCRIPTION_ID }}
+          MASK_CLIENT: ${{ vars.AVD_READER_CLIENT_ID }}
+        run: |
+          for v in "$MASK_TENANT" "$MASK_SUBSCRIPTION" "$MASK_CLIENT"; do [ -n "$v" ] && echo "::add-mask::$v"; done
+          private="$(gh api "repos/$GITHUB_REPOSITORY" --jq .private)"
+          if [ "$private" != "true" ]; then
+            echo "This repository is not private, so the status workflow cannot run here. Stopping."
+            exit 2
+          fi
+          echo "STATUS_REPO_PRIVATE=true" >> "$GITHUB_ENV"
+
+      - name: Check the reader is set up
+        env:
+          READER_CLIENT: ${{ vars.AVD_READER_CLIENT_ID }}
+          READER_TENANT: ${{ vars.AVD_TENANT_ID }}
+          READER_SUBSCRIPTION: ${{ vars.AVD_SUBSCRIPTION_ID }}
+        run: |
+          missing=""
+          [ -n "$READER_CLIENT" ] || missing="$missing AVD_READER_CLIENT_ID"
+          [ -n "$READER_TENANT" ] || missing="$missing AVD_TENANT_ID"
+          [ -n "$READER_SUBSCRIPTION" ] || missing="$missing AVD_SUBSCRIPTION_ID"
+          [ -n "$AVD_ENVIRONMENT" ] || missing="$missing AVD_ENVIRONMENT"
+          if [ -n "$missing" ]; then
+            {
+              echo "## Status dashboard skipped: the reader isn't set up"
+              echo
+              echo "Missing repository variables:$missing."
+              echo "Set up avd-ops-reader (avd-current-state docs/reader-identity.md), then set the variables above."
+            } >> "$GITHUB_STEP_SUMMARY"
+            echo "STATUS_CONFIGURED=false" >> "$GITHUB_ENV"
+          else
+            echo "STATUS_CONFIGURED=true" >> "$GITHUB_ENV"
+          fi
+
+      - name: Check out avd-current-state at the reviewed commit
+        if: env.STATUS_CONFIGURED == 'true'
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          repository: avd-ops/avd-current-state
+          ref: ${{ env.AVD_CURRENT_STATE_COMMIT }}
+          path: avd-current-state
+          persist-credentials: false
+
+      - name: Sign in as avd-ops-reader (federated, no secret)
+        if: env.STATUS_CONFIGURED == 'true'
+        uses: azure/login@8216e11d8cd9b42fe925c852af8e76311ff067ac # v2.3.1
+        with:
+          client-id: ${{ vars.AVD_READER_CLIENT_ID }}
+          tenant-id: ${{ vars.AVD_TENANT_ID }}
+          subscription-id: ${{ vars.AVD_SUBSCRIPTION_ID }}
+          enable-AzPSSession: true
+
+      - name: Check the reader holds nothing more than it should
+        if: env.STATUS_CONFIGURED == 'true'
+        shell: pwsh
+        working-directory: avd-current-state
+        env:
+          AVD_READER_CLIENT_ID: ${{ vars.AVD_READER_CLIENT_ID }}
+        run: ./avd_ops_reader.ps1 -Mode Test
+
+      - name: Collect and build redacted C11, C21 and HTML/Markdown status dashboard
+        if: env.STATUS_CONFIGURED == 'true'
+        shell: pwsh
+        working-directory: avd-current-state
+        env:
+          AVD_FACTS_KEY_B64: ${{ secrets.AVD_FACTS_KEY_B64 }}
+        run: |
+          $work = Join-Path $env:RUNNER_TEMP 'avd-status-work'
+          $pkgDir = Join-Path $work 'packages'
+          $outDir = Join-Path $work 'status'
+          New-Item -ItemType Directory -Force -Path $pkgDir, $outDir | Out-Null
+          $keyPath = Join-Path $work 'estate.key'
+          $newKey = $false
+          if ($env:AVD_FACTS_KEY_B64) {
+            [System.IO.File]::WriteAllText($keyPath, $env:AVD_FACTS_KEY_B64.Trim(), (New-Object System.Text.UTF8Encoding $false))
+          } else {
+            $newKey = $true
+          }
+          ./avd_current_state_collector.ps1 -OutputPath $pkgDir
+          ./avd_current_state_facts.ps1 -PackagePath $pkgDir -KeyPath $keyPath -NewKey:$newKey -OutputPath $outDir -Assess -StatusReport
+          Remove-Item -LiteralPath $keyPath -Force -ErrorAction SilentlyContinue
+
+      - name: Update the living Status issue in this private repository
+        if: env.STATUS_CONFIGURED == 'true' && env.STATUS_REPO_PRIVATE == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          title="Status: $AVD_ENVIRONMENT"
+          md_file="$(ls -1 "$RUNNER_TEMP/avd-status-work/status"/avd-status-*.md | tail -n 1)"
+          number="$(gh issue list --state all --search "\"$title\" in:title" --json number,title --jq "map(select(.title == \"$title\")) | .[0].number // empty")"
+          if [ -z "$number" ]; then
+            gh issue create --title "$title" --body-file "$md_file"
+          else
+            gh issue edit "$number" --body-file "$md_file"
+            gh issue reopen "$number" 2>/dev/null || true
+          fi
+
+      - name: Upload status HTML and C11/C21 JSON to private container (never an Actions artifact)
+        if: env.STATUS_CONFIGURED == 'true' && vars.AVD_OUTPUT_ACCOUNT != '' && vars.AVD_OUTPUT_CONTAINER != ''
+        run: |
+          az storage blob upload-batch --auth-mode login \
+            --account-name "${{ vars.AVD_OUTPUT_ACCOUNT }}" --destination "${{ vars.AVD_OUTPUT_CONTAINER }}" \
+            --destination-path "status/$(date -u +%Y-%m-%d)" \
+            --source "$RUNNER_TEMP/avd-status-work/status" \
+            --only-show-errors
+
+      - name: Clean up
+        if: always()
+        run: rm -rf "$RUNNER_TEMP/avd-status-work"

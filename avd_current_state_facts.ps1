@@ -59,6 +59,11 @@
     Discover stage). It must be for the same estate as the snapshot. Without it, the decisions
     that need intake answers report needs-intake.
 
+.PARAMETER StatusReport
+    Also write avd-status-<timestamp>.md and avd-status-<timestamp>.html beside the snapshot:
+    a redacted estate status dashboard in the avd-ops look built from the C11 snapshot (and the
+    C21 assessment report when -Assess is set).
+
 .EXAMPLE
     .\avd_current_state_facts.ps1 -PackagePath .\avd-current-state-20261015T091500, .\avd-validation-20261016T100000.zip -KeyPath ..\avd-brain\.brain\facts.key -NewKey
 
@@ -75,7 +80,8 @@ param(
     [switch]$NewKey,
     [string]$OutputPath = (Get-Location).Path,
     [switch]$Assess,
-    [string]$IntakePath
+    [string]$IntakePath,
+    [switch]$StatusReport
 )
 
 Set-StrictMode -Version Latest
@@ -1563,6 +1569,7 @@ try {
         }
     }
     $assessFile = $null
+    $assessment = $null
     if ($Assess) {
         $assessFile = Join-Path (Split-Path -Parent $outFile) "avd-assessment-$stamp.json"
         $assessment = Write-Assessment -AssessInput $assessInput -SnapshotJson $json -Snapshot ($json | ConvertFrom-Json) -Destination $assessFile
@@ -1580,6 +1587,28 @@ try {
         foreach ($status in @('needs-intake', 'missing-facts', 'needs-measurement')) {
             $rows = @($assessment.decisions | Where-Object { $_.status -eq $status })
             if ($rows.Count) { Write-FactsLog "  ${status}: $(($rows | ForEach-Object { $_.decision }) -join ', ')" }
+        }
+    }
+    if ($StatusReport) {
+        $reportMod = Join-Path $PSScriptRoot 'lib/AvdReport.psm1'
+        if (-not (Test-Path -LiteralPath $reportMod)) {
+            throw 'The status report needs lib/AvdReport.psm1 beside avd_current_state_facts.ps1.'
+        }
+        Import-Module $reportMod -Force
+        $statusMd = ConvertTo-AvdcsStatusMarkdown -Snapshot ($json | ConvertFrom-Json) -Assessment $assessment
+        $statusLeaks = @(Find-Leak -Node $statusMd)
+        if ($statusLeaks.Count) {
+            throw "Refusing to write the status report: it looks like it holds tenant data ($(($statusLeaks | Select-Object -First 5) -join '; '))."
+        }
+        $statusMdFile = Join-Path (Split-Path -Parent $outFile) "avd-status-$stamp.md"
+        [System.IO.File]::WriteAllText($statusMdFile, (($statusMd -join "`n") + "`n"), (New-Object System.Text.UTF8Encoding $false))
+        Write-FactsLog "Status report: $statusMdFile"
+        $asset = Get-AvdcsReportAsset -Root $PSScriptRoot
+        if ($null -ne $asset) {
+            $statusHtml = ConvertTo-AvdcsReportHtml -Markdown $statusMd -Asset $asset -Kind 'Estate status'
+            $statusHtmlFile = Join-Path (Split-Path -Parent $outFile) "avd-status-$stamp.html"
+            [System.IO.File]::WriteAllText($statusHtmlFile, ($statusHtml + "`n"), (New-Object System.Text.UTF8Encoding $false))
+            Write-FactsLog "Status dashboard HTML: $statusHtmlFile"
         }
     }
     # The assessment portal's state line (docs/assessment-portal-spec.md, section 3): the estate pseudonym

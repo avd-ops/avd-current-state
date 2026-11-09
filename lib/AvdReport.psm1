@@ -332,4 +332,202 @@ function Get-AvdcsMermaidTheme {
     }
 }
 
-Export-ModuleMember -Function Get-AvdcsReportAsset, ConvertTo-AvdcsReportHtml, Get-AvdcsDesignToken, Get-AvdcsMermaidTheme
+function Get-AvdcsStatusProp {
+    param([object]$InputObject, [string]$Name, $Default = $null)
+    if ($null -eq $InputObject) { return $Default }
+    if ($InputObject -is [System.Collections.IDictionary]) {
+        if ($InputObject.Contains($Name) -and $null -ne $InputObject[$Name]) { return $InputObject[$Name] }
+        return $Default
+    }
+    if ($InputObject -is [string] -or $InputObject -is [ValueType]) { return $Default }
+    $prop = $InputObject.PSObject.Properties[$Name]
+    if ($null -eq $prop -or $null -eq $prop.Value) { return $Default }
+    return $prop.Value
+}
+
+function ConvertTo-AvdcsStatusMarkdown {
+    <#
+    .SYNOPSIS
+        Builds a redacted Markdown status dashboard from a C11 facts snapshot and an optional C21 assessment
+        report, ready for ConvertTo-AvdcsReportHtml (-Kind 'Estate status') or a private status issue.
+    .DESCRIPTION
+        Pure function: reads only the allowlisted fields and pseudonyms already in the C11 and C21 objects.
+        Refuses a snapshot without an est-xxxxxxxx pseudonym or a mismatched assessment estate.
+    #>
+    [CmdletBinding()]
+    [OutputType([string[]])]
+    param(
+        [Parameter(Mandatory = $true)][object]$Snapshot,
+        [object]$Assessment
+    )
+    if ("$(Get-AvdcsStatusProp $Snapshot 'schema')" -ne 'avd-current-state-facts/v1') {
+        throw "The snapshot isn't avd-current-state-facts/v1."
+    }
+    $estate = "$(Get-AvdcsStatusProp $Snapshot 'estate')"
+    if ($estate -cnotmatch '^est-[0-9a-f]{8}$') {
+        throw 'The snapshot has no estate pseudonym.'
+    }
+    if ($null -ne $Assessment) {
+        if ("$(Get-AvdcsStatusProp $Assessment 'schema')" -ne 'avd-assessment/v1') {
+            throw "The assessment isn't avd-assessment/v1."
+        }
+        if ("$(Get-AvdcsStatusProp $Assessment 'estate')" -cne $estate) {
+            throw "The assessment is for another estate than the snapshot ($estate)."
+        }
+    }
+
+    $subs = @(Get-AvdcsStatusProp $Snapshot 'subscriptions' @())
+    $pools = @(foreach ($s in $subs) {
+            $subId = "$(Get-AvdcsStatusProp $s 'id')"
+            foreach ($hp in @(Get-AvdcsStatusProp $s 'hostPools' @())) {
+                [pscustomobject]@{ SubId = $subId; Pool = $hp }
+            }
+        })
+    $vals = @(Get-AvdcsStatusProp $Snapshot 'validations' @())
+
+    $verdict = 'READY'
+    if ($null -ne $Assessment) {
+        $results = @(Get-AvdcsStatusProp $Assessment 'results' @())
+        $gaps = @($results | Where-Object { "$(Get-AvdcsStatusProp $_ 'outcome')" -eq 'gap' }).Count
+        $warns = @($results | Where-Object { "$(Get-AvdcsStatusProp $_ 'outcome')" -eq 'warn' }).Count
+        if ($gaps -gt 0) { $verdict = 'NOT READY' }
+        elseif ($warns -gt 0) { $verdict = 'READY WITH WARNINGS' }
+    } else {
+        $valChecks = @(foreach ($v in $vals) { @(Get-AvdcsStatusProp $v 'checks' @()) })
+        $fails = @($valChecks | Where-Object { "$(Get-AvdcsStatusProp $_ 'status')" -eq 'FAIL' }).Count
+        $warns = @($valChecks | Where-Object { "$(Get-AvdcsStatusProp $_ 'status')" -eq 'WARN' }).Count
+        if ($fails -gt 0) { $verdict = 'NOT READY' }
+        elseif ($warns -gt 0) { $verdict = 'READY WITH WARNINGS' }
+    }
+
+    $genUtc = Get-AvdcsStatusProp $Snapshot 'generatedUtc' ''
+    if ($genUtc -is [datetime]) {
+        $genUtc = $genUtc.ToUniversalTime().ToString("yyyy-MM-dd'T'HH:mm:ss'Z'", [System.Globalization.CultureInfo]::InvariantCulture)
+    } else {
+        $genUtc = "$genUtc"
+    }
+
+    $lines = New-Object System.Collections.Generic.List[string]
+    $lines.Add('# AVD Estate Status')
+    $lines.Add('')
+    $lines.Add("**Overall: $verdict**")
+    $lines.Add('')
+    $lines.Add("**Estate:** ``$estate``")
+    $lines.Add("**Snapshot (UTC):** $genUtc")
+    $lines.Add("**Subscriptions:** $($subs.Count)")
+    $lines.Add("**Host pools:** $($pools.Count)")
+    $lines.Add('')
+    $lines.Add('> Read-only status summary built from redacted C11 facts and C21 assessment outcomes. Contains counts, public enums and keyed HMAC-SHA256 pseudonyms only.')
+
+    # Control planes section
+    $lines.Add('')
+    $lines.Add('## Control planes')
+    $lines.Add('')
+    $lines.Add('| Plane | Collection | Assessed | Score | Status |')
+    $lines.Add('|---|---|---|---|---|')
+    $planesCollected = Get-AvdcsStatusProp $Snapshot 'planesCollected'
+    $assessPlanes = if ($null -ne $Assessment) { Get-AvdcsStatusProp $Assessment 'planes' } else { $null }
+    foreach ($planeName in @('azure', 'entra', 'intune', 'm365', 'power-platform')) {
+        $pcEntry = Get-AvdcsStatusProp $planesCollected $planeName
+        $colStatus = if ($null -ne $pcEntry) { "$(Get-AvdcsStatusProp $pcEntry 'status' 'skipped')" } elseif ($planeName -eq 'azure' -and $subs.Count -gt 0) { 'collected' } else { 'skipped' }
+        $colReason = if ($null -ne $pcEntry) { "$(Get-AvdcsStatusProp $pcEntry 'reason' '')" } else { '' }
+        $colText = if ($colReason) { "$colStatus ($colReason)" } else { $colStatus }
+
+        $ap = Get-AvdcsStatusProp $assessPlanes $planeName
+        if ($null -ne $ap) {
+            $pChecks = [int](Get-AvdcsStatusProp $ap 'checks' 0)
+            $pAssessed = [int](Get-AvdcsStatusProp $ap 'assessed' 0)
+            $pScoreRaw = Get-AvdcsStatusProp $ap 'score'
+            $pScore = if ($null -ne $pScoreRaw) { '{0:0%}' -f [double]$pScoreRaw } else { 'n/a' }
+            $pGap = [int](Get-AvdcsStatusProp $ap 'gap' 0)
+            $pWarn = [int](Get-AvdcsStatusProp $ap 'warn' 0)
+            $pPill = if ($pGap -gt 0) { 'FAIL' } elseif ($pWarn -gt 0) { 'WARN' } elseif ($pAssessed -gt 0) { 'PASS' } else { 'SKIP' }
+            $lines.Add("| ``$planeName`` | $colText | $pAssessed / $pChecks | $pScore | $pPill |")
+        } else {
+            $pPill = if ($colStatus -eq 'collected') { 'PASS' } elseif ($colStatus -eq 'partial') { 'WARN' } else { 'SKIP' }
+            $lines.Add("| ``$planeName`` | $colText | n/a | n/a | $pPill |")
+        }
+    }
+
+    if ($null -ne $Assessment) {
+        $pillars = @(Get-AvdcsStatusProp $Assessment 'pillars' @())
+        if ($pillars.Count -gt 0) {
+            $lines.Add('')
+            $lines.Add('## Well-Architected pillars')
+            $lines.Add('')
+            $lines.Add('| Pillar | Assessed | Coverage | Score | Status |')
+            $lines.Add('|---|---|---|---|---|')
+            foreach ($pl in $pillars) {
+                $pName = "$(Get-AvdcsStatusProp $pl 'pillar')"
+                $pAssessed = [int](Get-AvdcsStatusProp $pl 'assessed' 0)
+                $pChecks = [int](Get-AvdcsStatusProp $pl 'checks' 0)
+                $pCov = '{0:0%}' -f [double](Get-AvdcsStatusProp $pl 'coverage' 0)
+                $sRaw = Get-AvdcsStatusProp $pl 'score'
+                $sText = if ($null -ne $sRaw) { '{0:0%}' -f [double]$sRaw } else { 'n/a' }
+                $pPill = if ($null -eq $sRaw -or $pAssessed -eq 0) { 'SKIP' } elseif ([double]$sRaw -ge 0.9) { 'PASS' } elseif ([double]$sRaw -ge 0.7) { 'WARN' } else { 'FAIL' }
+                $lines.Add("| $pName | $pAssessed / $pChecks | $pCov | $sText | $pPill |")
+            }
+        }
+
+        $findings = @(@(Get-AvdcsStatusProp $Assessment 'results' @()) | Where-Object { "$(Get-AvdcsStatusProp $_ 'outcome')" -in @('gap', 'warn') })
+        $lines.Add('')
+        $lines.Add('## Active findings')
+        $lines.Add('')
+        if ($findings.Count -gt 0) {
+            $lines.Add('| Status | Check | Subjects |')
+            $lines.Add('|---|---|---|')
+            foreach ($f in $findings) {
+                $outWord = if ("$(Get-AvdcsStatusProp $f 'outcome')" -eq 'gap') { 'FAIL' } else { 'WARN' }
+                $chk = "$(Get-AvdcsStatusProp $f 'check')"
+                $subjIds = @(@(Get-AvdcsStatusProp $f 'subjects' @()) | ForEach-Object { "``$(Get-AvdcsStatusProp $_ 'id')``" })
+                $subjText = if ($subjIds.Count -gt 0) { $subjIds -join ', ' } else { "``$estate``" }
+                $lines.Add("| $outWord | ``$chk`` | $subjText |")
+            }
+        } else {
+            $lines.Add('No active warnings or gaps in the assessed checks.')
+        }
+
+        $decisions = @(Get-AvdcsStatusProp $Assessment 'decisions' @())
+        if ($decisions.Count -gt 0) {
+            $lines.Add('')
+            $lines.Add('## Target-state decisions')
+            $lines.Add('')
+            $lines.Add('| Decision | Readiness | Status |')
+            $lines.Add('|---|---|---|')
+            foreach ($d in $decisions) {
+                $dName = "$(Get-AvdcsStatusProp $d 'decision')"
+                $dReadiness = "$(Get-AvdcsStatusProp $d 'readiness')"
+                $dStatus = "$(Get-AvdcsStatusProp $d 'status')"
+                $dPill = if ($dStatus -eq 'supported') { 'PASS' } elseif ($dStatus -eq 'missing-facts') { 'WARN' } else { 'INFO' }
+                $lines.Add("| ``$dName`` | $dReadiness ($dStatus) | $dPill |")
+            }
+        }
+    }
+
+    $lines.Add('')
+    $lines.Add('## Host pools')
+    $lines.Add('')
+    if ($pools.Count -gt 0) {
+        $lines.Add('| Host pool | Subscription | Type | Load balancer | Hosts | Available | Status |')
+        $lines.Add('|---|---|---|---|---|---|---|')
+        foreach ($entry in $pools) {
+            $hp = $entry.Pool
+            $hpId = "$(Get-AvdcsStatusProp $hp 'id')"
+            $hpType = "$(Get-AvdcsStatusProp $hp 'type' 'unknown')"
+            $hpLb = "$(Get-AvdcsStatusProp $hp 'loadBalancerType' 'unknown')"
+            $sh = Get-AvdcsStatusProp $hp 'sessionHosts'
+            $total = [int](Get-AvdcsStatusProp $sh 'total' 0)
+            $byStatus = Get-AvdcsStatusProp $sh 'byStatus'
+            $avail = [int](Get-AvdcsStatusProp $byStatus 'Available' 0)
+            $unavail = [int](Get-AvdcsStatusProp $byStatus 'Unavailable' 0)
+            $hpPill = if ($unavail -gt 0) { 'FAIL' } elseif ($total -eq 0 -or $avail -lt $total) { 'WARN' } else { 'PASS' }
+            $lines.Add("| ``$hpId`` | ``$($entry.SubId)`` | $hpType | $hpLb | $total | $avail | $hpPill |")
+        }
+    } else {
+        $lines.Add('No host pools collected in this snapshot.')
+    }
+
+    return $lines.ToArray()
+}
+
+Export-ModuleMember -Function Get-AvdcsReportAsset, ConvertTo-AvdcsReportHtml, ConvertTo-AvdcsStatusMarkdown, Get-AvdcsDesignToken, Get-AvdcsMermaidTheme
