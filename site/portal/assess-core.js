@@ -472,7 +472,7 @@
     let reportedSymptoms = null;
     if (Array.isArray(ans.reportedSymptoms) && ans.reportedSymptoms.length) {
       const uniq = [...new Set(ans.reportedSymptoms)];
-      if (uniq.some((s) => !REPORTED_SYMPTOMS.includes(s))) err('reportedSymptoms', 'Reported symptoms must use the C19 symptom codes.');
+      if (uniq.some((s) => !REPORTED_SYMPTOMS.includes(s))) err('reportedSymptoms', 'Reported symptoms must use the Discovery Intake symptom codes.');
       else if (uniq.length > 1 && (uniq.includes('none') || uniq.includes('unknown'))) err('reportedSymptoms', 'none or unknown stands alone in reportedSymptoms.');
       else reportedSymptoms = uniq;
     }
@@ -617,7 +617,7 @@
   // so the page may keep this summary.
   function parseAssessment(text) {
     let doc;
-    try { doc = JSON.parse(String(text || '')); } catch (e) { return { assessment: null, error: 'This isn\'t JSON. Load the avd-assessment JSON (C21) that -Assess wrote.' }; }
+    try { doc = JSON.parse(String(text || '')); } catch (e) { return { assessment: null, error: 'This isn\'t JSON. Load the Assessment Report JSON (assessment.json) that -Assess wrote.' }; }
     if (!doc || doc.schema !== 'avd-assessment/v1') return { assessment: null, error: 'This isn\'t an avd-assessment/v1 report (its schema field says otherwise).' };
     if (!ESTATE_RE.test(doc.estate || '') || !UTC_RE.test(doc.generatedUtc || '') || !Array.isArray(doc.results)) return { assessment: null, error: 'The report is missing its estate, its generatedUtc or its results.' };
     const results = [];
@@ -960,7 +960,7 @@
       `    CTX_ID["Identity lane: ${m.intakeContext.identityConstraints}"]`,
       `    CTX_REG["Regions: ${m.intakeContext.regions.join(', ') || 'unspecified'}"]`,
       '  end',
-      '  subgraph PLANES["Control Planes (C21 Outcomes)"]'
+      '  subgraph PLANES["Control Planes (Assessment Outcomes)"]'
     ];
     for (const p of m.planes) {
       const pid = `CP_${p.id.replace(/[^a-z0-9]/gi, '_')}`;

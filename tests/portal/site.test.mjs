@@ -80,7 +80,14 @@ test('the portal opens in the avd-ops shell bar, with the credit line', () => {
   assert.match(notice, /Not affiliated with, endorsed by or supported by the author's employer/);
   assert.match(notice, /Not a certification, a compliance attestation or a security audit\./);
   assert.match(bar, /<a href="https:\/\/deploy\.avd-ops\.dev\/portal\/">Deploy<\/a><a href="\.\/" aria-current="page">Assess<\/a>/);
+  assert.match(bar, /class="iconbtn dev"/);
   assert.match(bar, /class="iconbtn theme"/);
+  assert.match(html, /Assessment Report \(<code>assessment\.json<\/code><span class="dev-id">, C21<\/span>\)/);
+  assert.match(html, /Discovery Intake \(<code>intake\.json<\/code><span class="dev-id">, C19<\/span>\)/);
+  const statusHtml = read('site/status/index.html');
+  assert.match(statusHtml, /class="iconbtn dev"/);
+  assert.match(statusHtml, /Five-Plane Architecture<span class="dev-id"> \(Decision 0009\)<\/span>/);
+  assert.match(statusHtml, /Estate Facts<span class="dev-id"> \(C11\)<\/span>/);
   assert.doesNotMatch(html, /class="iconbtn menu"|class="side"/, 'no side list in a portal');
   assert.match(html, /<p class="credit">A <a href="https:\/\/prignano\.ai\/">prignano\.ai<\/a> production<\/p>/);
 });
