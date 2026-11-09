@@ -1,0 +1,282 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AVD Estate Status Dashboard &mdash; avd-ops</title>
+<meta name="description" content="Five-plane Azure Virtual Desktop estate status dashboard over C11 facts, C21 assessment bundles, and C25 synthetic benchmarks, plus the avd-buddy PWA status preview.">
+<link rel="icon" href="../assets/brand/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../assets/avd-ops.css">
+<link rel="stylesheet" href="../assets/avd-ops-portal.css">
+<link rel="stylesheet" href="../assets/avd-ops-shell.css">
+<script src="../assets/theme.js"></script>
+<style>
+  .shell main{padding-block:0}
+  .portal header.bar .iconbtn,.portal header.bar .iconbtn:hover:not(:disabled){padding:0;background:transparent;color:var(--shell-fg);border-color:var(--shell-line)}
+  .portal header.bar .iconbtn:hover:not(:disabled){background:var(--shell-hover)}
+  .status-wrap{max-width:var(--page);margin:0 auto;padding:var(--space-5) max(var(--gutter),env(safe-area-inset-left,0px)) calc(var(--space-6) + env(safe-area-inset-bottom,0px))}
+  .hero-bar{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-end;gap:var(--space-4);padding-bottom:var(--space-4);border-bottom:1px solid var(--line)}
+  .hero-bar h1{margin:var(--space-1) 0 var(--space-2);font-size:clamp(1.65rem,3.5vw,2.25rem)}
+  .hero-bar p{margin:0;color:var(--muted);max-width:52rem}
+  .toolbar{display:flex;flex-wrap:wrap;gap:var(--space-3);align-items:center;justify-content:space-between;margin:var(--space-4) 0}
+  .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(13.5rem,1fr));gap:var(--space-3);margin-bottom:var(--space-5)}
+  .kpi{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:var(--space-4);box-shadow:var(--shadow)}
+  .kpi-head{display:flex;justify-content:space-between;align-items:center;gap:var(--space-2);margin-bottom:var(--space-2)}
+  .kpi-label{font:600 .78rem var(--mono);text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}
+  .kpi-val{font:700 1.75rem/1.1 var(--display);margin-bottom:var(--space-1)}
+  .kpi-sub{font-size:.82rem;color:var(--muted)}
+  .planes{display:grid;grid-template-columns:repeat(auto-fit,minmax(13.5rem,1fr));gap:var(--space-3);margin-bottom:var(--space-5)}
+  .plane{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:var(--space-4);box-shadow:var(--shadow);display:flex;flex-direction:column;gap:var(--space-2)}
+  .plane-top{display:flex;justify-content:space-between;align-items:flex-start;gap:var(--space-2)}
+  .plane-title{font:700 1rem var(--display);margin:0}
+  .plane-repo{font:500 .75rem var(--mono);color:var(--muted)}
+  .plane-score{font:700 1.55rem/1.1 var(--display)}
+  .plane-rows{border-top:1px solid var(--line);padding-top:var(--space-2);display:flex;flex-direction:column;gap:var(--space-1);font-size:.82rem}
+  .plane-row{display:flex;justify-content:space-between;gap:var(--space-2)}
+  .plane-row span:first-child{color:var(--muted)}
+  .plane-row strong{font-family:var(--mono)}
+  .grid-2{display:grid;grid-template-columns:repeat(auto-fit,minmax(22rem,1fr));gap:var(--space-4);margin-bottom:var(--space-5)}
+  .sec-head{display:flex;justify-content:space-between;align-items:baseline;gap:var(--space-3);margin:0 0 var(--space-3)}
+  .sec-head h2{margin:0;font-size:1.2rem}
+  .sec-head span{font:500 .8rem var(--mono);color:var(--muted)}
+  .pillar-list{display:flex;flex-direction:column;gap:var(--space-3)}
+  .pillar-top{display:flex;justify-content:space-between;font-size:.86rem;margin-bottom:var(--space-1)}
+  .pillar-top strong{font-family:var(--display)}
+  .pillar-top span{font-family:var(--mono);color:var(--muted)}
+  .meter-bar{height:8px;border-radius:var(--pill);background:var(--sunken);border:1px solid var(--line);overflow:hidden}
+  .meter-fill{height:100%;border-radius:var(--pill);background:var(--accent)}
+  .meter-fill.good{background:var(--good)}
+  .meter-fill.caution{background:var(--caution)}
+  .meter-fill.bad{background:var(--bad)}
+  .w-96{width:96%}.w-92{width:92%}.w-88{width:88%}.w-86{width:86%}.w-84{width:84%}.w-82{width:82%}.w-78{width:78%}.w-74{width:74%}.w-70{width:70%}.w-64{width:64%}.w-58{width:58%}.w-48{width:48%}
+  .drop-panel{margin-bottom:var(--space-5)}
+  .drop-row{display:flex;flex-wrap:wrap;gap:var(--space-3);align-items:center}
+  .drop-row .filedrop{flex:1 1 18rem}
+  .buddy-grid{display:grid;grid-template-columns:minmax(18rem,25rem) 1fr;gap:var(--space-5);align-items:start;margin-bottom:var(--space-5)}
+  @media (max-width:56rem){.buddy-grid{grid-template-columns:1fr}}
+  .phone{background:var(--shell);color:var(--shell-fg);border:2px solid var(--shell-line);border-radius:var(--radius-lg);padding:var(--space-4);box-shadow:var(--shadow-2)}
+  .phone-bar{display:flex;justify-content:space-between;align-items:center;padding-bottom:var(--space-3);border-bottom:1px solid var(--shell-line);margin-bottom:var(--space-3)}
+  .phone-bar strong{font:700 1rem var(--display)}
+  .phone-card{background:var(--shell-hover);border:1px solid var(--shell-line);border-radius:var(--radius-sm);padding:var(--space-3);margin-bottom:var(--space-3)}
+  .phone-card h3{font:600 .78rem var(--mono);text-transform:uppercase;letter-spacing:.05em;color:var(--shell-muted);margin:0 0 var(--space-2)}
+  .phone-row{display:flex;justify-content:space-between;align-items:center;gap:var(--space-2);padding:var(--space-1) 0;font-size:.84rem}
+  .phone-nav{display:grid;grid-template-columns:repeat(3,1fr);gap:var(--space-2);padding-top:var(--space-2);border-top:1px solid var(--shell-line);text-align:center;font:600 .78rem var(--mono)}
+  .phone-tab{padding:var(--space-2);border-radius:var(--radius-sm);color:var(--shell-muted)}
+  .phone-tab.active{background:var(--accent-soft);color:var(--accent)}
+  .hidden{display:none!important}
+  .credit{margin:var(--space-4) 0 0;padding:0;font:600 .8rem var(--mono);letter-spacing:.04em;color:var(--fg)}
+  .credit a{color:inherit}
+</style>
+</head>
+<body class="portal shell">
+<header class="bar"><div class="bar-in"><a class="brand" href="https://avd-ops.dev/"><img class="mark" src="../assets/brand/mark.svg" alt="" width="44" height="44"><span class="name"><span class="word">avd-ops</span><span class="tag">Deploy quietly</span></span></a>
+<nav class="switcher" aria-label="avd-ops tools"><a href="https://avd-ops.dev/">Docs</a><a href="https://deploy.avd-ops.dev/portal/">Deploy</a><a href="../portal/">Assess</a><a href="./" aria-current="page">Status</a></nav>
+<details class="notice" id="disclaimer"><summary><strong class="long">Personal project. Not for production. No warranty.</strong><strong class="short">Not for production</strong></summary>
+<div class="full"><ul><li><strong>Personal project, not for production.</strong> Provided as is, without warranty of any kind (<a href="https://github.com/avd-ops/avd-current-state/blob/main/LICENSE">MIT License</a>).</li>
+<li>Not affiliated with, endorsed by or supported by the author's employer, and not an official Microsoft product.</li>
+<li>Not a certification, a compliance attestation or a security audit.</li></ul></div></details>
+<div class="tools"><button class="iconbtn theme" type="button" aria-label="Switch theme"><svg class="sun" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><circle cx="10" cy="10" r="3.5"/><path d="M10 1.8v2.2M10 16v2.2M1.8 10H4M16 10h2.2M4.2 4.2l1.6 1.6M14.2 14.2l1.6 1.6M4.2 15.8l1.6-1.6M14.2 5.8l1.6-1.6"/></svg><svg class="moon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" aria-hidden="true"><path d="M16.5 12.4A7 7 0 0 1 7.6 3.5a7 7 0 1 0 8.9 8.9Z"/></svg></button></div></div></header>
+
+<main class="status-wrap">
+  <div class="warn">
+    <strong>Personal project, not for production.</strong>
+    Provided as is, without warranty of any kind (<a href="https://github.com/avd-ops/avd-current-state/blob/main/LICENSE">MIT License</a>). Not affiliated with, endorsed by or supported by the author's employer, Liquidware or Microsoft. All sample data on this page is synthetic (`contoso.com`, pseudonymous `pool-01`..`pool-03`); files you load stay in your browser.
+  </div>
+
+  <section class="hero-bar" aria-labelledby="page-title">
+    <div>
+      <div class="eyebrow">Five-plane operational posture &middot; Contracts C11 + C21 + C25</div>
+      <h1 id="page-title">AVD Estate Status Dashboard</h1>
+      <p>Read-only operational status across Azure, Entra ID, Intune, Microsoft 365, and Power Platform. Switch between synthetic presets, drop your own redacted <code>C11</code>/<code>C21</code>/<code>C25</code> JSON artifacts, or preview the <code>avd-buddy</code> PWA status view.</p>
+    </div>
+    <div class="chips" id="meta-chips">
+      <span class="chip" id="chip-env">env: prod-eastus2</span>
+      <span class="chip" id="chip-collected">collected: 2026-11-09T14:00Z</span>
+      <span class="chip" id="chip-method">method: v8 (v2.2.0)</span>
+    </div>
+  </section>
+
+  <div class="toolbar" role="region" aria-label="View controls">
+    <div class="segmented" role="radiogroup" aria-label="Dashboard view">
+      <label><input type="radio" name="view-tab" value="estate" checked><span>1. Estate Status (5 Planes)</span></label>
+      <label><input type="radio" name="view-tab" value="buddy"><span>2. avd-buddy PWA Preview (v1 vs Phase D)</span></label>
+      <label><input type="radio" name="view-tab" value="automation"><span>3. Sandbox &amp; Companion Repo</span></label>
+    </div>
+    <div class="segmented" role="radiogroup" aria-label="Sample estate preset" id="preset-group">
+      <label><input type="radio" name="preset" value="healthy" checked><span>Healthy Prod</span></label>
+      <label><input type="radio" name="preset" value="drift"><span>Config Drift</span></label>
+      <label><input type="radio" name="preset" value="meter"><span>Meter Alert</span></label>
+    </div>
+  </div>
+
+  <section id="tab-estate">
+    <div class="card drop-panel">
+      <div class="drop-row">
+        <label class="filedrop" for="json-file">
+          <input type="file" id="json-file" accept=".json,application/json">
+          <strong>Load a redacted C11, C21, or C25 JSON file</strong>
+          <span class="muted" id="drop-status">Or explore the built-in synthetic presets above.</span>
+        </label>
+        <a class="cta ghost" href="../portal/">Open 5-Stage Assessment Portal &rarr;</a>
+      </div>
+    </div>
+
+    <div class="kpis" id="kpi-grid"></div>
+
+    <div class="sec-head">
+      <h2>Five Control Planes (Decision 0009)</h2>
+      <span>avd-azure &middot; avd-entra &middot; avd-intune &middot; avd-m365 &middot; avd-power-platform</span>
+    </div>
+    <div class="planes" id="plane-grid"></div>
+
+    <div class="grid-2">
+      <div class="card">
+        <div class="sec-head">
+          <h2>Well-Architected Pillars (C21)</h2>
+          <span id="pillar-summary">Overall: 88% PASS</span>
+        </div>
+        <div class="pillar-list" id="pillar-list"></div>
+      </div>
+
+      <div class="card">
+        <div class="sec-head">
+          <h2>Tier 1 Synthetic Benchmark (C25)</h2>
+          <span id="bench-sku">Standard_D8s_v5 &middot; 26-100 samples</span>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr><th>Metric</th><th>p50</th><th>p90</th><th>p95</th><th>Status</th></tr>
+            </thead>
+            <tbody id="bench-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid-2">
+      <div class="card">
+        <div class="sec-head">
+          <h2>Host Pool Capacity &amp; Session Health (C11)</h2>
+          <span>Pseudonymous pool IDs only</span>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr><th>Pool</th><th>Type / Load</th><th>Hosts (Avail / Total)</th><th>Active Sessions</th><th>Image &amp; Postures</th></tr>
+            </thead>
+            <tbody id="pools-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="sec-head">
+          <h2>Active Findings, Drift &amp; Meter Guard</h2>
+          <span id="findings-count">Top actionable items</span>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr><th>Severity</th><th>Plane / Check</th><th>Finding</th></tr>
+            </thead>
+            <tbody id="findings-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="tab-buddy" class="hidden">
+    <div class="buddy-grid">
+      <div class="phone" aria-label="avd-buddy PWA preview">
+        <div class="phone-bar">
+          <strong>avd-buddy</strong>
+          <span class="badge pass" id="buddy-mode-badge">v1 (Phases A-B)</span>
+        </div>
+        <div class="phone-card">
+          <h3>Operational Guardrails (v1)</h3>
+          <div class="phone-row"><span>Swarm Kill Switch</span><span class="badge pass">ARMED (READY)</span></div>
+          <div class="phone-row"><span>Daily Token Cap</span><span class="mono">$1.40 / $5.00</span></div>
+          <div class="phone-row"><span>Waiting Approvals</span><span class="badge warn">1 Plan Pending</span></div>
+          <div class="phone-row"><span>Last Morning Brief</span><span class="badge pass">06:00Z PASS</span></div>
+        </div>
+        <div class="phone-card hidden" id="buddy-phase-d">
+          <h3>Estate Status (Phase D &middot; Post-v1)</h3>
+          <div class="phone-row"><span>Azure Plane (avd-azure)</span><span class="badge pass">92% PASS</span></div>
+          <div class="phone-row"><span>Entra ID (avd-entra)</span><span class="badge pass">90% PASS</span></div>
+          <div class="phone-row"><span>Intune (avd-intune)</span><span class="badge warn">78% WARN</span></div>
+          <div class="phone-row"><span>M365 &amp; FSLogix (avd-m365)</span><span class="badge pass">88% PASS</span></div>
+          <div class="phone-row"><span>Power Platform</span><span class="badge pass">85% PASS</span></div>
+          <div class="phone-row"><span>Meter Audit</span><span class="badge pass">0 Unapproved Running</span></div>
+          <div class="phone-row"><span>Ask Buddy about findings</span><span class="mono">/status &rarr; Chat</span></div>
+        </div>
+        <div class="phone-nav">
+          <div class="phone-tab">Approve</div>
+          <div class="phone-tab">Chat</div>
+          <div class="phone-tab active">Status</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="sec-head">
+          <h2>avd-buddy Installable Web App Status Roadmap</h2>
+          <span>avd-swarm docs/buddy-app.md</span>
+        </div>
+        <p>Toggle between the <strong>v1 Status screen (Phases A&ndash;B)</strong> and the <strong>Post-v1 Phase D Five-Plane Estate Status</strong> extension specified in <code>avd-ops/avd-swarm</code> (<a href="https://github.com/avd-ops/avd-swarm/pull/81">PR #81</a>).</p>
+        <div class="segmented" role="radiogroup" aria-label="Buddy version toggle">
+          <label><input type="radio" name="buddy-ver" value="v1" checked><span>v1 Status (Kill Switch + Token Cap + Runbooks)</span></label>
+          <label><input type="radio" name="buddy-ver" value="v2"><span>Post-v1 / Phase D (+5-Plane C11/C21 Estate Status)</span></label>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr><th>Capability</th><th>v1 (Phases A&ndash;B)</th><th>Post-v1 (Phase D)</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>Kill switch, daily token cap, waiting approval count</td><td><span class="badge pass">Included</span></td><td><span class="badge pass">Included</span></td></tr>
+              <tr><td>Scheduled runbook outcomes (morning brief, drift check)</td><td><span class="badge pass">Included</span></td><td><span class="badge pass">Included</span></td></tr>
+              <tr><td>5-plane posture cards (<code>azure</code>, <code>entra</code>, <code>intune</code>, <code>m365</code>, <code>power-platform</code>)</td><td><span class="badge neutral">Not in v1</span></td><td><span class="badge pass">GET /api/status (.estate)</span></td></tr>
+              <tr><td>Model token cost to open Status tab</td><td><code>0 tokens</code></td><td><code>0 tokens</code> (deterministic JSON)</td></tr>
+              <tr><td>Estate data persisted in IndexedDB on device</td><td><code>0 bytes</code></td><td><code>0 bytes</code> (memory-only)</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="tab-automation" class="hidden">
+    <div class="grid-2">
+      <div class="card">
+        <div class="sec-head">
+          <h2>Generate Status Report in Cloud Shell / Sandbox</h2>
+          <span>avd-current-state PR #71</span>
+        </div>
+        <p>Run <code>avd_current_state_facts.ps1 -Assess -StatusReport</code> against your sandbox or production subscription to emit both <code>avd-status-&lt;timestamp&gt;.md</code> and a single-file offline <code>avd-status-&lt;timestamp&gt;.html</code> dashboard:</p>
+        <pre><code>git clone https://github.com/avd-ops/avd-current-state.git
+Set-Location avd-current-state
+./avd_current_state_facts.ps1 `
+  -InputDir ./raw `
+  -Output ./facts.json `
+  -Assess `
+  -StatusReport</code></pre>
+      </div>
+
+      <div class="card">
+        <div class="sec-head">
+          <h2>Private Companion Repo Daily Workflow</h2>
+          <span>samples/status-dashboard.yml</span>
+        </div>
+        <p>Copy <code>samples/status-dashboard.yml</code> into <code>.github/workflows/status-dashboard.yml</code> in your private companion repo. Every scheduled or manual run authenticates with read-only OIDC (<code>avd-ops-reader</code>), runs <code>Find-Leak</code>, uploads the offline HTML dashboard artifact, and updates the pinned <code>Status: &lt;environment&gt;</code> GitHub Issue.</p>
+      </div>
+    </div>
+  </section>
+
+  <footer class="disclaimer">
+    <p class="credit">A <a href="https://prignano.ai/">prignano.ai</a> production</p>
+  </footer>
+</main>
+<script src="status.js"></script>
+</body>
+</html>

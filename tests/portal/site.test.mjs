@@ -10,8 +10,8 @@ import { fileURLToPath } from 'node:url';
 
 const root = fileURLToPath(new URL('../../', import.meta.url));
 const read = (f) => readFileSync(join(root, f), 'utf8');
-const pages = ['site/index.html', 'site/portal/index.html'];
-const scripts = ['site/portal/portal-config.js', 'site/portal/assess-catalog.js', 'site/portal/assess-core.js', 'site/portal/portal.js'];
+const pages = ['site/index.html', 'site/portal/index.html', 'site/status/index.html'];
+const scripts = ['site/portal/portal-config.js', 'site/portal/assess-catalog.js', 'site/portal/assess-core.js', 'site/portal/portal.js', 'site/status/status.js'];
 
 test('the notice comes before the step list, and each script carries it', () => {
   const html = read('site/portal/index.html');
@@ -29,14 +29,16 @@ test('the avd-ops design system is vendored at one version and nothing else is l
   assert.ok(base, 'version line');
   assert.equal(v('site/assets/avd-ops-portal.css', /^\/\* avd-ops portal components (v\d+\.\d+\.\d+) /), base);
   for (const [, src] of read('site/assets/avd-ops.css').matchAll(/url\("([^"]+)"\)/g)) assert.ok(existsSync(join(root, 'site/assets', src)), src);
-  const html = read('site/portal/index.html');
-  assert.match(html, /<body class="portal shell">/);
   for (const [f, re] of [['site/assets/avd-ops-shell.css', /^\/\* avd-ops app shell (v\d+\.\d+\.\d+) /], ['site/assets/theme.js', /^\/\* avd-ops theme and drawer (v\d+\.\d+\.\d+) /]]) assert.equal(v(f, re), base, f);
-  assert.doesNotMatch(html, /style="/, 'no inline styles');
-  const style = html.match(/<style>([\s\S]*?)<\/style>/)[1];
-  assert.doesNotMatch(style, /#[0-9a-fA-F]{3,6}\b|:root|@font-face/, 'colors and fonts come from avd-ops.css');
   const defined = new Set([...read('site/assets/avd-ops.css').matchAll(/(--[\w-]+):/g)].map((m) => m[1]));
-  for (const [, t] of style.matchAll(/var\((--[\w-]+)/g)) assert.ok(defined.has(t), `${t} is not an avd-ops token`);
+  for (const page of ['site/portal/index.html', 'site/status/index.html']) {
+    const html = read(page);
+    assert.match(html, /<body class="portal shell">/, page);
+    assert.doesNotMatch(html, /style="/, `${page}: no inline styles`);
+    const style = html.match(/<style>([\s\S]*?)<\/style>/)[1];
+    assert.doesNotMatch(style, /#[0-9a-fA-F]{3,6}\b|:root|@font-face/, `${page}: colors and fonts come from avd-ops.css`);
+    for (const [, t] of style.matchAll(/var\((--[\w-]+)/g)) assert.ok(defined.has(t), `${page}: ${t} is not an avd-ops token`);
+  }
 });
 
 test('no request to another site: every src and stylesheet is local, the scripts never call the network', () => {
