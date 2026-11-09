@@ -138,7 +138,8 @@
                     "inputDelayP95": { "type": "number", "minimum": 0 },
                     "timeToConnectP95": { "type": "number", "minimum": 0 },
                     "fslogixReadIopsP95": { "type": "number", "minimum": 0 },
-                    "connectionFailureRate": { "type": "number", "minimum": 0, "maximum": 100 }
+                    "connectionFailureRate": { "type": "number", "minimum": 0, "maximum": 100 },
+                    "runningHostFloor": { "$ref": "#/$defs/count", "description": "Minimum distinct session hosts reporting heartbeats in every observed hour of the collection window" }
                   }
                 },
                 "entraSso": { "enum": ["enabled", "disabled"] },
@@ -342,7 +343,8 @@
             "properties": {
               "recommendations": { "$ref": "#/$defs/countMap", "description": "Advisor recommendations by category (Cost, HighAvailability, Performance, Security, OperationalExcellence)" },
               "unattachedDisks": { "$ref": "#/$defs/count", "description": "Advisor Cost recommendations for unattached managed disks" },
-              "rightSizeVms": { "$ref": "#/$defs/count", "description": "Advisor Cost recommendations to right-size or shut down underused virtual machines" }
+              "rightSizeVms": { "$ref": "#/$defs/count", "description": "Advisor Cost recommendations to right-size or shut down underused virtual machines" },
+              "commitmentRecommendations": { "$ref": "#/$defs/count", "description": "Advisor Cost recommendations to buy VM reservations or a compute savings plan" }
             }
           }
         }

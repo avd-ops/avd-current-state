@@ -668,6 +668,36 @@ function Measure-AvdInsightsTelemetry {
         }
     }
 
+    $windowAh = @($AgentHealth | Where-Object { $null -ne $_ -and (Test-AvdTelemetryRowInWindow -Row $_ -WindowStartUtc $windowStart -WindowEndUtc $windowEnd -FilterWorkingHours $false) })
+    $runningHostsByHour = @{}
+    foreach ($ah in $windowAh) {
+        $hn = "$(Get-BenchProp $ah 'SessionHostName' '')".Trim()
+        $normHn = (($hn -split '/')[-1] -split '\.')[0].ToLowerInvariant()
+        if ($normHn -eq '') { continue }
+        $rawTs = Get-BenchProp $ah 'TimeGenerated'
+        $hourBucket = 'window'
+        if ($null -ne $rawTs -and "$rawTs".Trim() -ne '') {
+            $parsedTs = [datetime]::MinValue
+            if ($rawTs -is [datetime]) {
+                $hourBucket = $rawTs.ToUniversalTime().ToString('yyyy-MM-ddTHH')
+            } elseif ([datetime]::TryParse("$rawTs", [System.Globalization.CultureInfo]::InvariantCulture, [System.Globalization.DateTimeStyles]::AdjustToUniversal, [ref]$parsedTs)) {
+                $hourBucket = $parsedTs.ToUniversalTime().ToString('yyyy-MM-ddTHH')
+            }
+        }
+        if (-not $runningHostsByHour.ContainsKey($hourBucket)) {
+            $runningHostsByHour[$hourBucket] = New-Object System.Collections.Generic.HashSet[string]
+        }
+        $ahStatus = "$(Get-BenchProp $ah 'Status' (Get-BenchProp $ah 'HealthStatus' ''))".Trim()
+        if ($ahStatus -notin @('Unavailable', 'Shutdown', 'Disconnected', 'Upgrading', 'UpgradeFailed')) {
+            [void]$runningHostsByHour[$hourBucket].Add($normHn)
+        }
+    }
+    $runningHostFloor = if ($runningHostsByHour.Count -gt 0) {
+        [int](($runningHostsByHour.Values | ForEach-Object { $_.Count } | Measure-Object -Minimum).Minimum)
+    } else {
+        $null
+    }
+
     foreach ($r in $filtPerf) {
         # Support both standard Log Analytics Perf rows (ObjectName/CounterName/CounterValue) and pre-projected metric columns
         $objName = "$(Get-BenchProp $r 'ObjectName' '')".Trim()
@@ -759,6 +789,7 @@ function Measure-AvdInsightsTelemetry {
 
     return [ordered]@{
         Metrics            = $metrics
+        RunningHostFloor   = $runningHostFloor
         HostCount          = $hostCount
         SessionCount       = $sessCountFinal
         SampleHostsBand    = Get-AvdSampleBand -Count $hostCount
@@ -816,7 +847,7 @@ function Get-AvdInsightsFact {
     <#
     .SYNOPSIS
     Computes the C11 summary Insights facts (c11.insights.rttP50, rttP95, inputDelayP95, timeToConnectP95,
-    connectionFailureRate, and optional fslogixReadIopsP95) from collected Log Analytics telemetry.
+    connectionFailureRate, runningHostFloor, and optional fslogixReadIopsP95) from collected Log Analytics telemetry.
     Returns $null (omitted / unknown) when Log Analytics telemetry was not collected.
     #>
     param(
@@ -873,7 +904,6 @@ function Get-AvdInsightsFact {
         -WindowDays $WindowDays -WorkingHoursStart $WorkingHoursStart -WorkingHoursEnd $WorkingHoursEnd `
         -WorkingDays $WorkingDays -FilterWorkingHours $FilterWorkingHours -ReferenceTime $ReferenceTime
     $m = $measured.Metrics
-    if ($m.Keys.Count -eq 0) { return $null }
 
     $facts = [ordered]@{}
     if ($null -ne (Get-BenchProp $m 'rttMs')) {
@@ -891,6 +921,9 @@ function Get-AvdInsightsFact {
     }
     if ($null -ne (Get-BenchProp $m 'readIops')) {
         $facts.fslogixReadIopsP95 = Get-BenchProp $m.readIops 'p95'
+    }
+    if ($null -ne $measured.RunningHostFloor) {
+        $facts.runningHostFloor = [int]$measured.RunningHostFloor
     }
     if ($facts.Keys.Count -eq 0) { return $null }
     return $facts

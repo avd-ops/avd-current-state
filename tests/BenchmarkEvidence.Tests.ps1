@@ -284,6 +284,7 @@ Describe 'C11 Summary Insights Facts & Read-Only KQL Queries' {
         $facts.timeToConnectP95 | Should -BeGreaterThan 14000
         $facts.connectionFailureRate | Should -Be 5
         $facts.fslogixReadIopsP95 | Should -BeGreaterThan 35
+        $facts.runningHostFloor | Should -Be 4
     }
 
     It 'integrates with avd_current_state_facts.ps1 when insights/ is present and omits insights when absent' {
@@ -306,6 +307,7 @@ Describe 'C11 Summary Insights Facts & Read-Only KQL Queries' {
         $fx.Connections | ConvertTo-Json -Depth 5 | Set-Content (Join-Path $insDir 'WVDConnections.json')
         $fx.NetworkData | ConvertTo-Json -Depth 5 | Set-Content (Join-Path $insDir 'WVDConnectionNetworkData.json')
         $fx.Perf        | ConvertTo-Json -Depth 5 | Set-Content (Join-Path $insDir 'Perf.json')
+        $fx.AgentHealth | ConvertTo-Json -Depth 5 | Set-Content (Join-Path $insDir 'WVDAgentHealthStatus.json')
 
         $keyPath = Join-Path $TestDrive 'estate.key'
         $outDir = Join-Path $TestDrive 'facts-out'
@@ -317,6 +319,7 @@ Describe 'C11 Summary Insights Facts & Read-Only KQL Queries' {
         $snap.insights.inputDelayP95 | Should -BeLessThan 150
         $snap.insights.timeToConnectP95 | Should -BeGreaterThan 14000
         $snap.insights.connectionFailureRate | Should -Be 5
+        $snap.insights.runningHostFloor | Should -Be 4
     }
 
     It 'builds strictly read-only KQL queries for the four Log Analytics tables' {

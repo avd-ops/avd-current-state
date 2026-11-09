@@ -395,6 +395,8 @@ Describe 'avd_current_state_facts.ps1' {
         properties = @{ category = 'Cost'; impactedField = 'Microsoft.Compute/disks'; impactedValue = 'osdisk-contoso-orphan-01'; shortDescription = @{ problem = 'Delete unattached disks to save money' } } }
       @{ id = "/subscriptions/$($script:subId)/providers/Microsoft.Advisor/recommendations/rec-vm-1"; name = 'rec-vm-1'
         properties = @{ category = 'Cost'; impactedField = 'Microsoft.Compute/virtualMachines'; impactedValue = 'avdhost-0'; shortDescription = @{ problem = 'Right-size or shutdown underutilized virtual machines' } } }
+      @{ id = "/subscriptions/$($script:subId)/providers/Microsoft.Advisor/recommendations/rec-ri-1"; name = 'rec-ri-1'
+        properties = @{ category = 'Cost'; impactedField = 'Microsoft.Compute/reservedInstances'; impactedValue = 'Standard_D4ads_v5'; shortDescription = @{ problem = 'Consider virtual machine reserved instance to save over your on-demand costs' } } }
       @{ id = "/subscriptions/$($script:subId)/providers/Microsoft.Advisor/recommendations/rec-ha-1"; name = 'rec-ha-1'
         properties = @{ category = 'HighAvailability'; impactedField = 'Microsoft.Compute/virtualMachines'; impactedValue = 'avdhost-1' } })
 
@@ -419,10 +421,11 @@ Describe 'avd_current_state_facts.ps1' {
     $hp.sessionHosts.untaggedForCost | Should -Be 0
     $sub.budgets.total | Should -Be 2
     $sub.budgets.withActionGroup | Should -Be 1
-    $sub.advisor.recommendations.Cost | Should -Be 2
+    $sub.advisor.recommendations.Cost | Should -Be 3
     $sub.advisor.recommendations.HighAvailability | Should -Be 1
     $sub.advisor.unattachedDisks | Should -Be 1
     $sub.advisor.rightSizeVms | Should -Be 1
+    $sub.advisor.commitmentRecommendations | Should -Be 1
 
     $rep = $repText | ConvertFrom-Json
     $outcome = @{}; foreach ($row in $rep.results) { $outcome[$row.check] = $row.outcome }
@@ -431,6 +434,7 @@ Describe 'avd_current_state_facts.ps1' {
     $outcome['asm-cost-budget-action-group'] | Should -Be 'pass'
     $outcome['asm-cost-no-unattached-disks'] | Should -Be 'warn'
     $outcome['asm-cost-advisor-rightsize-reviewed'] | Should -Be 'warn'
+    $outcome['asm-cost-commitment-floor-reviewed'] | Should -Be 'warn'
   }
 
   It 'collects DR and security posture facts (zones, backup, replication, gallery replicas, EDR, vulnerabilities, public RDP) without leaking resource names' {

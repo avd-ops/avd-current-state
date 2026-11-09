@@ -3230,6 +3230,28 @@
       ]
     },
     {
+      "id": "c11.advisor.commitmentRecommendations",
+      "tier": "azure",
+      "contract": "C11",
+      "path": "/subscriptions/*/advisor/commitmentRecommendations",
+      "grain": "subscription",
+      "unit": "count",
+      "privacy": "count",
+      "status": "built",
+      "evidences": []
+    },
+    {
+      "id": "c11.insights.runningHostFloor",
+      "tier": "azure",
+      "contract": "C11",
+      "path": "/subscriptions/*/hostPools/*/insights/runningHostFloor",
+      "grain": "hostPool",
+      "unit": "hosts",
+      "privacy": "count",
+      "status": "built",
+      "evidences": []
+    },
+    {
       "id": "intake.userLicense",
       "tier": "intake",
       "contract": "C19",

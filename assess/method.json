@@ -1,6 +1,6 @@
 {
   "schema": "avd-assess-method/v1",
-  "version": 8,
+  "version": 9,
   "factRegister": 1,
   "landingZoneCommit": "ae6e80b574cccde570d0053d4c62b519d31052a8",
   "collection": [
@@ -1419,6 +1419,30 @@
       "property": "properties.shortDescription.problem",
       "claims": [
         "ref:advisor-cost#right-size-or-shutdown-vms",
+        "gap:finops-scope"
+      ]
+    },
+    {
+      "fact": "c11.advisor.commitmentRecommendations",
+      "from": "resource-graph",
+      "table": "AdvisorResources",
+      "type": "microsoft.advisor/recommendations",
+      "property": "properties.shortDescription.problem",
+      "claims": [
+        "ref:advisor-cost#vm-reservations",
+        "ref:advisor-cost#savings-plan",
+        "gap:commitment-floor",
+        "gap:finops-scope"
+      ]
+    },
+    {
+      "fact": "c11.insights.runningHostFloor",
+      "from": "insights",
+      "table": "WVDAgentHealthStatus",
+      "property": "SessionHostName",
+      "claims": [
+        "ref:reservations#hourly-billing-discount",
+        "gap:commitment-floor",
         "gap:finops-scope"
       ]
     },
@@ -3310,6 +3334,38 @@
       "informs": [
         "hostPool.vmSize"
       ],
+      "remediation": {
+        "kind": "manual",
+        "plane": "azure",
+        "code": "process"
+      }
+    },
+    {
+      "id": "asm-cost-commitment-floor-reviewed",
+      "plane": "azure",
+      "title": "Subscriptions review Azure Advisor VM reservation and compute savings plan recommendations against the running-host floor",
+      "pillar": "cost",
+      "severity": "low",
+      "claims": [
+        "ref:reservations#hourly-billing-discount",
+        "ref:advisor-cost#vm-reservations",
+        "ref:advisor-cost#savings-plan",
+        "ref:commitment-choice#right-size-first",
+        "ref:waf-cost-optimization-checklist#CO:05"
+      ],
+      "facts": [
+        "c11.advisor.commitmentRecommendations"
+      ],
+      "rule": {
+        "each": "/subscriptions/*",
+        "expect": {
+          "advisor/commitmentRecommendations": {
+            "max": 0
+          }
+        },
+        "onFail": "warn"
+      },
+      "informs": [],
       "remediation": {
         "kind": "manual",
         "plane": "azure",
