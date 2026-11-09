@@ -9,8 +9,8 @@
 })(typeof self !== 'undefined' ? self : this, function () {
   'use strict';
   return {
-    "method": 8,
-    "assessCommit": "cbbeca7f1040862582d91e96b51003ecbc5cab25",
+    "method": 9,
+    "assessCommit": "59375907c558a6e426b773d3704bd4e268e78db8",
     "landingZoneCommit": "ae6e80b574cccde570d0053d4c62b519d31052a8",
     "checks": {
       "asm-personal-start-vm-on-connect": {
@@ -788,6 +788,24 @@
         "claims": [
           "ref:advisor-cost#right-size-or-shutdown-vms",
           "ref:waf-cost-optimization-checklist#CO:07"
+        ],
+        "remediation": {
+          "kind": "manual",
+          "plane": "azure",
+          "code": "process"
+        }
+      },
+      "asm-cost-commitment-floor-reviewed": {
+        "plane": "azure",
+        "title": "Subscriptions review Azure Advisor VM reservation and compute savings plan recommendations against the running-host floor",
+        "pillar": "cost",
+        "severity": "low",
+        "claims": [
+          "ref:reservations#hourly-billing-discount",
+          "ref:advisor-cost#vm-reservations",
+          "ref:advisor-cost#savings-plan",
+          "ref:commitment-choice#right-size-first",
+          "ref:waf-cost-optimization-checklist#CO:05"
         ],
         "remediation": {
           "kind": "manual",

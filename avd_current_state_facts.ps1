@@ -481,10 +481,18 @@ function Get-SubscriptionFact {
                 "$(Get-PathValue $_ 'properties.impactedField' '')" -match '(?i)virtualMachines$' -or
                 "$(Get-PathValue $_ 'properties.shortDescription.problem' '')" -match '(?i)(right-size|rightsize|underutilized)'
             }).Count
+        $commitmentRecs = @($costRows | Where-Object {
+                "$(Get-PathValue $_ 'properties.impactedField' '')" -match '(?i)(reservedInstances|reservation|savingsPlan)' -or
+                "$(Get-PathValue $_ 'properties.shortDescription.problem' '')" -match '(?i)(reserved instance|reservation|savings plan|virtual machine.*reserved)' -or
+                "$(Get-PathValue $_ 'properties.shortDescription.solution' '')" -match '(?i)(reserved instance|reservation|savings plan)' -or
+                "$(Get-PathValue $_ 'properties.extendedProperties.recommendationType' '')" -match '(?i)(ReservedInstance|SavingsPlan)' -or
+                "$(Get-PathValue $_ 'properties.extendedProperties.reservedResourceType' '')" -ne ''
+            }).Count
         $advisorFact = [ordered]@{
-            recommendations = Get-CountMap @($advRows | ForEach-Object { Get-PathValue $_ 'properties.category' }) '^[A-Za-z]{2,40}$'
-            unattachedDisks = [int]$unattachedDisks
-            rightSizeVms    = [int]$rightSizeVms
+            recommendations           = Get-CountMap @($advRows | ForEach-Object { Get-PathValue $_ 'properties.category' }) '^[A-Za-z]{2,40}$'
+            unattachedDisks           = [int]$unattachedDisks
+            rightSizeVms              = [int]$rightSizeVms
+            commitmentRecommendations = [int]$commitmentRecs
         }
     }
     $fileServices = @{}

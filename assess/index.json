@@ -9370,7 +9370,7 @@
       "id": "scaling-and-start-on-connect-by-default",
       "claim": "ref:avd-autoscale#scales-to-save-cost",
       "verdict": "not-yet-tested",
-      "observed": "The landing zone deploys a power management scaling plan (depth-first ramp-down that stops hosts at zero sessions, without forcing sign-out) and Start VM on Connect on by default, and every resource group and resource carries workload and environment tags. No run has yet compared a month of running hours with the schedule, so the saving is Microsoft's claim, not our evidence. The landing zone doesn't set the cm-resource-parent tag.",
+      "observed": "The landing zone deploys a power management scaling plan (depth-first ramp-down that stops hosts at zero sessions, without forcing sign-out) and Start VM on Connect on by default, every resource group and resource carries workload and environment tags, and session hosts carry cm-resource-parent set to the host pool resource ID. No run has yet compared a month of running hours with the schedule, so the saving is Microsoft's claim, not our evidence.",
       "evidence": [
         "https://github.com/avd-ops/avd-landing-zone/blob/da1464fd59b0a32d7d6921989b6f5c786e19894a/bicep/modules/controlPlane.bicep",
         "https://github.com/avd-ops/avd-landing-zone/blob/da1464fd59b0a32d7d6921989b6f5c786e19894a/bicep/main.bicep"
