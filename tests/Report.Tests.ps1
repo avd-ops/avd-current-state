@@ -220,5 +220,28 @@ Describe 'ConvertTo-AvdcsStatusMarkdown' {
     { ConvertTo-AvdcsStatusMarkdown -Snapshot @{ schema = 'wrong'; estate = 'est-0a1b2c3d' } } | Should -Throw "*avd-current-state-facts/v1*"
     { ConvertTo-AvdcsStatusMarkdown -Snapshot $script:sampleSnapshot -Assessment @{ schema = 'avd-assessment/v1'; estate = 'est-99999999' } } | Should -Throw "*another estate*"
   }
+
+  It 'accepts C11 loadBalancer and sessionHosts.status field names from live collector runs' {
+    $c11Snap = @{
+      schema        = 'avd-estate-facts/v1'
+      estate        = 'est-0a1b2c3d'
+      generatedUtc  = '2026-11-09T18:00:00Z'
+      subscriptions = @(
+        @{
+          id        = 'sub-11223344'
+          hostPools = @(
+            @{
+              id           = 'hp-aabbccdd'
+              type         = 'Pooled'
+              loadBalancer = 'DepthFirst'
+              sessionHosts = @{ total = 2; status = @{ Available = 2; Unavailable = 0 } }
+            }
+          )
+        }
+      )
+    }
+    $md = ConvertTo-AvdcsStatusMarkdown -Snapshot $c11Snap
+    ($md -join "`n") | Should -Match '\| `hp-aabbccdd` \| `sub-11223344` \| Pooled \| DepthFirst \| 2 \| 2 \| PASS \|'
+  }
 }
 

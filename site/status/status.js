@@ -237,17 +237,19 @@
     if (pools.length > 0) {
       data.pools = pools.map(function (hp, idx) {
         var sh = hp.sessionHosts || {};
+        var shStatus = sh.byStatus || sh.status || {};
         var t = Number(sh.total || 0);
-        var a = Number(sh.available || 0);
-        var s = Number(hp.activeSessions || 0);
+        var a = Number(sh.available !== undefined ? sh.available : (shStatus.Available || 0));
+        var s = Number(hp.activeSessions !== undefined ? hp.activeSessions : (sh.sessions || 0));
         totalHosts += t;
         availHosts += a;
         activeSessions += s;
-        var zones = Array.isArray(sh.zones) && sh.zones.length ? ('Zones ' + sh.zones.join(',')) : 'Single/unpinned zone';
+        var zones = Array.isArray(sh.zones) && sh.zones.length ? ('Zones ' + sh.zones.join(',')) : (Number(sh.zones || 0) > 0 ? (sh.zones + ' zone(s)') : 'Single/unpinned zone');
         var edr = Number(sh.edrMissing || 0) === 0 ? 'EDR active' : (sh.edrMissing + ' missing EDR');
+        var lb = String(hp.loadBalancerType || hp.loadBalancer || 'BreadthFirst');
         return {
           id: String(hp.id || ('pool-0' + (idx + 1))),
-          type: String(hp.type || 'Pooled') + ' / ' + String(hp.loadBalancerType || 'BreadthFirst'),
+          type: String(hp.type || 'Pooled') + ' / ' + lb,
           hosts: a + ' / ' + t + ' available',
           sessions: String(s) + ' active',
           posture: zones + ', ' + edr
