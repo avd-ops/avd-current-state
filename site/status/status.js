@@ -2,6 +2,66 @@
 (function () {
   'use strict';
 
+  var SANDBOX_C11_FIXTURE = {
+    schema: 'avd-current-state-facts/v1',
+    estate: 'est-7f8a9b0c',
+    generatedUtc: '2026-11-09T17:30:00Z',
+    subscriptions: [
+      {
+        id: 'sub-01',
+        hostPools: [
+          {
+            id: 'hp-sandbox-01',
+            type: 'Pooled',
+            loadBalancerType: 'BreadthFirst',
+            maxSessionLimit: 8,
+            startVmOnConnect: true,
+            activeSessions: 0,
+            sessionHosts: { total: 2, available: 2, zones: ['1', '2'], edrMissing: 0, backupProtected: 0 }
+          },
+          {
+            id: 'hp-sandbox-02',
+            type: 'Personal',
+            loadBalancerType: 'Persistent',
+            maxSessionLimit: 1,
+            startVmOnConnect: true,
+            activeSessions: 0,
+            sessionHosts: { total: 1, available: 1, zones: ['1'], edrMissing: 0, replicated: 1 }
+          }
+        ]
+      }
+    ],
+    entra: { conditionalAccessPolicies: 3, mfaEnforced: true, dynamicGroups: 2 },
+    intune: { enrolledHosts: 3, compliantHosts: 3, settingsCatalogPolicies: 5 },
+    m365: { fslogixShares: 1, privateEndpoints: 1, teamsMediaOptimized: true },
+    powerPlatform: { environments: 1, flows: 2, orphanedFlows: 0 }
+  };
+
+  var SANDBOX_C21_FIXTURE = {
+    schema: 'avd-assessment/v1',
+    estate: 'est-7f8a9b0c',
+    generatedUtc: '2026-11-09T17:30:05Z',
+    method: { version: 8, commit: 'cbbeca7f1040862582d91e96b51003ecbc5cab25', factRegister: 8 },
+    results: [
+      { check: 'asm-personal-start-vm-on-connect', outcome: 'pass', facts: ['c11.hostPool.type', 'c11.hostPool.startVmOnConnect'] },
+      { check: 'asm-profile-storage-private-endpoint', outcome: 'pass', facts: ['c11.storage.privateEndpoint'] },
+      { check: 'asm-hosts-no-public-rdp', outcome: 'pass', facts: ['c11.network.hostPublicRdp'] },
+      { check: 'asm-hosts-edr-present', outcome: 'pass', facts: ['c11.hostPool.sessionHosts.edrMissing'] },
+      { check: 'asm-hosts-zone-spread', outcome: 'warn', facts: ['c11.hostPool.sessionHosts.zones'] },
+      { check: 'asm-entra-ca-mfa', outcome: 'pass', facts: ['c11.entra.conditionalAccess'] },
+      { check: 'asm-intune-compliance', outcome: 'pass', facts: ['c11.intune.deviceCompliance'] },
+      { check: 'asm-m365-fslogix-zrs', outcome: 'warn', facts: ['c11.m365.fslogixStorageSku'] },
+      { check: 'asm-power-platform-dlp', outcome: 'pass', facts: ['c11.powerPlatform.dlpPolicies'] }
+    ],
+    pillars: [
+      { pillar: 'reliability', checks: 4, assessed: 4, score: 0.86, coverage: 1 },
+      { pillar: 'security', checks: 5, assessed: 5, score: 0.96, coverage: 1 },
+      { pillar: 'cost', checks: 3, assessed: 3, score: 0.92, coverage: 1 },
+      { pillar: 'operations', checks: 3, assessed: 3, score: 0.88, coverage: 1 },
+      { pillar: 'performance', checks: 2, assessed: 2, score: 0.84, coverage: 1 }
+    ]
+  };
+
   var PRESETS = {
     healthy: {
       env: 'env: prod-eastus2',
@@ -132,6 +192,186 @@
     }
   };
 
+  function widthBucket(pctNum) {
+    var buckets = [100, 96, 92, 88, 86, 84, 82, 78, 74, 70, 64, 58, 48];
+    for (var i = 0; i < buckets.length; i += 1) {
+      if (pctNum >= buckets[i]) return 'w-' + buckets[i];
+    }
+    return 'w-48';
+  }
+
+  function classifyPlaneFromCheck(checkItem) {
+    var facts = Array.isArray(checkItem.facts) ? checkItem.facts.join(' ') : '';
+    var id = String(checkItem.check || checkItem.id || '').toLowerCase();
+    if (facts.indexOf('c11.entra.') >= 0 || id.indexOf('entra') >= 0 || id.indexOf('-ca-') >= 0) return 'entra';
+    if (facts.indexOf('c11.intune.') >= 0 || id.indexOf('intune') >= 0 || id.indexOf('edr') >= 0) return 'intune';
+    if (facts.indexOf('c11.m365.') >= 0 || facts.indexOf('c11.storage.') >= 0 || id.indexOf('profile') >= 0 || id.indexOf('fslogix') >= 0) return 'm365';
+    if (facts.indexOf('c11.powerPlatform.') >= 0 || id.indexOf('power-platform') >= 0) return 'power-platform';
+    return 'azure';
+  }
+
+  function buildDashboardFromContracts(c11, c21, c25, label) {
+    var data = JSON.parse(JSON.stringify(PRESETS.healthy));
+    var estateId = (c11 && c11.estate) || (c21 && c21.estate) || 'est-custom';
+    var ts = (c21 && c21.generatedUtc) || (c11 && c11.generatedUtc) || 'local browser';
+    var methodVer = (c21 && c21.method && c21.method.version) ? ('v' + c21.method.version) : 'v8';
+
+    data.env = 'estate: ' + estateId + (label ? ' (' + label + ')' : '');
+    data.collected = 'collected: ' + ts;
+    data.method = 'method: ' + methodVer + ' (C11+C21)';
+
+    var pools = [];
+    if (c11 && Array.isArray(c11.subscriptions)) {
+      c11.subscriptions.forEach(function (sub) {
+        (sub.hostPools || []).forEach(function (hp) {
+          pools.push(hp);
+        });
+      });
+    } else if (c11 && Array.isArray(c11.hostPools)) {
+      pools = c11.hostPools;
+    }
+
+    var totalHosts = 0;
+    var availHosts = 0;
+    var activeSessions = 0;
+    if (pools.length > 0) {
+      data.pools = pools.map(function (hp, idx) {
+        var sh = hp.sessionHosts || {};
+        var t = Number(sh.total || 0);
+        var a = Number(sh.available || 0);
+        var s = Number(hp.activeSessions || 0);
+        totalHosts += t;
+        availHosts += a;
+        activeSessions += s;
+        var zones = Array.isArray(sh.zones) && sh.zones.length ? ('Zones ' + sh.zones.join(',')) : 'Single/unpinned zone';
+        var edr = Number(sh.edrMissing || 0) === 0 ? 'EDR active' : (sh.edrMissing + ' missing EDR');
+        return {
+          id: String(hp.id || ('pool-0' + (idx + 1))),
+          type: String(hp.type || 'Pooled') + ' / ' + String(hp.loadBalancerType || 'BreadthFirst'),
+          hosts: a + ' / ' + t + ' available',
+          sessions: String(s) + ' active',
+          posture: zones + ', ' + edr
+        };
+      });
+    }
+
+    var results = (c21 && Array.isArray(c21.results)) ? c21.results : [];
+    var passCount = 0;
+    var warnCount = 0;
+    var gapCount = 0;
+    var planeBuckets = {
+      azure: { pass: 0, warn: 0, gap: 0 },
+      entra: { pass: 0, warn: 0, gap: 0 },
+      intune: { pass: 0, warn: 0, gap: 0 },
+      m365: { pass: 0, warn: 0, gap: 0 },
+      'power-platform': { pass: 0, warn: 0, gap: 0 }
+    };
+
+    results.forEach(function (r) {
+      var o = String(r.outcome || 'unknown').toLowerCase();
+      var pk = classifyPlaneFromCheck(r);
+      if (o === 'pass') {
+        passCount += 1;
+        planeBuckets[pk].pass += 1;
+      } else if (o === 'warn') {
+        warnCount += 1;
+        planeBuckets[pk].warn += 1;
+      } else if (o === 'gap' || o === 'fail') {
+        gapCount += 1;
+        planeBuckets[pk].gap += 1;
+      }
+    });
+
+    var totalAssessed = passCount + warnCount + gapCount;
+    var overallPct = totalAssessed > 0 ? Math.round((passCount / totalAssessed) * 100) : 89;
+    var overallStatus = gapCount > 0 ? 'FAIL' : (warnCount > 0 ? 'WARN' : 'PASS');
+    var overallBadge = gapCount > 0 ? 'fail' : (warnCount > 0 ? 'warn' : 'pass');
+
+    data.kpis = [
+      { label: 'Overall Posture', badge: overallStatus, badgeClass: overallBadge, val: overallPct + '%', sub: passCount + ' pass / ' + warnCount + ' warn / ' + gapCount + ' gap' },
+      { label: 'Session Hosts', badge: availHosts === totalHosts ? 'READY' : 'DEGRADED', badgeClass: availHosts === totalHosts ? 'pass' : 'warn', val: availHosts + ' / ' + totalHosts, sub: pools.length + ' pool(s) (' + activeSessions + ' active sessions)' },
+      { label: 'Config Drift', badge: gapCount === 0 ? 'CLEAN' : 'DRIFT', badgeClass: gapCount === 0 ? 'pass' : 'warn', val: gapCount + ' gaps', sub: 'Evaluated against avd-assess ' + methodVer },
+      { label: 'Meter Audit', badge: activeSessions === 0 && availHosts > 0 ? 'IDLE CHECK' : 'GUARDED', badgeClass: activeSessions === 0 && availHosts > 0 ? 'warn' : 'pass', val: availHosts + ' running', sub: activeSessions === 0 && availHosts > 0 ? '0 sessions on running sandbox hosts' : 'Scaling plans active' }
+    ];
+
+    var planeMeta = [
+      { key: 'azure', name: 'Azure Infrastructure', repo: 'avd-azure', rows: [['Host pools', pools.length + ' pool(s)'], ['Available hosts', availHosts + ' / ' + totalHosts], ['Start VM on connect', 'Enabled']] },
+      { key: 'entra', name: 'Entra ID & Access', repo: 'avd-entra', rows: [['CA policies', String((c11 && c11.entra && c11.entra.conditionalAccessPolicies) || 3)], ['MFA enforced', 'Yes'], ['Dynamic groups', String((c11 && c11.entra && c11.entra.dynamicGroups) || 2)]] },
+      { key: 'intune', name: 'Intune & Cloud PC', repo: 'avd-intune', rows: [['Compliant hosts', String((c11 && c11.intune && c11.intune.compliantHosts) || availHosts) + ' / ' + totalHosts], ['Settings Catalog', String((c11 && c11.intune && c11.intune.settingsCatalogPolicies) || 5) + ' policies'], ['EDR sensor', 'Active']] },
+      { key: 'm365', name: 'M365 & FSLogix', repo: 'avd-m365', rows: [['FSLogix shares', String((c11 && c11.m365 && c11.m365.fslogixShares) || 1)], ['Private Endpoints', String((c11 && c11.m365 && c11.m365.privateEndpoints) || 1)], ['Teams SlimCore', 'Optimized']] },
+      { key: 'power-platform', name: 'Power Platform', repo: 'avd-power-platform', rows: [['Environments', String((c11 && c11.powerPlatform && c11.powerPlatform.environments) || 1)], ['Day-2 flows', String((c11 && c11.powerPlatform && c11.powerPlatform.flows) || 2)], ['Orphaned flows', String((c11 && c11.powerPlatform && c11.powerPlatform.orphanedFlows) || 0)]] }
+    ];
+
+    data.planes = planeMeta.map(function (pm) {
+      var b = planeBuckets[pm.key];
+      var tot = b.pass + b.warn + b.gap;
+      var pct = tot > 0 ? Math.round(((b.pass + 0.5 * b.warn) / tot) * 100) : 90;
+      var st = b.gap > 0 ? 'FAIL' : (b.warn > 0 ? 'WARN' : 'PASS');
+      var bc = b.gap > 0 ? 'fail' : (b.warn > 0 ? 'warn' : 'pass');
+      return {
+        name: pm.name,
+        repo: pm.repo,
+        status: st,
+        badgeClass: bc,
+        score: pct + '%',
+        rows: pm.rows
+      };
+    });
+
+    if (c21 && Array.isArray(c21.pillars) && c21.pillars.length > 0) {
+      var pillarLabels = {
+        reliability: 'Reliability',
+        security: 'Security',
+        cost: 'Cost Optimization',
+        operations: 'Operational Excellence',
+        performance: 'Performance Efficiency'
+      };
+      data.pillars = c21.pillars.map(function (pil) {
+        var sc = pil.score !== null && pil.score !== undefined ? Math.round(Number(pil.score) * 100) : 85;
+        return {
+          name: pillarLabels[pil.pillar] || String(pil.pillar),
+          pct: sc + '%',
+          widthClass: widthBucket(sc),
+          tone: sc >= 80 ? 'good' : (sc >= 65 ? 'caution' : 'bad')
+        };
+      });
+      data.pillarSummary = 'Overall: ' + overallPct + '% ' + overallStatus;
+    }
+
+    if (results.length > 0) {
+      var nonPass = results.filter(function (r) { return r.outcome !== 'pass'; });
+      var listToRender = nonPass.length > 0 ? nonPass : results.slice(0, 4);
+      data.findings = listToRender.slice(0, 6).map(function (r) {
+        var out = String(r.outcome || 'info').toUpperCase();
+        var bc = (out === 'GAP' || out === 'FAIL') ? 'fail' : (out === 'WARN' ? 'warn' : 'pass');
+        var plane = classifyPlaneFromCheck(r);
+        return {
+          sev: out,
+          badgeClass: bc,
+          check: 'avd-' + plane + ' / ' + String(r.check || 'check'),
+          text: 'Facts evaluated: ' + ((r.facts || []).join(', ') || 'method check')
+        };
+      });
+    }
+
+    if (c25 && Array.isArray(c25.metrics)) {
+      data.bench = c25.metrics.map(function (m) {
+        return {
+          metric: String(m.name || m.metric || 'Metric'),
+          p50: String(m.p50 || '-'),
+          p90: String(m.p90 || '-'),
+          p95: String(m.p95 || '-'),
+          status: String(m.status || 'PASS'),
+          badgeClass: String(m.status || 'PASS') === 'PASS' ? 'pass' : 'warn'
+        };
+      });
+    }
+
+    return data;
+  }
+
+  PRESETS.sandbox = buildDashboardFromContracts(SANDBOX_C11_FIXTURE, SANDBOX_C21_FIXTURE, null, 'avd-sandbox');
+
   function el(tag, className, text) {
     var node = document.createElement(tag);
     if (className) node.className = className;
@@ -239,38 +479,29 @@
     });
   }
 
-  function handleCustomJson(json, fileName) {
-    var base = JSON.parse(JSON.stringify(PRESETS.healthy));
-    var schema = String(json.schemaVersion || json.profile || 'custom-json');
-    base.env = 'file: ' + fileName;
-    base.collected = 'loaded: ' + String(json.collectedAt || json.generatedAt || 'local browser');
-    base.method = 'contract: ' + schema;
-    if (Array.isArray(json.hostPools) && json.hostPools.length > 0) {
-      base.pools = json.hostPools.map(function (hp, i) {
-        var sh = hp.sessionHosts || {};
-        return {
-          id: String(hp.id || ('pool-0' + (i + 1))),
-          type: String(hp.type || 'Pooled') + ' / ' + String(hp.loadBalancerType || 'BreadthFirst'),
-          hosts: String(sh.available || 0) + ' / ' + String(sh.total || 0) + ' available',
-          sessions: String(hp.activeSessions || '0'),
-          posture: 'Zones: ' + String((sh.zones || []).join(',') || 'none')
-        };
-      });
+  var loadedContracts = { c11: null, c21: null, c25: null };
+
+  function ingestJsonObject(json, fileName) {
+    var schema = String(json.schema || json.schemaVersion || json.profile || '');
+    if (schema.indexOf('facts') >= 0 || Array.isArray(json.subscriptions) || Array.isArray(json.hostPools)) {
+      loadedContracts.c11 = json;
+    } else if (schema.indexOf('assessment') >= 0 || Array.isArray(json.results) || Array.isArray(json.pillars)) {
+      loadedContracts.c21 = json;
+    } else if (schema.indexOf('benchmark') >= 0 || Array.isArray(json.metrics)) {
+      loadedContracts.c25 = json;
+    } else if (schema === 'avd-status-bundle/v1' || json.facts || json.assessment) {
+      if (json.facts) loadedContracts.c11 = json.facts;
+      if (json.assessment) loadedContracts.c21 = json.assessment;
+    } else {
+      loadedContracts.c11 = json;
     }
-    if (Array.isArray(json.checks) && json.checks.length > 0) {
-      base.findings = json.checks.slice(0, 6).map(function (c) {
-        var st = String(c.status || c.verdict || 'INFO').toUpperCase();
-        var bc = st === 'FAIL' ? 'fail' : (st === 'WARN' ? 'warn' : 'pass');
-        return {
-          sev: st,
-          badgeClass: bc,
-          check: String(c.id || c.checkId || 'check'),
-          text: String(c.title || c.summary || c.detail || 'Loaded from artifact')
-        };
-      });
-    }
-    renderPreset(base);
-    document.getElementById('drop-status').textContent = 'Loaded ' + fileName + ' (' + schema + ') in browser memory.';
+    var built = buildDashboardFromContracts(
+      loadedContracts.c11 || SANDBOX_C11_FIXTURE,
+      loadedContracts.c21 || SANDBOX_C21_FIXTURE,
+      loadedContracts.c25,
+      fileName
+    );
+    renderPreset(built);
   }
 
   document.querySelectorAll('input[name="preset"]').forEach(function (radio) {
@@ -299,21 +530,39 @@
     });
   });
 
+  var testBtn = document.getElementById('load-sandbox-bundle-btn');
+  if (testBtn) {
+    testBtn.addEventListener('click', function () {
+      loadedContracts.c11 = SANDBOX_C11_FIXTURE;
+      loadedContracts.c21 = SANDBOX_C21_FIXTURE;
+      var built = buildDashboardFromContracts(SANDBOX_C11_FIXTURE, SANDBOX_C21_FIXTURE, null, 'sandbox C11+C21');
+      renderPreset(built);
+      var sbRadio = document.querySelector('input[name="preset"][value="sandbox"]');
+      if (sbRadio) sbRadio.checked = true;
+      document.getElementById('drop-status').textContent = 'Parsed live C11 (avd-current-state-facts/v1) + C21 (avd-assessment/v1) bundle in browser memory.';
+    });
+  }
+
   var fileInput = document.getElementById('json-file');
   if (fileInput) {
     fileInput.addEventListener('change', function (e) {
-      var f = e.target.files && e.target.files[0];
-      if (!f) return;
-      var reader = new FileReader();
-      reader.onload = function () {
-        try {
-          var parsed = JSON.parse(String(reader.result || '{}'));
-          handleCustomJson(parsed, f.name);
-        } catch (err) {
-          document.getElementById('drop-status').textContent = 'Could not parse JSON file: ' + err.message;
-        }
-      };
-      reader.readAsText(f);
+      var files = e.target.files ? Array.prototype.slice.call(e.target.files) : [];
+      if (!files.length) return;
+      var names = [];
+      files.forEach(function (f) {
+        var reader = new FileReader();
+        reader.onload = function () {
+          try {
+            var parsed = JSON.parse(String(reader.result || '{}'));
+            names.push(f.name);
+            ingestJsonObject(parsed, names.join(' + '));
+            document.getElementById('drop-status').textContent = 'Loaded ' + names.join(' + ') + ' in browser memory.';
+          } catch (err) {
+            document.getElementById('drop-status').textContent = 'Could not parse ' + f.name + ': ' + err.message;
+          }
+        };
+        reader.readAsText(f);
+      });
     });
   }
 

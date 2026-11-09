@@ -48,7 +48,7 @@
   .meter-fill.good{background:var(--good)}
   .meter-fill.caution{background:var(--caution)}
   .meter-fill.bad{background:var(--bad)}
-  .w-96{width:96%}.w-92{width:92%}.w-88{width:88%}.w-86{width:86%}.w-84{width:84%}.w-82{width:82%}.w-78{width:78%}.w-74{width:74%}.w-70{width:70%}.w-64{width:64%}.w-58{width:58%}.w-48{width:48%}
+  .w-100{width:100%}.w-96{width:96%}.w-92{width:92%}.w-88{width:88%}.w-86{width:86%}.w-84{width:84%}.w-82{width:82%}.w-78{width:78%}.w-74{width:74%}.w-70{width:70%}.w-64{width:64%}.w-58{width:58%}.w-48{width:48%}
   .drop-panel{margin-bottom:var(--space-5)}
   .drop-row{display:flex;flex-wrap:wrap;gap:var(--space-3);align-items:center}
   .drop-row .filedrop{flex:1 1 18rem}
@@ -87,7 +87,7 @@
     <div>
       <div class="eyebrow">Five-plane operational posture &middot; Contracts C11 + C21 + C25</div>
       <h1 id="page-title">AVD Estate Status Dashboard</h1>
-      <p>Read-only operational status across Azure, Entra ID, Intune, Microsoft 365, and Power Platform. Switch between synthetic presets, drop your own redacted <code>C11</code>/<code>C21</code>/<code>C25</code> JSON artifacts, or preview the <code>avd-buddy</code> PWA status view.</p>
+      <p>Read-only operational status across Azure, Entra ID, Intune, Microsoft 365, and Power Platform. Switch between synthetic presets, drop your own redacted <code>C11</code>/<code>C21</code>/<code>C25</code> JSON artifacts from <code>avd-sandbox</code>, or preview the <code>avd-buddy</code> PWA status view.</p>
     </div>
     <div class="chips" id="meta-chips">
       <span class="chip" id="chip-env">env: prod-eastus2</span>
@@ -104,6 +104,7 @@
     </div>
     <div class="segmented" role="radiogroup" aria-label="Sample estate preset" id="preset-group">
       <label><input type="radio" name="preset" value="healthy" checked><span>Healthy Prod</span></label>
+      <label><input type="radio" name="preset" value="sandbox"><span>avd-sandbox (C11+C21)</span></label>
       <label><input type="radio" name="preset" value="drift"><span>Config Drift</span></label>
       <label><input type="radio" name="preset" value="meter"><span>Meter Alert</span></label>
     </div>
@@ -113,10 +114,11 @@
     <div class="card drop-panel">
       <div class="drop-row">
         <label class="filedrop" for="json-file">
-          <input type="file" id="json-file" accept=".json,application/json">
-          <strong>Load a redacted C11, C21, or C25 JSON file</strong>
-          <span class="muted" id="drop-status">Or explore the built-in synthetic presets above.</span>
+          <input type="file" id="json-file" accept=".json,application/json" multiple>
+          <strong>Drop redacted C11 (facts) + C21 (assessment) + C25 (benchmark) JSON files</strong>
+          <span class="muted" id="drop-status">Select one or more JSON files from your avd-sandbox run, or click "Test C11+C21 Parser" to run the parser on a live C11+C21 bundle.</span>
         </label>
+        <button type="button" class="cta" id="load-sandbox-bundle-btn">Test C11+C21 Parser</button>
         <a class="cta ghost" href="../portal/">Open 5-Stage Assessment Portal &rarr;</a>
       </div>
     </div>
@@ -223,7 +225,7 @@
           <h2>avd-buddy Installable Web App Status Roadmap</h2>
           <span>avd-swarm docs/buddy-app.md</span>
         </div>
-        <p>Toggle between the <strong>v1 Status screen (Phases A&ndash;B)</strong> and the <strong>Post-v1 Phase D Five-Plane Estate Status</strong> extension specified in <code>avd-ops/avd-swarm</code> (<a href="https://github.com/avd-ops/avd-swarm/pull/81">PR #81</a>).</p>
+        <p>Toggle between the <strong>v1 Status screen (Phases A&ndash;B)</strong> and the <strong>Post-v1 Phase D Five-Plane Estate Status</strong> extension in <code>avd-ops/avd-swarm</code> (<a href="https://buddy.avd-ops.dev/">buddy.avd-ops.dev</a>).</p>
         <div class="segmented" role="radiogroup" aria-label="Buddy version toggle">
           <label><input type="radio" name="buddy-ver" value="v1" checked><span>v1 Status (Kill Switch + Token Cap + Runbooks)</span></label>
           <label><input type="radio" name="buddy-ver" value="v2"><span>Post-v1 / Phase D (+5-Plane C11/C21 Estate Status)</span></label>
@@ -250,17 +252,17 @@
     <div class="grid-2">
       <div class="card">
         <div class="sec-head">
-          <h2>Generate Status Report in Cloud Shell / Sandbox</h2>
+          <h2>Generate Status Snapshot in Cloud Shell (avd-sandbox)</h2>
           <span>avd-current-state PR #71</span>
         </div>
-        <p>Run <code>avd_current_state_facts.ps1 -Assess -StatusReport</code> against your sandbox or production subscription to emit both <code>avd-status-&lt;timestamp&gt;.md</code> and a single-file offline <code>avd-status-&lt;timestamp&gt;.html</code> dashboard:</p>
-        <pre><code>git clone https://github.com/avd-ops/avd-current-state.git
-Set-Location avd-current-state
-./avd_current_state_facts.ps1 `
-  -InputDir ./raw `
-  -Output ./facts.json `
-  -Assess `
-  -StatusReport</code></pre>
+        <p>Run this standalone block in Azure Cloud Shell (PowerShell) against your <code>avd-sandbox</code> subscription ($0 spend, read-only). Download the emitted <code>avd-current-state-facts-*.json</code> and <code>avd-assessment-*.json</code> files and drop them onto Tab 1:</p>
+        <pre><code>if (-not (Test-Path ~/avd-current-state)) { git clone https://github.com/avd-ops/avd-current-state.git ~/avd-current-state }
+Set-Location ~/avd-current-state; git checkout -q main; git pull -q --ff-only
+$out = Join-Path $HOME "clouddrive/avd-status-run"
+New-Item -ItemType Directory -Path $out -Force | Out-Null
+./avd_current_state_collector.ps1 -OutputDirectory (Join-Path $out "pkg")
+$pkg = Get-ChildItem (Join-Path $out "pkg") -Directory | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+./avd_current_state_facts.ps1 -PackagePath $pkg.FullName -KeyPath (Join-Path $out "estate.key") -NewKey -OutputPath $out -Assess -StatusReport</code></pre>
       </div>
 
       <div class="card">

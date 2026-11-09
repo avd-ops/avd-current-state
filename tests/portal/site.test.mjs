@@ -144,3 +144,14 @@ test('the portal is a wizard: every step has its screen, a title and one purpose
   assert.equal([...html.matchAll(/<section class="wz-stage/g)].length, steps.length, 'one screen per step');
   for (const s of ['settings-panel', 'report-panel']) assert.match(html, new RegExp(`<section class="sheet hidden" id="${s}" role="dialog" aria-modal="true"`), s);
 });
+
+test('the status dashboard parses C11+C21+C25 contracts and provides the avd-sandbox preset', () => {
+  const html = read('site/status/index.html');
+  const js = read('site/status/status.js');
+  assert.match(html, /id="load-sandbox-bundle-btn"/);
+  assert.match(html, /value="sandbox"/);
+  assert.match(js, /function buildDashboardFromContracts\(/);
+  assert.match(js, /avd-current-state-facts\/v1/);
+  assert.match(js, /avd-assessment\/v1/);
+  assert.match(js, /avd-status-bundle\/v1/);
+});

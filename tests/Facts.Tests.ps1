@@ -237,20 +237,25 @@ Describe 'avd_current_state_facts.ps1' {
     ($log | Where-Object { $_ -like '*AVDCS-STATE*' }) | Should -Match ([regex]::Escape(('"assessment":"{0}"' -f $report.Name)))
   }
 
-  It 'with -Assess -StatusReport, writes redacted avd-status Markdown and HTML files beside the snapshot' {
+  It 'with -Assess -StatusReport, writes redacted avd-status Markdown, HTML and JSON bundle files beside the snapshot' {
     $out = Join-Path $TestDrive 'assess_status'
     & $script:facts -PackagePath $script:pk -KeyPath $script:key -OutputPath $out -Assess -StatusReport 6>&1 | Out-Null
     $mdFile = @(Get-ChildItem $out -Filter 'avd-status-*.md')
     $htmlFile = @(Get-ChildItem $out -Filter 'avd-status-*.html')
+    $jsonFile = @(Get-ChildItem $out -Filter 'avd-status-*.json')
     $mdFile.Count | Should -Be 1
     $htmlFile.Count | Should -Be 1
+    $jsonFile.Count | Should -Be 1
     $mdText = Get-Content $mdFile[0].FullName -Raw
     $htmlText = Get-Content $htmlFile[0].FullName -Raw
+    $jsonText = Get-Content $jsonFile[0].FullName -Raw
     $mdText | Should -Match '# AVD Estate Status'
     $htmlText | Should -Match '<title>AVD Estate Status \| avd-current-state</title>'
+    $jsonText | Should -Match '"avd-status-bundle/v1"'
     foreach ($x in $script:secrets) {
       $mdText | Should -Not -Match ([regex]::Escape($x))
       $htmlText | Should -Not -Match ([regex]::Escape($x))
+      $jsonText | Should -Not -Match ([regex]::Escape($x))
     }
   }
 
