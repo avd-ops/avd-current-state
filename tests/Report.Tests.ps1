@@ -151,3 +151,74 @@ Describe 'Get-AvdcsMermaidTheme' {
     )
   }
 }
+
+Describe 'ConvertTo-AvdcsStatusMarkdown' {
+  BeforeAll {
+    $script:sampleSnapshot = [ordered]@{
+      schema          = 'avd-current-state-facts/v1'
+      estate          = 'est-0a1b2c3d'
+      generatedUtc    = '2026-11-09T14:00:00Z'
+      planesCollected = [ordered]@{
+        azure            = @{ status = 'collected' }
+        entra            = @{ status = 'collected' }
+        intune           = @{ status = 'collected' }
+        m365             = @{ status = 'partial'; reason = 'teams-ps-unavailable' }
+        'power-platform' = @{ status = 'skipped'; reason = 'not-selected' }
+      }
+      subscriptions   = @(
+        [ordered]@{
+          id        = 'sub-11223344'
+          hostPools = @(
+            [ordered]@{
+              id               = 'hp-aabbccdd'
+              type             = 'Pooled'
+              loadBalancerType = 'BreadthFirst'
+              sessionHosts     = @{ total = 4; byStatus = @{ Available = 4; Unavailable = 0 } }
+            }
+          )
+        }
+      )
+      validations     = @()
+    }
+    $script:sampleAssessment = [ordered]@{
+      schema    = 'avd-assessment/v1'
+      estate    = 'est-0a1b2c3d'
+      planes    = [ordered]@{
+        azure            = @{ checks = 10; assessed = 10; score = 0.95; gap = 0; warn = 1 }
+        entra            = @{ checks = 4; assessed = 4; score = 1.0; gap = 0; warn = 0 }
+        intune           = @{ checks = 3; assessed = 3; score = 1.0; gap = 0; warn = 0 }
+        m365             = @{ checks = 2; assessed = 1; score = 0.8; gap = 0; warn = 1 }
+        'power-platform' = @{ checks = 2; assessed = 0; score = $null; gap = 0; warn = 0 }
+      }
+      pillars   = @(
+        @{ pillar = 'reliability'; checks = 10; assessed = 10; coverage = 1.0; score = 0.95 }
+      )
+      results   = @(
+        @{ check = 'asm-files-zone-redundant'; outcome = 'warn'; subjects = @(@{ id = 'st-12345678' }) }
+      )
+      decisions = @(
+        @{ decision = 'hostPool.type'; readiness = 'decidable'; status = 'supported' }
+      )
+    }
+  }
+
+  It 'renders five control planes, pillars, findings, decisions and host pools into Markdown and strict-CSP HTML' {
+    $md = ConvertTo-AvdcsStatusMarkdown -Snapshot $script:sampleSnapshot -Assessment $script:sampleAssessment
+    ($md -join "`n") | Should -Match '\*\*Overall: READY WITH WARNINGS\*\*'
+    ($md -join "`n") | Should -Match '\| `azure` \| collected \| 10 / 10 \| 95% \| WARN \|'
+    ($md -join "`n") | Should -Match '\| `m365` \| partial \(teams-ps-unavailable\) \| 1 / 2 \| 80% \| WARN \|'
+    ($md -join "`n") | Should -Match '\| WARN \| `asm-files-zone-redundant` \| `st-12345678` \|'
+    ($md -join "`n") | Should -Match '\| `hp-aabbccdd` \| `sub-11223344` \| Pooled \| BreadthFirst \| 4 \| 4 \| PASS \|'
+
+    $html = ConvertTo-AvdcsReportHtml -Markdown $md -Asset $script:asset -Kind 'Estate status'
+    $html | Should -Match '<title>AVD Estate Status \| avd-current-state</title>'
+    $html | Should -Match '<div class="verdict v-caution" role="status"><span><span class="lbl">Overall</span><br>READY WITH WARNINGS</span></div>'
+    $html | Should -Not -Match '<script'
+  }
+
+  It 'refuses an invalid snapshot schema or mismatched assessment estate' {
+    { ConvertTo-AvdcsStatusMarkdown -Snapshot @{ schema = 'wrong'; estate = 'est-0a1b2c3d' } } | Should -Throw "*avd-current-state-facts/v1*"
+    { ConvertTo-AvdcsStatusMarkdown -Snapshot $script:sampleSnapshot -Assessment @{ schema = 'avd-assessment/v1'; estate = 'est-99999999' } } | Should -Throw "*another estate*"
+  }
+}
+

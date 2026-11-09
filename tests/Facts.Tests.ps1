@@ -237,6 +237,23 @@ Describe 'avd_current_state_facts.ps1' {
     ($log | Where-Object { $_ -like '*AVDCS-STATE*' }) | Should -Match ([regex]::Escape(('"assessment":"{0}"' -f $report.Name)))
   }
 
+  It 'with -Assess -StatusReport, writes redacted avd-status Markdown and HTML files beside the snapshot' {
+    $out = Join-Path $TestDrive 'assess_status'
+    & $script:facts -PackagePath $script:pk -KeyPath $script:key -OutputPath $out -Assess -StatusReport 6>&1 | Out-Null
+    $mdFile = @(Get-ChildItem $out -Filter 'avd-status-*.md')
+    $htmlFile = @(Get-ChildItem $out -Filter 'avd-status-*.html')
+    $mdFile.Count | Should -Be 1
+    $htmlFile.Count | Should -Be 1
+    $mdText = Get-Content $mdFile[0].FullName -Raw
+    $htmlText = Get-Content $htmlFile[0].FullName -Raw
+    $mdText | Should -Match '# AVD Estate Status'
+    $htmlText | Should -Match '<title>AVD Estate Status \| avd-current-state</title>'
+    foreach ($x in $script:secrets) {
+      $mdText | Should -Not -Match ([regex]::Escape($x))
+      $htmlText | Should -Not -Match ([regex]::Escape($x))
+    }
+  }
+
   It 'with -Assess and an intake for the estate, answers the decisions that need it' {
     $intake = Get-Content (Join-Path $script:root 'tests/portal/fixtures/intake.json') -Raw | ConvertFrom-Json
     $intake.estate = $script:run.Data.estate
