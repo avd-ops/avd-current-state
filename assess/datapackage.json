@@ -3,7 +3,7 @@
   "name": "avd-assess",
   "title": "avd-assess: the AVD assessment map",
   "version": "2.3.0",
-  "created": "2026-11-09T21:58:47+00:00",
+  "created": "2026-11-09T16:29:37-06:00",
   "homepage": "https://github.com/avd-ops/avd-assess",
   "description": "Personal project, not for production, as is; not affiliated with the author's employer, Liquidware or Microsoft.",
   "licenses": [
@@ -19,7 +19,7 @@
     }
   ],
   "avdAssess": {
-    "commit": "19b9c7e23d4975a6789ea82c3ca3dcb6ec507291",
+    "commit": "59375907c558a6e426b773d3704bd4e268e78db8",
     "tag": "v2.3.0",
     "profile": "avd-assess-bundle/v1"
   },

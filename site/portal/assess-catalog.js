@@ -10,7 +10,7 @@
   'use strict';
   return {
     "method": 9,
-    "assessCommit": "19b9c7e23d4975a6789ea82c3ca3dcb6ec507291",
+    "assessCommit": "59375907c558a6e426b773d3704bd4e268e78db8",
     "landingZoneCommit": "ae6e80b574cccde570d0053d4c62b519d31052a8",
     "checks": {
       "asm-personal-start-vm-on-connect": {
