@@ -1,0 +1,41 @@
+{
+  "about": "Docs findings this repo accepts, by key, with the reason (avd-second-brain docs/docs-spec.md section 12). The docs check leaves them out; D11 can't be accepted. Remove an entry when its text changes or the file is built.",
+  "accepted": [
+    {
+      "key": "60a2f49b6302",
+      "check": "D3",
+      "path": "docs/assessment-portal-spec.md",
+      "reason": "Designed in assessment-portal-spec.md (-IntakePath sits on avd_current_state_facts.ps1 and avd_current_state.ps1)."
+    },
+    {
+      "key": "8f2157efcabe",
+      "check": "D3",
+      "path": "docs/assessment-portal-spec.md",
+      "reason": "Designed in assessment-portal-spec.md (-Assess sits on avd_current_state_facts.ps1 and avd_current_state.ps1)."
+    },
+    {
+      "key": "78f3515127fc",
+      "check": "D3",
+      "path": "docs/checks-spec.md",
+      "reason": "Designed in checks-spec.md (-Assess sits on avd_current_state_facts.ps1 and avd_current_state.ps1)."
+    },
+    {
+      "key": "95cfc9d0d175",
+      "check": "D3",
+      "path": "docs/checks-spec.md",
+      "reason": "Designed in checks-spec.md (-IntakePath sits on avd_current_state_facts.ps1 and avd_current_state.ps1)."
+    },
+    {
+      "key": "84143c7522cc",
+      "check": "D3",
+      "path": "docs/local-collector-spec.md",
+      "reason": "Designed in local-collector-spec.md (-LocalPath not built yet on avd_deployment_validator.ps1)."
+    },
+    {
+      "key": "096a5a48b650",
+      "check": "D3",
+      "path": "docs/local-collector-spec.md",
+      "reason": "Designed in local-collector-spec.md (-LocalPath not built yet on avd_current_state_facts.ps1)."
+    }
+  ]
+}
