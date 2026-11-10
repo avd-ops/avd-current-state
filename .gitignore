@@ -30,3 +30,4 @@ Desktop.ini
 
 # Pester output
 testResults.xml
+__pycache__/
