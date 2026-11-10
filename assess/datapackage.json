@@ -3,7 +3,7 @@
   "name": "avd-assess",
   "title": "avd-assess: the AVD assessment map",
   "version": "2.3.0",
-  "created": "2026-11-09T16:29:37-06:00",
+  "created": "2026-11-10T01:21:52+00:00",
   "homepage": "https://github.com/avd-ops/avd-assess",
   "description": "Personal project, not for production, as is; not affiliated with the author's employer, Liquidware or Microsoft.",
   "licenses": [
@@ -19,7 +19,7 @@
     }
   ],
   "avdAssess": {
-    "commit": "59375907c558a6e426b773d3704bd4e268e78db8",
+    "commit": "ef8a99ed5d5cdef0dc663c8b22e2cac1b8006788",
     "tag": "v2.3.0",
     "profile": "avd-assess-bundle/v1"
   },
@@ -53,8 +53,21 @@
       "path": "contracts/README.md",
       "format": "md",
       "mediatype": "text/markdown",
-      "bytes": 5949,
-      "hash": "sha256:a7d99d8eedcba5cce5dff4655634ffb44d1bf68b803fa2b58a3d3896bcd6c7f7"
+      "bytes": 6145,
+      "hash": "sha256:0a57b36ea0ff65106c5c9d3b543f02ee1bf556359d17d3972b2a91010eb85f38"
+    },
+    {
+      "name": "cloud-environments",
+      "path": "contracts/cloud-environments.json",
+      "format": "json",
+      "mediatype": "application/json",
+      "bytes": 9942,
+      "hash": "sha256:ad6a49356e3d61c2fbcec7a5fd305fc319a99ce6fd109e3885b34880d9796c39",
+      "schemaString": "avd-cloud-environments/v1",
+      "jsonSchema": "contracts/schemas/cloud-environments.schema.json",
+      "idPaths": [
+        "/environments/*/id"
+      ]
     },
     {
       "name": "example-assess-assessment",
@@ -190,8 +203,8 @@
       "path": "contracts/fact-register.json",
       "format": "json",
       "mediatype": "application/json",
-      "bytes": 83197,
-      "hash": "sha256:96928b1ddfc752016935ac01c5666dc7f12d946ca5fd11fcd57c924bc3849b59",
+      "bytes": 83970,
+      "hash": "sha256:52a12178817e4189c19329c3cf9b4b3f3ebdd8e87c6e5ec72d54c26b6d1a2651",
       "schemaString": "avd-fact-register/v1",
       "jsonSchema": "contracts/schemas/fact-register.schema.json",
       "idPaths": [
@@ -272,8 +285,8 @@
       "path": "contracts/schemas/assessment.schema.json",
       "format": "json",
       "mediatype": "application/json",
-      "bytes": 7170,
-      "hash": "sha256:113d355e5a3d1ae35b921e817a8395cfb192e3a96410c772440c04f76cfbc3bf"
+      "bytes": 7259,
+      "hash": "sha256:6597b9a08e0db64c79e091713194af7a27bbd79015071507fa1df8b8bea736e3"
     },
     {
       "name": "schema-benchmark-result",
@@ -292,12 +305,20 @@
       "hash": "sha256:7d04ba2eeb4333104ca3ba45f5a8548407c3ca5fa7af47ae73a3dda411c0ccb4"
     },
     {
+      "name": "schema-cloud-environments",
+      "path": "contracts/schemas/cloud-environments.schema.json",
+      "format": "json",
+      "mediatype": "application/json",
+      "bytes": 9717,
+      "hash": "sha256:3b6dbd49d7dc068ea850e3cd1ff3ba5e22300def9883967c467093a231d53f9c"
+    },
+    {
       "name": "schema-current-state-facts",
       "path": "contracts/schemas/current-state-facts.schema.json",
       "format": "json",
       "mediatype": "application/json",
-      "bytes": 26560,
-      "hash": "sha256:eabadd8860ce34098a840697578b20b44ed75c269bab6475f5584b5e566b37ea"
+      "bytes": 26720,
+      "hash": "sha256:718eab774acc4fa6cf9aca50636b3226808b8bd304afd85081527241bce570e6"
     },
     {
       "name": "schema-fact-register",
@@ -312,8 +333,8 @@
       "path": "contracts/schemas/intake.schema.json",
       "format": "json",
       "mediatype": "application/json",
-      "bytes": 13560,
-      "hash": "sha256:ee7f5ae2fc258465cc75792197c38a67d03ad155854f2c4b8bbacd195e67d6ef"
+      "bytes": 13990,
+      "hash": "sha256:d686a4bc4c4207878bc1470a06e707d4346f2601ac01d6eaa086a66a411a9132"
     },
     {
       "name": "schema-remediation-plan",
@@ -742,8 +763,8 @@
       "path": "index.json",
       "format": "json",
       "mediatype": "application/json",
-      "bytes": 431393,
-      "hash": "sha256:b3b9a38998be6f611700bc1ceaed0d6fb3588fb80a5182b333340e7ed40b343d",
+      "bytes": 441567,
+      "hash": "sha256:9644708b2245b30375f96cfdb272d0406991138f89f545296c3b803ba6c01a76",
       "schemaString": "avd-assess-index/v1",
       "jsonSchema": "contracts/schemas/assess-index.schema.json",
       "idPaths": [
@@ -776,8 +797,8 @@
       "path": "method.json",
       "format": "json",
       "mediatype": "application/json",
-      "bytes": 104176,
-      "hash": "sha256:b0c5bc93053b1f3931de266aef4a483ab7df14a1789e50aef207b54e709ad8ee",
+      "bytes": 108882,
+      "hash": "sha256:2f9960ac6e6824a2f49a3d13bd0b46d88702d453c44933a18e95ff23a53cd2b3",
       "schemaString": "avd-assess-method/v1",
       "jsonSchema": "contracts/schemas/assess-method.schema.json",
       "idPaths": [
@@ -845,8 +866,8 @@
       "path": "methods/intune.md",
       "format": "md",
       "mediatype": "text/markdown",
-      "bytes": 6078,
-      "hash": "sha256:a8aaf690deda97e928c467c7fdae0253cb33c5e0e8512ebb5adcca9ee763d120"
+      "bytes": 6399,
+      "hash": "sha256:c6d5e5feeb560e53db3e435a67ee922c28f688b2c64d9ba46d3563a8d0e7a51c"
     },
     {
       "name": "method-m365",
@@ -917,8 +938,8 @@
       "path": "methods/security.md",
       "format": "md",
       "mediatype": "text/markdown",
-      "bytes": 5537,
-      "hash": "sha256:678f9d75320ec6e8638726d8fd314f4361929d2214c9f09d5598e0e7be745029"
+      "bytes": 6094,
+      "hash": "sha256:0b034ccc2aecc4193651051ecbf32dfad53699da13a4240c80b6171a4e65033a"
     },
     {
       "name": "method-targets-benchmarks",
@@ -949,8 +970,8 @@
       "path": "security-review.json",
       "format": "json",
       "mediatype": "application/json",
-      "bytes": 73297,
-      "hash": "sha256:6b168df39079d0245c0ee7f39a7020cfbdda0ffc691457effc0138a7940d5cd7",
+      "bytes": 75109,
+      "hash": "sha256:89d4444fdfed17ff0a7758f8c565c6f6d71b83cc8e521f82f677e6ab01cef856",
       "schemaString": "avd-assess-security-review/v1",
       "jsonSchema": "contracts/schemas/assess-security-review.schema.json",
       "idPaths": [
@@ -982,16 +1003,16 @@
       "path": "tools/AvdAssessBundle.psm1",
       "format": "psm1",
       "mediatype": "text/plain",
-      "bytes": 16133,
-      "hash": "sha256:59771625d1ba8bc4d002ab703fa874d7d88667e5f90eb50bb6cb6b0efe6ad8c2"
+      "bytes": 16166,
+      "hash": "sha256:d266101e6a2d431bfa23961a84e58e6e59472b47750f2ccf585fa965bd23b3e6"
     },
     {
       "name": "tool-avd-assess-bundle-py",
       "path": "tools/avd_assess_bundle.py",
       "format": "py",
       "mediatype": "text/x-python",
-      "bytes": 14480,
-      "hash": "sha256:0a8ad5fe63436c500f1fd46c348152d39378b586472dd77d5779969d7780c934"
+      "bytes": 14511,
+      "hash": "sha256:a37a4662f21503a996dafb655f7cc2cf9326d87ffbb898bbee3cae6842d12dd8"
     },
     {
       "name": "tool-diff-bundle-py",

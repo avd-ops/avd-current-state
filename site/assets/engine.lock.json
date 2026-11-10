@@ -1,12 +1,12 @@
 {
   "$comment": "The avd-ops portal engine files this portal takes (avd-ops docs/portal-engine-spec.md, sections 4 and 6.5): the tag and commit they came from and each file's SHA-256 from that commit's site/assets/engine/MANIFEST.json. Update it by copying the files at a new tag, never by hand-editing a file.",
-  "tag": "pe-v1.1.0",
-  "commit": "b96622aa86569bd75730f04b765247dc3e559008",
+  "tag": "pe-v1.2.0",
+  "commit": "a42a39c265a2a4a495c94be37d13eef822b476a9",
   "files": {
-    "core.js": "e373ffc7aeeb0fd04cb77f6729568985fd13156bff4d0232d668c70cebeb9cc6",
-    "blocks.js": "8ef0702e3a283b1266e9501fc2f667980ad9d93d6fb3ba979a6881003bb08daa",
-    "runin.js": "fb62a8ccb0e658ff9b2342357a79b4d28eadda98eedfc78a4d110db494a38916",
-    "statelines.js": "0faaf20d3cfa3dc53e2fd7e6186cc33a9e0b394503cfc9053b8b08480a4e4146",
-    "redact.js": "930a683813fa5861e8a86d758822aaf4f7d072580e77956bd79d921da556083f"
+    "core.js": "44df4bcf549db221e4d521db633b357d326b6405cc4bf153b31cbff84b01c24b",
+    "blocks.js": "c68501f2d0f609b8d6fbfb6afd332469504ae1dec5dbd45920dd3950e64e17ef",
+    "runin.js": "06b7caacc3b2071c0d11945523a4b01dc494a215836e4756faa76585e48ca60e",
+    "statelines.js": "9d4305a8e8423c355a0fe1d45c2346de79c4b04584ff5d2b2a6406e0d84d8f1b",
+    "redact.js": "7f7c1df194bd8575d385f9bb3a32b961fc2b66a8830f69031ce8c57641f6aba3"
   }
 }

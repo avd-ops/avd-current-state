@@ -3272,6 +3272,43 @@
       "privacy": "public",
       "status": "built",
       "evidences": []
+    },
+    {
+      "id": "c11.cloud",
+      "tier": "azure",
+      "contract": "C11",
+      "path": "/cloud",
+      "grain": "estate",
+      "unit": "enum",
+      "privacy": "public",
+      "status": "built",
+      "evidences": [
+        "region"
+      ]
+    },
+    {
+      "id": "intake.cloud",
+      "tier": "intake",
+      "contract": "C19",
+      "path": "/cloud",
+      "grain": "estate",
+      "unit": "enum",
+      "privacy": "public",
+      "status": "built",
+      "evidences": [
+        "region"
+      ]
+    },
+    {
+      "id": "intake.complianceProfile",
+      "tier": "intake",
+      "contract": "C19",
+      "path": "/complianceProfile",
+      "grain": "estate",
+      "unit": "enum",
+      "privacy": "public",
+      "status": "built",
+      "evidences": []
     }
   ]
 }

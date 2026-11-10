@@ -39,7 +39,11 @@ param(
 
     [Parameter(Mandatory = $false)]
     [ValidateSet('all', 'azure', 'entra', 'intune', 'm365', 'power-platform')]
-    [string[]]$Planes = @('all')
+    [string[]]$Planes = @('all'),
+
+    [Parameter(Mandatory = $false)]
+    [ValidateSet('commercial', 'usgov')]
+    [string]$Cloud
 )
 
 Set-StrictMode -Version Latest
@@ -356,16 +360,43 @@ Write-Log "Rebuild scope : $(@($script:RebuildScope.resourceGraph).Count) Resour
 
 $context = Get-AzContext -ErrorAction SilentlyContinue
 if (-not $context) {
-    Write-Log 'No active Azure context -- launching interactive login (AzureCloud) ...'
+    $targetAzEnv = if ($Cloud -eq 'usgov') { 'AzureUSGovernment' } else { 'AzureCloud' }
+    Write-Log "No active Azure context -- launching interactive login ($targetAzEnv) ..."
     try {
-        Connect-AzAccount -Environment AzureCloud -ErrorAction Stop | Out-Null
+        Connect-AzAccount -Environment $targetAzEnv -ErrorAction Stop | Out-Null
         $context = Get-AzContext
     } catch {
         Write-Log "Authentication failed: $($_.Exception.Message)" -Level ERROR
-        throw 'Unable to authenticate to Azure Commercial. Exiting.'
+        throw "Unable to authenticate to $targetAzEnv. Exiting."
     }
 }
-Write-Log "Authenticated as $($context.Account.Id) in tenant $($context.Tenant.Id)."
+$activeAzEnv = "$(Get-PropValue $context @('Environment.Name') 'AzureCloud')"
+if ([string]::IsNullOrWhiteSpace($Cloud)) {
+    if ($activeAzEnv -eq 'AzureUSGovernment') {
+        $Cloud = 'usgov'
+    } elseif ($activeAzEnv -eq 'AzureCloud') {
+        $Cloud = 'commercial'
+    } else {
+        throw "Unsupported Azure environment '$activeAzEnv'. Pass -Cloud commercial or -Cloud usgov."
+    }
+}
+$cloudConfig = Resolve-AvdCloudEnvironment -Cloud $Cloud
+$expectedAzEnv = "$(Get-RebuildValue $cloudConfig 'azPowerShellEnvironment' 'AzureCloud')"
+if ($activeAzEnv -ne $expectedAzEnv) {
+    throw "Cloud environment mismatch: -Cloud is '$Cloud' (expects Az environment '$expectedAzEnv') but active AzContext is '$activeAzEnv'."
+}
+if ($script:SelectedPlanes | Where-Object { $_ -in @('entra', 'intune', 'm365') }) {
+    if (Get-Command Get-MgContext -ErrorAction SilentlyContinue) {
+        $mgCtx = Get-MgContext -ErrorAction SilentlyContinue
+        if ($null -ne $mgCtx -and $null -ne $mgCtx.PSObject.Properties['Environment'] -and -not [string]::IsNullOrWhiteSpace("$($mgCtx.Environment)")) {
+            $expectedMgEnv = "$(Get-RebuildValue $cloudConfig 'mgGraphEnvironment' 'Global')"
+            if ("$($mgCtx.Environment)" -ne $expectedMgEnv) {
+                throw "Cloud environment mismatch: -Cloud is '$Cloud' (expects MgGraph environment '$expectedMgEnv') but active MgContext is '$($mgCtx.Environment)'."
+            }
+        }
+    }
+}
+Write-Log "Authenticated as $($context.Account.Id) in tenant $($context.Tenant.Id) (cloud: $Cloud / $activeAzEnv)."
 
 # endregion
 
@@ -833,6 +864,7 @@ $manifestFiles = Get-ChildItem -Path $script:RootDir -Recurse -File |
 $manifest = [pscustomobject]@{
     PackageName      = $script:PackageName
     GeneratedUtc     = (Get-Date).ToUniversalTime().ToString('o')
+    Cloud            = $Cloud
     Identity         = $context.Account.Id
     TenantId         = $context.Tenant.Id
     PlanesCollected  = $script:PlanesCollected

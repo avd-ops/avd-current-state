@@ -81,6 +81,7 @@
           "check": { "type": "string", "pattern": "^asm-[a-z0-9-]{3,60}$" },
           "plane": { "$ref": "#/$defs/plane" },
           "outcome": { "$ref": "#/$defs/outcome" },
+          "reason": { "enum": ["unsupported-in-cloud", "not-in-scope", "no-subjects"] },
           "facts": { "type": "array", "uniqueItems": true, "items": { "$ref": "#/$defs/factId" }, "description": "The check's facts that the inputs actually had" },
           "subjects": {
             "type": "array",

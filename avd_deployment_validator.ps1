@@ -158,6 +158,10 @@ param(
     [string]$Mode = 'Preflight',
 
     [Parameter(Mandatory = $false)]
+    [ValidateSet('commercial', 'usgov')]
+    [string]$Cloud,
+
+    [Parameter(Mandatory = $false)]
     [ValidateSet('all', 'azure', 'entra', 'intune', 'm365', 'power-platform')]
     [string[]]$Planes = @('all'),
 
@@ -853,9 +857,10 @@ function Write-PortalState {
 
 $script:Context = Get-AzContext -ErrorAction SilentlyContinue
 if (-not $script:Context) {
-    Write-Log 'No active Azure context -- launching interactive login (AzureCloud) ...'
+    $targetAzEnv = if ($Cloud -eq 'usgov') { 'AzureUSGovernment' } else { 'AzureCloud' }
+    Write-Log "No active Azure context -- launching interactive login ($targetAzEnv) ..."
     try {
-        Connect-AzAccount -Environment AzureCloud -ErrorAction Stop | Out-Null
+        Connect-AzAccount -Environment $targetAzEnv -ErrorAction Stop | Out-Null
         $script:Context = Get-AzContext
     } catch {
         Write-Log "Authentication failed: $($_.Exception.Message)" -Level ERROR
@@ -863,7 +868,37 @@ if (-not $script:Context) {
         exit 2
     }
 }
-Write-Log "Authenticated as $(Get-Prop $script:Context.Account 'Id' '<unknown>') in tenant $(Get-Prop $script:Context.Tenant 'Id' '<unknown>')."
+$activeAzEnv = "$(Get-FirstProp $script:Context @('Environment.Name') 'AzureCloud')"
+if ([string]::IsNullOrWhiteSpace($Cloud)) {
+    if ($activeAzEnv -eq 'AzureUSGovernment') {
+        $Cloud = 'usgov'
+    } elseif ($activeAzEnv -eq 'AzureCloud') {
+        $Cloud = 'commercial'
+    } else {
+        Write-Log "Unsupported Azure environment '$activeAzEnv'. Pass -Cloud commercial or -Cloud usgov." -Level ERROR
+        Write-PortalState -Status 'failed'
+        exit 2
+    }
+}
+$expectedAzEnv = if ($Cloud -eq 'usgov') { 'AzureUSGovernment' } else { 'AzureCloud' }
+if ($activeAzEnv -ne $expectedAzEnv) {
+    Write-Log "Cloud environment mismatch: -Cloud is '$Cloud' (expects Az environment '$expectedAzEnv') but active AzContext is '$activeAzEnv'." -Level ERROR
+    Write-PortalState -Status 'failed'
+    exit 2
+}
+if ($null -ne $script:LoadedManifests) {
+    foreach ($mKey in @('orchestrator', 'azure', 'entra', 'intune', 'm365', 'powerPlatform')) {
+        $mObj = Get-Prop $script:LoadedManifests $mKey
+        if ($null -eq $mObj) { continue }
+        $mCloud = "$(Get-FirstProp $mObj @('cloud', 'Cloud') '')".Trim().ToLowerInvariant()
+        if ($mCloud -and $mCloud -ne $Cloud) {
+            Write-Log "Cloud environment mismatch: stage manifest '$mKey' specifies cloud '$mCloud' but validator cloud is '$Cloud'." -Level ERROR
+            Write-PortalState -Status 'failed'
+            exit 2
+        }
+    }
+}
+Write-Log "Authenticated as $(Get-Prop $script:Context.Account 'Id' '<unknown>') in tenant $(Get-Prop $script:Context.Tenant 'Id' '<unknown>') (cloud: $Cloud / $activeAzEnv)."
 
 # endregion
 
@@ -929,13 +964,15 @@ function Invoke-PreflightValidation {
 
     Invoke-Check -Category 'Identity' -Check 'Azure environment' -Scope $script:SubscriptionScope -Body {
         $environmentName = Get-Prop (Get-Prop $script:Context 'Environment') 'Name' 'Unknown'
-        if ($environmentName -eq 'AzureCloud') {
+        $expectedEnv = if ($Cloud -eq 'usgov') { 'AzureUSGovernment' } else { 'AzureCloud' }
+        if ($environmentName -eq $expectedEnv) {
+            $envLabel = if ($Cloud -eq 'usgov') { 'Azure US Government (AzureUSGovernment)' } else { 'Azure Commercial (AzureCloud)' }
             Add-Check -Category 'Identity' -Check 'Azure environment' -Status 'PASS' `
-                -Detail 'Connected to Azure Commercial (AzureCloud).'
+                -Detail "Connected to $envLabel."
         } else {
-            Add-Check -Category 'Identity' -Check 'Azure environment' -Status 'WARN' `
-                -Detail "Connected to '$environmentName', not AzureCloud." `
-                -Recommendation 'This validator targets Azure Commercial. Sovereign clouds have different AVD region and endpoint requirements.'
+            Add-Check -Category 'Identity' -Check 'Azure environment' -Status 'FAIL' `
+                -Detail "Connected to '$environmentName', expected '$expectedEnv' for -Cloud $Cloud." `
+                -Recommendation "Connect to $expectedEnv (Connect-AzAccount -Environment $expectedEnv) or pass the matching -Cloud value."
         }
     }
 
@@ -2203,8 +2240,18 @@ function Get-AvdPinnedHostEndpoints {
         Reads assess/endpoints.json (contract avd-assess-endpoints/v1, pinned in
         assess/PINS.json and assess/datapackage.json) and returns the concrete TCP
         endpoints in views.host.probe and the non-probeable entries in views.host.notTested.
+        When -Cloud is 'usgov', maps Commercial AVD and Entra hosts to their Azure US
+        Government / GCC High sovereign counterparts (.azure.us / .usgovcloudapi.net /
+        login.microsoftonline.us) per C26 contracts/cloud-environments.json.
     #>
-    param([string]$EndpointsPath = (Join-Path $PSScriptRoot 'assess/endpoints.json'))
+    param(
+        [string]$Root = $PSScriptRoot,
+        [string]$EndpointsPath = '',
+        [ValidateSet('commercial', 'usgov')][string]$TargetCloud = $(if ($Cloud -eq 'usgov') { 'usgov' } else { 'commercial' })
+    )
+    if ([string]::IsNullOrWhiteSpace($EndpointsPath)) {
+        $EndpointsPath = Join-Path $Root 'assess/endpoints.json'
+    }
     if (-not (Test-Path -LiteralPath $EndpointsPath -PathType Leaf)) {
         throw "Pinned endpoint map not found at $EndpointsPath"
     }
@@ -2213,14 +2260,31 @@ function Get-AvdPinnedHostEndpoints {
     foreach ($ep in @($doc.endpoints)) {
         $byId["$($ep.id)"] = $ep
     }
+    $usgovHostMap = @{
+        'login.microsoftonline.com'             = 'login.microsoftonline.us'
+        'rdweb.wvd.microsoft.com'               = 'rdweb.wvd.azure.us'
+        'rdbroker.wvd.microsoft.com'            = 'rdbroker.wvd.azure.us'
+        'rdgateway-r1.wvd.microsoft.com'        = 'rdgateway-r1.wvd.azure.us'
+        'mrsglobalsteus2prod.blob.core.windows.net' = 'mrsglobalstusgprod.blob.core.usgovcloudapi.net'
+        'gcs.prod.monitoring.core.windows.net'  = 'gcs.monitoring.core.usgovcloudapi.net'
+        'enterpriseregistration.windows.net'    = 'enterpriseregistration.windows.net'
+    }
     $probeIds = @($doc.views.host.probe)
     $notTestedIds = @($doc.views.host.notTested)
     $probeList = foreach ($id in $probeIds) {
         if ($byId.ContainsKey("$id")) {
             $e = $byId["$id"]
+            $rawHost = "$($e.host)"
+            if ($TargetCloud -eq 'usgov') {
+                if ($usgovHostMap.ContainsKey($rawHost)) {
+                    $rawHost = $usgovHostMap[$rawHost]
+                } else {
+                    $rawHost = $rawHost -replace '\.wvd\.microsoft\.com$', '.wvd.azure.us' -replace '\.core\.windows\.net$', '.core.usgovcloudapi.net'
+                }
+            }
             [pscustomobject]@{
                 Id         = "$($e.id)"
-                Host       = "$($e.host)"
+                Host       = $rawHost
                 Port       = [int]$e.port
                 Protocol   = "$($e.protocol)"
                 Purpose    = "$($e.purpose)"
@@ -2234,6 +2298,9 @@ function Get-AvdPinnedHostEndpoints {
         if ($byId.ContainsKey("$id")) {
             $e = $byId["$id"]
             $label = if ($null -ne $e.PSObject.Properties['host'] -and "$($e.host)") { "$($e.host)" } else { "$($e.id)" }
+            if ($TargetCloud -eq 'usgov') {
+                $label = $label -replace '\.wvd\.microsoft\.com', '.wvd.azure.us' -replace '\.core\.windows\.net', '.core.usgovcloudapi.net'
+            }
             [pscustomobject]@{
                 Id       = "$($e.id)"
                 Host     = $label
@@ -2269,19 +2336,21 @@ function Test-AvdEndpoints {
     param(
         [switch]$OnSessionHostSubnet,
         [string]$EndpointsPath = (Join-Path $PSScriptRoot 'assess/endpoints.json'),
-        [scriptblock]$ProbeRunner = $null
+        [scriptblock]$ProbeRunner = $null,
+        [ValidateSet('commercial', 'usgov')][string]$TargetCloud = $(if ($Cloud -eq 'usgov') { 'usgov' } else { 'commercial' })
     )
 
-    $map = Get-AvdPinnedHostEndpoints -EndpointsPath $EndpointsPath
+    $map = Get-AvdPinnedHostEndpoints -EndpointsPath $EndpointsPath -TargetCloud $TargetCloud
     $hostName = try { [System.Net.Dns]::GetHostName() } catch { $env:COMPUTERNAME }
+    $wvdWildcard = if ($TargetCloud -eq 'usgov') { '*.wvd.azure.us' } else { '*.wvd.microsoft.com' }
 
     if ($OnSessionHostSubnet) {
         Add-Check -Category 'Endpoints' -Check 'Probe context' -Status 'INFO' `
-            -Detail "Probing $($map.Probe.Count) pinned session-host endpoint(s) from $hostName on the session host subnet (ref:avd-required-fqdn#host-list)." `
-            -Recommendation 'Use WVDAgentUrlTool.exe on a session host to also verify region-specific *.wvd.microsoft.com names.'
+            -Detail "Probing $($map.Probe.Count) pinned session-host endpoint(s) ($TargetCloud) from $hostName on the session host subnet (ref:avd-required-fqdn#host-list)." `
+            -Recommendation "Use WVDAgentUrlTool.exe on a session host to also verify region-specific $wvdWildcard names."
     } else {
         Add-Check -Category 'Endpoints' -Check 'Probe context' -Status 'WARN' `
-            -Detail "Probing from $hostName, not verified on the session host subnet -- off-host probes are unknown for session hosts, not pass (ref:avd-required-fqdn#host-list)." `
+            -Detail "Probing from $hostName ($TargetCloud), not verified on the session host subnet -- off-host probes are unknown for session hosts, not pass (ref:avd-required-fqdn#host-list)." `
             -Recommendation 'Run avd_current_state.ps1 local -Mode Preflight or -Mode Host inside the session host subnet for an authoritative result.'
     }
 
@@ -3723,6 +3792,7 @@ $logPath = Join-Path $script:RootDir 'run-log.txt'
 $manifest = [pscustomobject]@{
     PackageName    = $script:PackageName
     GeneratedUtc   = (Get-Date).ToUniversalTime().ToString('o')
+    Cloud          = $Cloud
     Mode           = $Mode
     Identity       = $identity
     TenantId       = $tenantId
@@ -3731,6 +3801,7 @@ $manifest = [pscustomobject]@{
     Verdict        = $verdict
     Counts         = [pscustomobject]@{ Fail = $failCount; Warn = $warnCount; Pass = $passCount; Info = $infoCount; Skip = $skipCount }
     Inputs         = [pscustomobject]@{
+        Cloud                     = $Cloud
         Location                  = $Location
         MetadataLocation          = $MetadataLocation
         ResourceGroupName         = $ResourceGroupName
