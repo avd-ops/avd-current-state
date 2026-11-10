@@ -391,9 +391,13 @@ test('a report redacts what this repo\'s scripts print, the settings and the ope
   assert.doesNotMatch(again, /Fabrikam/, 'an edited report is redacted again with the same options');
 });
 
-test('supply chain & security review: SECURITY.md, docs/threat-model.md, secrets.yml, and 40-char SHA action pins', () => {
+test('supply chain & security review: SECURITY.md, docs/threat-model.md, .github/dependabot.yml, sbom.spdx.json, secrets.yml, and 40-char SHA action pins', () => {
   assert.match(read('SECURITY.md'), /# Security policy/);
   assert.match(read('docs/threat-model.md'), /# Threat model: avd-current-state/);
+  assert.match(read('.github/dependabot.yml'), /package-ecosystem:\s*"github-actions"/);
+  const sbom = JSON.parse(read('sbom.spdx.json'));
+  assert.equal(sbom.spdxVersion, 'SPDX-2.3');
+  assert.ok(Array.isArray(sbom.packages) && sbom.packages.length > 1);
   assert.match(read('.github/workflows/secrets.yml'), /zricethezav\/gitleaks/);
   const wfDir = join(root, '.github/workflows');
   for (const f of readdirSync(wfDir).filter((n) => n.endsWith('.yml') || n.endsWith('.yaml'))) {
