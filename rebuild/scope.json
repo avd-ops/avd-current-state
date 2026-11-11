@@ -74,6 +74,14 @@
     { "name": "budgets", "parentTypes": ["subscription"], "path": "{id}/providers/Microsoft.Consumption/budgets", "apiVersion": "2023-11-01", "serves": ["monthlyBudgetAmount", "budgetStartDate", "autoShutdownBudgetPercent"] },
     { "name": "subscription-diagnostic-settings", "parentTypes": ["subscription"], "path": "{id}/providers/Microsoft.Insights/diagnosticSettings", "apiVersion": "2021-05-01-preview", "serves": ["deploySubscriptionSettings"] }
   ],
+  "cloudEnvironments": "contracts/cloud-environments.json",
+  "hostTokens": {
+    "armHost": "armEndpoint",
+    "graphHost": "graphEndpoint",
+    "bapHost": "bapEndpoint",
+    "dataverseSuffix": "dataverseSuffix",
+    "logAnalyticsHost": "logAnalyticsApiHost"
+  },
   "planes": {
     "azure": {
       "permissions": ["Reader"],
@@ -81,46 +89,46 @@
         { "plane": "azure", "transport": "resource-graph", "method": "SELECT/PROJECT", "uriPattern": "/providers/Microsoft.ResourceGraph/resources?api-version=2022-10-01", "facts": ["c11.hostPool.type", "c11.hostPool.entraSso", "c11.hostPool.directUserAssignments", "c11.hostPool.costAllocationTag", "c11.hostPool.imageSource", "c11.hostPool.imageRegions", "c11.hostPool.sessionHosts.entraJoined", "c11.hostPool.sessionHosts.domainJoined", "c11.hostPool.sessionHosts.hibernation", "c11.hostPool.sessionHosts.untaggedForCost", "c11.hostPool.sessionHosts.zones", "c11.hostPool.sessionHosts.unpinnedZones", "c11.hostPool.sessionHosts.backupProtected", "c11.hostPool.sessionHosts.replicated", "c11.hostPool.sessionHosts.notReplicated", "c11.hostPool.sessionHosts.edrMissing", "c11.hostPool.sessionHosts.vulnerabilityFindings", "c11.storage.backupProtected", "c11.storage.backupTier", "c11.storage.lastBackupJob", "c11.network.hostPublicRdp", "c11.advisor.recommendations", "c11.advisor.unattachedDisks", "c11.advisor.rightSizeVms", "c11.advisor.commitmentRecommendations", "c11.powerPlatform.enterprisePoliciesCount", "c11.powerPlatform.vnetInjectedSubnets"] },
         { "plane": "azure", "transport": "arm-rest", "method": "GET", "uriPattern": "{id}/fileServices/default?api-version=2023-05-01", "facts": ["c11.storage.smbChannelEncryption"] },
         { "plane": "azure", "transport": "arm-rest", "method": "GET", "uriPattern": "{id}/providers/Microsoft.Consumption/budgets?api-version=2023-11-01", "facts": ["c11.subscription.budgets.total", "c11.subscription.budgets.withActionGroup"] },
-        { "plane": "azure", "transport": "log-analytics-kql", "method": "SELECT/PROJECT", "uriPattern": "https://api.loganalytics.io/v1/workspaces/{workspaceId}/query", "facts": ["c11.insights.rttP50", "c11.insights.rttP95", "c11.insights.inputDelayP95", "c11.insights.timeToConnectP95", "c11.insights.connectionFailureRate", "c11.insights.runningHostFloor"] }
+        { "plane": "azure", "transport": "log-analytics-kql", "method": "SELECT/PROJECT", "uriPattern": "https://{logAnalyticsHost}/v1/workspaces/{workspaceId}/query", "facts": ["c11.insights.rttP50", "c11.insights.rttP95", "c11.insights.inputDelayP95", "c11.insights.timeToConnectP95", "c11.insights.connectionFailureRate", "c11.insights.runningHostFloor"] }
       ]
     },
     "entra": {
       "permissions": ["Group.Read.All", "Policy.Read.All", "Application.Read.All", "Directory.Read.All", "RoleManagement.Read.Directory"],
       "calls": [
-        { "plane": "entra", "transport": "graph-rest", "method": "GET", "uriPattern": "https://graph.microsoft.com/v1.0/groups", "facts": ["c11.entra.userGroupsAssigned", "c11.entra.dynamicHostGroups"] },
-        { "plane": "entra", "transport": "graph-rest", "method": "GET", "uriPattern": "https://graph.microsoft.com/v1.0/identity/conditionalAccess/policies", "facts": ["c11.entra.caPoliciesTargetingAvd", "c11.entra.caAvdRequiresMfa", "c11.entra.caAvdRequiresCompliantDevice", "c11.entra.caAvdSignInFrequencyConfigured", "c11.entra.caAvdBreakGlassExcluded"] },
-        { "plane": "entra", "transport": "graph-rest", "method": "GET", "uriPattern": "https://graph.microsoft.com/v1.0/servicePrincipals", "facts": ["c11.entra.kerberosStoragePrincipalsReady"] },
-        { "plane": "entra", "transport": "graph-rest", "method": "GET", "uriPattern": "https://graph.microsoft.com/v1.0/subscribedSkus", "facts": ["c11.entra.skuAvdEligibleAvailable", "c11.entra.skuWin365Available"] }
+        { "plane": "entra", "transport": "graph-rest", "method": "GET", "uriPattern": "https://{graphHost}/v1.0/groups", "facts": ["c11.entra.userGroupsAssigned", "c11.entra.dynamicHostGroups"] },
+        { "plane": "entra", "transport": "graph-rest", "method": "GET", "uriPattern": "https://{graphHost}/v1.0/identity/conditionalAccess/policies", "facts": ["c11.entra.caPoliciesTargetingAvd", "c11.entra.caAvdRequiresMfa", "c11.entra.caAvdRequiresCompliantDevice", "c11.entra.caAvdSignInFrequencyConfigured", "c11.entra.caAvdBreakGlassExcluded"] },
+        { "plane": "entra", "transport": "graph-rest", "method": "GET", "uriPattern": "https://{graphHost}/v1.0/servicePrincipals", "facts": ["c11.entra.kerberosStoragePrincipalsReady"] },
+        { "plane": "entra", "transport": "graph-rest", "method": "GET", "uriPattern": "https://{graphHost}/v1.0/subscribedSkus", "facts": ["c11.entra.skuAvdEligibleAvailable", "c11.entra.skuWin365Available"] }
       ]
     },
     "intune": {
       "permissions": ["DeviceManagementConfiguration.Read.All", "DeviceManagementManagedDevices.Read.All", "DeviceManagementServiceConfig.Read.All", "CloudPC.Read.All"],
       "calls": [
-        { "plane": "intune", "transport": "graph-rest", "method": "GET", "uriPattern": "https://graph.microsoft.com/v1.0/deviceManagement/settings", "facts": ["c11.intune.noPolicyMeansNoncompliant"] },
-        { "plane": "intune", "transport": "graph-rest", "method": "GET", "uriPattern": "https://graph.microsoft.com/v1.0/policies/mobileDeviceManagementPolicies", "facts": ["c11.intune.mdmAutoEnrollmentScope"] },
-        { "plane": "intune", "transport": "graph-rest", "method": "GET", "uriPattern": "https://graph.microsoft.com/beta/deviceManagement/configurationPolicies", "facts": ["c11.intune.multiSessionCatalogProfiles", "c11.intune.fslogixProfileConfigured", "c11.intune.rdpShortpathConfigured", "c11.intune.sessionTimeLimitsConfigured", "c11.intune.multiSessionUpdateRingAssigned", "c11.intune.unfilteredAllDevicesPolicies"] },
-        { "plane": "intune", "transport": "graph-rest", "method": "GET", "uriPattern": "https://graph.microsoft.com/beta/deviceManagement/assignmentFilters", "facts": ["c11.intune.assignmentFiltersCount", "c11.intune.multiSessionFilterPresent", "c11.intune.cloudPcFilterPresent"] },
-        { "plane": "intune", "transport": "graph-rest", "method": "GET", "uriPattern": "https://graph.microsoft.com/v1.0/deviceManagement/managedDevices", "facts": ["c11.hostPool.sessionHosts.intuneManaged", "c11.hostPool.sessionHosts.intuneCompliant", "c11.hostPool.sessionHosts.intuneNoncompliant", "c11.hostPool.sessionHosts.intuneSyncStale", "c11.hostPool.sessionHosts.intuneConfigErrors", "c11.hostPool.sessionHosts.intuneBaselineApplied", "c11.hostPool.intuneOrphans", "c11.intune.cloudPcManagedCompliant", "c11.intune.cloudPcManagedNoncompliant"] },
-        { "plane": "intune", "transport": "graph-rest", "method": "GET", "uriPattern": "https://graph.microsoft.com/v1.0/deviceManagement/virtualEndpoint/cloudPCs", "facts": ["c11.intune.win365.cloudPcCountByStatus"] },
-        { "plane": "intune", "transport": "graph-rest", "method": "GET", "uriPattern": "https://graph.microsoft.com/v1.0/deviceManagement/virtualEndpoint/provisioningPolicies", "facts": ["c11.intune.win365.provisioningPoliciesCount", "c11.intune.win365.ssoEnabledOnAllPolicies", "c11.intune.win365.networkMode"] },
-        { "plane": "intune", "transport": "graph-rest", "method": "GET", "uriPattern": "https://graph.microsoft.com/v1.0/deviceManagement/virtualEndpoint/userSettings", "facts": ["c11.intune.win365.userSettingsCount", "c11.intune.win365.localAdminDisabled", "c11.intune.win365.restorePointFrequencyHoursMax"] },
-        { "plane": "intune", "transport": "graph-rest", "method": "GET", "uriPattern": "https://graph.microsoft.com/v1.0/deviceManagement/virtualEndpoint/onPremisesConnections", "facts": ["c11.intune.win365.ancCountByHealth", "c11.intune.win365.ancFailedCount"] }
+        { "plane": "intune", "transport": "graph-rest", "method": "GET", "uriPattern": "https://{graphHost}/v1.0/deviceManagement/settings", "facts": ["c11.intune.noPolicyMeansNoncompliant"] },
+        { "plane": "intune", "transport": "graph-rest", "method": "GET", "uriPattern": "https://{graphHost}/v1.0/policies/mobileDeviceManagementPolicies", "facts": ["c11.intune.mdmAutoEnrollmentScope"] },
+        { "plane": "intune", "transport": "graph-rest", "method": "GET", "uriPattern": "https://{graphHost}/beta/deviceManagement/configurationPolicies", "facts": ["c11.intune.multiSessionCatalogProfiles", "c11.intune.fslogixProfileConfigured", "c11.intune.rdpShortpathConfigured", "c11.intune.sessionTimeLimitsConfigured", "c11.intune.multiSessionUpdateRingAssigned", "c11.intune.unfilteredAllDevicesPolicies"] },
+        { "plane": "intune", "transport": "graph-rest", "method": "GET", "uriPattern": "https://{graphHost}/beta/deviceManagement/assignmentFilters", "facts": ["c11.intune.assignmentFiltersCount", "c11.intune.multiSessionFilterPresent", "c11.intune.cloudPcFilterPresent"] },
+        { "plane": "intune", "transport": "graph-rest", "method": "GET", "uriPattern": "https://{graphHost}/v1.0/deviceManagement/managedDevices", "facts": ["c11.hostPool.sessionHosts.intuneManaged", "c11.hostPool.sessionHosts.intuneCompliant", "c11.hostPool.sessionHosts.intuneNoncompliant", "c11.hostPool.sessionHosts.intuneSyncStale", "c11.hostPool.sessionHosts.intuneConfigErrors", "c11.hostPool.sessionHosts.intuneBaselineApplied", "c11.hostPool.intuneOrphans", "c11.intune.cloudPcManagedCompliant", "c11.intune.cloudPcManagedNoncompliant"] },
+        { "plane": "intune", "transport": "graph-rest", "method": "GET", "uriPattern": "https://{graphHost}/v1.0/deviceManagement/virtualEndpoint/cloudPCs", "facts": ["c11.intune.win365.cloudPcCountByStatus"] },
+        { "plane": "intune", "transport": "graph-rest", "method": "GET", "uriPattern": "https://{graphHost}/v1.0/deviceManagement/virtualEndpoint/provisioningPolicies", "facts": ["c11.intune.win365.provisioningPoliciesCount", "c11.intune.win365.ssoEnabledOnAllPolicies", "c11.intune.win365.networkMode"] },
+        { "plane": "intune", "transport": "graph-rest", "method": "GET", "uriPattern": "https://{graphHost}/v1.0/deviceManagement/virtualEndpoint/userSettings", "facts": ["c11.intune.win365.userSettingsCount", "c11.intune.win365.localAdminDisabled", "c11.intune.win365.restorePointFrequencyHoursMax"] },
+        { "plane": "intune", "transport": "graph-rest", "method": "GET", "uriPattern": "https://{graphHost}/v1.0/deviceManagement/virtualEndpoint/onPremisesConnections", "facts": ["c11.intune.win365.ancCountByHealth", "c11.intune.win365.ancFailedCount"] }
       ]
     },
     "m365": {
       "permissions": ["DeviceManagementConfiguration.Read.All", "Organization.Read.All", "SharePointTenantSettings.Read.All"],
       "calls": [
-        { "plane": "m365", "transport": "graph-rest", "method": "GET", "uriPattern": "https://graph.microsoft.com/beta/deviceManagement/configurationPolicies", "facts": ["c11.m365.oneDriveSilentConfigEnabled", "c11.m365.oneDriveKfmState", "c11.m365.oneDriveFilesOnDemandEnabled", "c11.m365.m365AppsSharedComputerActivation", "c11.m365.outlookCachedModeConfigured", "c11.m365.teamsMediaOptimizationState", "c11.m365.mmrConfigured"] },
+        { "plane": "m365", "transport": "graph-rest", "method": "GET", "uriPattern": "https://{graphHost}/beta/deviceManagement/configurationPolicies", "facts": ["c11.m365.oneDriveSilentConfigEnabled", "c11.m365.oneDriveKfmState", "c11.m365.oneDriveFilesOnDemandEnabled", "c11.m365.m365AppsSharedComputerActivation", "c11.m365.outlookCachedModeConfigured", "c11.m365.teamsMediaOptimizationState", "c11.m365.mmrConfigured"] },
         { "plane": "m365", "transport": "teams-ps", "method": "Get-*", "command": "Get-CsTeamsVdiPolicy", "facts": ["c11.m365.teamsMediaOptimizationState"] }
       ]
     },
     "powerPlatform": {
       "permissions": ["Power Platform Administrator (read-only)", "Reader"],
       "calls": [
-        { "plane": "power-platform", "transport": "bap-rest", "method": "GET", "uriPattern": "https://api.bap.microsoft.com/providers/Microsoft.BusinessAppPlatform/scopes/admin/environments?api-version=2023-06-01", "facts": ["c11.powerPlatform.dedicatedEnvironments"] },
-        { "plane": "power-platform", "transport": "bap-rest", "method": "GET", "uriPattern": "https://api.bap.microsoft.com/providers/Microsoft.BusinessAppPlatform/scopes/admin/apiPolicies?api-version=2016-11-01", "facts": ["c11.powerPlatform.dlpPoliciesCoveringAvdEnv", "c11.powerPlatform.dlpDefaultGroupClassification"] },
-        { "plane": "power-platform", "transport": "dataverse-rest", "method": "GET", "uriPattern": "https://{org}.crm.dynamics.com/api/data/v9.2/solutions", "facts": ["c11.powerPlatform.avdDay2SolutionsDeployed"] },
-        { "plane": "power-platform", "transport": "dataverse-rest", "method": "GET", "uriPattern": "https://{org}.crm.dynamics.com/api/data/v9.2/workflows", "facts": ["c11.powerPlatform.avdDay2FlowsActive"] }
+        { "plane": "power-platform", "transport": "bap-rest", "method": "GET", "uriPattern": "https://{bapHost}/providers/Microsoft.BusinessAppPlatform/scopes/admin/environments?api-version=2023-06-01", "facts": ["c11.powerPlatform.dedicatedEnvironments"] },
+        { "plane": "power-platform", "transport": "bap-rest", "method": "GET", "uriPattern": "https://{bapHost}/providers/Microsoft.BusinessAppPlatform/scopes/admin/apiPolicies?api-version=2016-11-01", "facts": ["c11.powerPlatform.dlpPoliciesCoveringAvdEnv", "c11.powerPlatform.dlpDefaultGroupClassification"] },
+        { "plane": "power-platform", "transport": "dataverse-rest", "method": "GET", "uriPattern": "https://{org}.{dataverseSuffix}/api/data/v9.2/solutions", "facts": ["c11.powerPlatform.avdDay2SolutionsDeployed"] },
+        { "plane": "power-platform", "transport": "dataverse-rest", "method": "GET", "uriPattern": "https://{org}.{dataverseSuffix}/api/data/v9.2/workflows", "facts": ["c11.powerPlatform.avdDay2FlowsActive"] }
       ]
     }
   }

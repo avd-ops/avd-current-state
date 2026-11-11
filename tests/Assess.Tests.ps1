@@ -260,10 +260,10 @@ Describe 'Get-AvdAssessScore' {
       @{ check = 'asm-defender-servers'; outcome = 'unknown' }         # security, medium
       @{ check = 'asm-files-smb-gcm'; outcome = 'unknown' })           # security, medium
     $security = @(Get-AvdAssessScore -Method $script:method -Result $rows | Where-Object { $_.pillar -eq 'security' })[0]
-    $security.checks | Should -Be 20
+    $security.checks | Should -Be 24
     $security.assessed | Should -Be 3
     $security.score | Should -Be 0.5
-    $security.coverage | Should -Be 0.15
+    $security.coverage | Should -Be 0.125
   }
 
   It 'scores null with nothing assessed, and lists pillars in name order' {

@@ -1,4 +1,4 @@
-/* avd-ops portal engine v1.1.0: redact.js. Personal project, not for production, as is; not affiliated with the author's employer or Microsoft. MIT.
+/* avd-ops portal engine v1.2.0: redact.js. Personal project, not for production, as is; not affiliated with the author's employer or Microsoft. MIT.
    Redaction for issue reports a portal prefills (docs/portal-engine-spec.md, section 6.2): secrets, the
    operator's own terms, emails, tenant and domain names, IDs, public IP addresses and user names in paths, plus
    the patterns a portal passes. Taken from the deployment portal's report.js (avd-landing-zone decision 0008).
@@ -18,7 +18,7 @@
     'acdd72a7-3385-48ef-bd42-f606fba81ae7' // Reader
   ];
   // Domains that are not the operator's.
-  const PUBLIC_DOMAINS = ['microsoft.com', 'windows.net', 'azure.com', 'azure.net', 'contoso.com', 'example.com', 'github.com', 'github.io', 'cloud.microsoft', 'microsoftonline.com'];
+  const PUBLIC_DOMAINS = ['microsoft.com', 'windows.net', 'azure.com', 'azure.net', 'azure.us', 'usgovcloudapi.net', 'microsoftonline.com', 'microsoftonline.us', 'microsoft.us', 'sharepoint.com', 'sharepoint.us', 'dynamics.com', 'appsplatform.us', 'contoso.com', 'example.com', 'github.com', 'github.io', 'cloud.microsoft'];
   const LABELS = {
     secret: 'secret or token', email: 'email address / UPN', domain: 'domain', tenant: 'tenant name', id: 'ID',
     ip: 'public IP address', user: 'user name in a path', name: 'name from your settings', custom: 'term you added'
@@ -108,10 +108,10 @@
     const domains = [];
     t = t.replace(/[A-Za-z0-9._%+#-]+@((?:[A-Za-z0-9-]+\.)+[A-Za-z]{2,})\b/g, (all, domain) => {
       const d = domain.toLowerCase();
-      if (!/onmicrosoft\.com$/.test(d) && publicDomains.indexOf(d) < 0 && domains.indexOf(d) < 0) domains.push(d);
+      if (!/onmicrosoft\.(?:com|us)$/.test(d) && publicDomains.indexOf(d) < 0 && domains.indexOf(d) < 0) domains.push(d);
       return token('email', all);
     });
-    t = t.replace(/\b([A-Za-z0-9-]+)(\.onmicrosoft\.com)\b/gi, (all, name, rest) => token('tenant', name) + rest);
+    t = t.replace(/\b([A-Za-z0-9-]+)(\.onmicrosoft\.(?:com|us))\b/gi, (all, name, rest) => token('tenant', name) + rest);
     replaceTerms('domain', domains);
 
     // 3. The operator's own terms and settings. A UPN in the settings was an email above.

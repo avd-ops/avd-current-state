@@ -22,6 +22,8 @@
   const PLANES = ['azure', 'entra', 'intune', 'm365', 'power-platform'];
   const PLANE_LABELS = { azure: 'Azure', entra: 'Entra ID', intune: 'Intune', m365: 'Microsoft 365', 'power-platform': 'Power Platform', orchestrator: 'Orchestrator' };
   const PLANE_SCOPES = ['in-scope', 'out-of-scope', 'not-decided'];
+  const CLOUDS = ['commercial', 'usgov'];
+  const COMPLIANCE_PROFILES = ['none', 'cmmc-l2', 'fedramp-high', 'il4', 'il5'];
   const HUBS = ['none', 'azure-hub', 'vwan', 'other'];
   const IDENTITY = ['entra-only', 'hybrid-ad', 'entra-ds', 'undecided'];
   const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
@@ -145,7 +147,11 @@
       "$out = if (Test-Path (Join-Path $HOME 'clouddrive')) { Join-Path $HOME 'clouddrive/avd-assessment' } else { Join-Path $HOME 'avd-assessment' }",
       'New-Item -ItemType Directory -Force -Path $out | Out-Null'
     ]);
-    if (o.signIn !== false) lines.push('if (-not (Get-AzContext)) { Connect-AzAccount -UseDeviceAuthentication }');
+    if (o.signIn !== false) {
+      lines.push(o.cloud === 'usgov'
+        ? "if (-not (Get-AzContext) -or (Get-AzContext).Environment.Name -ne 'AzureUSGovernment') { Connect-AzAccount -Environment AzureUSGovernment -UseDeviceAuthentication }"
+        : 'if (-not (Get-AzContext)) { Connect-AzAccount -UseDeviceAuthentication }');
+    }
     return lines;
   }
 
@@ -160,11 +166,13 @@
   // facts snapshot, which gives the estate its pseudonym. The key is created once beside the packages and
   // reused, so the operator never handles it.
   function collectCommand(settings) {
-    const subs = nameList(settings && settings.subscriptions);
+    const s = settings || {};
+    const subs = nameList(s.subscriptions);
     const scope = subs.length ? ` -SubscriptionNames ${subs.map(psQuote).join(',')}` : '';
-    const planes = planeArg(settings);
-    return preamble().concat([
-      `./avd_current_state_collector.ps1${scope}${planes} -OutputPath $out`,
+    const planes = planeArg(s);
+    const cloud = s.cloud === 'usgov' ? " -Cloud 'usgov'" : '';
+    return preamble({ cloud: s.cloud }).concat([
+      `./avd_current_state_collector.ps1${scope}${planes}${cloud} -OutputPath $out`,
       "$key = Join-Path $out 'estate.key'",
       './avd_current_state_facts.ps1 -PackagePath $out -KeyPath $key -NewKey:(-not (Test-Path $key)) -OutputPath $out'
     ]).join('\n');
@@ -176,18 +184,21 @@
     const sub = String(s.validationSubscription || '').trim() || nameList(s.subscriptions)[0] || '';
     const rg = String(s.resourceGroup || '').trim();
     const planes = planeArg(s);
+    const cloud = s.cloud === 'usgov' ? " -Cloud 'usgov'" : '';
     let cmd = './avd_deployment_validator.ps1 -Mode PostDeployment';
     if (sub) cmd += ` -SubscriptionName ${psQuote(sub)}`;
     if (rg) cmd += ` -ResourceGroupName ${psQuote(rg)}`;
     cmd += planes;
+    cmd += cloud;
     cmd += ' -OutputPath $out';
-    return preamble().concat([cmd]).join('\n');
+    return preamble({ cloud: s.cloud }).concat([cmd]).join('\n');
   }
 
   // The optional avd-ops-reader (docs/reader-identity.md): only its check, which reads. Setting it up writes to
   // Entra and ARM, so that command lives in the docs, not on this page.
-  function readerCommand() {
-    return preamble().concat([
+  function readerCommand(settings) {
+    const s = settings || {};
+    return preamble({ cloud: s.cloud }).concat([
       "if (-not $env:AVD_READER_CLIENT_ID) { $env:AVD_READER_CLIENT_ID = Read-Host 'The reader''s client ID (not a secret)' }",
       './avd_ops_reader.ps1 -Mode Test'
     ]).join('\n');
@@ -469,6 +480,10 @@
     if (m365PlaneScope && !PLANE_SCOPES.includes(m365PlaneScope)) err('m365PlaneScope', 'Pick whether Microsoft 365 is in scope.');
     const powerPlatformPlaneScope = String(ans.powerPlatformPlaneScope || '').trim();
     if (powerPlatformPlaneScope && !PLANE_SCOPES.includes(powerPlatformPlaneScope)) err('powerPlatformPlaneScope', 'Pick whether Power Platform is in scope.');
+    const cloud = String(ans.cloud || '').trim();
+    if (cloud && !CLOUDS.includes(cloud)) err('cloud', 'Pick a valid cloud environment (commercial or usgov).');
+    const complianceProfile = String(ans.complianceProfile || '').trim();
+    if (complianceProfile && !COMPLIANCE_PROFILES.includes(complianceProfile)) err('complianceProfile', 'Pick a valid compliance profile.');
     let reportedSymptoms = null;
     if (Array.isArray(ans.reportedSymptoms) && ans.reportedSymptoms.length) {
       const uniq = [...new Set(ans.reportedSymptoms)];
@@ -530,6 +545,8 @@
       identityConstraints: ans.identityConstraints,
       workingHours: { start, end, days, timeZone }
     };
+    if (cloud) intake.cloud = cloud;
+    if (complianceProfile) intake.complianceProfile = complianceProfile;
     if (reportedSymptoms) intake.reportedSymptoms = reportedSymptoms;
     if (userNetworks) intake.userNetworks = userNetworks;
     if (userSentiment) intake.userSentiment = userSentiment;
@@ -1060,8 +1077,8 @@
     { kind: 'subscription', re: /(?<pre>"subscriptionName"\s*:\s*")(?<value>[^"\n]+)(?<post>")/g },
     { kind: 'group', re: /(?<pre>\/resourceGroups\/)(?<value>[^/\s'"?,;)]+)/gi },
     { kind: 'resource', re: /(?<pre>\/(?:hostpools|sessionhosts|applicationgroups|workspaces|scalingplans|virtualMachines|networkInterfaces|disks|virtualNetworks|subnets|privateEndpoints|storageAccounts|vaults|shares|galleries|images|automationAccounts)\/)(?<value>[^/\s'"?,;)]+)/gi },
-    { kind: 'storage', re: /\b(?!privatelink\b)(?<value>[a-z0-9]{3,24})(?<post>\.(?:file|blob|queue|table|dfs|web)\.core\.windows\.net)\b/g },
-    { kind: 'vault', re: /\b(?!privatelink\b)(?<value>[a-z0-9-]{3,24})(?<post>\.vault\.azure\.net)\b/g }
+    { kind: 'storage', re: /\b(?!privatelink\b)(?<value>[a-z0-9]{3,24})(?<post>\.(?:file|blob|queue|table|dfs|web)\.core\.(?:windows\.net|usgovcloudapi\.net))\b/g },
+    { kind: 'vault', re: /\b(?!privatelink\b)(?<value>[a-z0-9-]{3,24})(?<post>\.vault\.(?:azure\.net|usgovcloudapi\.net))\b/g }
   ];
   const REPORT_LABELS = { subscription: 'subscription name', group: 'resource group', resource: 'resource name', storage: 'storage account', vault: 'key vault' };
 
@@ -1120,7 +1137,7 @@
   const support = (command, runIn) => engine.runin.support(command, runIn, PLATFORMS, SCRIPTS);
 
   return {
-    STAGES, PLANES, PLANE_LABELS, PLANE_SCOPES, HUBS, IDENTITY, DAYS, TOPICS,
+    STAGES, PLANES, PLANE_LABELS, PLANE_SCOPES, CLOUDS, COMPLIANCE_PROFILES, HUBS, IDENTITY, DAYS, TOPICS,
     LINECHECK_SYMPTOMS, LINECHECK_SYMPTOM_MAP, REPORTED_SYMPTOMS, NETWORK_KINDS, SAMPLE_BANDS,
     sampleBand, parseLinecheckExport, summarizeLinecheckExports, correlateSentimentWithAssessment,
     parseStateLines, latestStates, summarizeCollect, summarizeAnalyze,

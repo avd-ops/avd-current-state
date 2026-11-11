@@ -1,6 +1,6 @@
 {
   "schema": "avd-assess-method/v1",
-  "version": 9,
+  "version": 10,
   "factRegister": 1,
   "landingZoneCommit": "ae6e80b574cccde570d0053d4c62b519d31052a8",
   "collection": [
@@ -1648,6 +1648,32 @@
       "from": "intake",
       "claims": [
         "gap:reliability-scope",
+        "gap:intake"
+      ]
+    },
+    {
+      "fact": "c11.cloud",
+      "from": "arm-rest",
+      "property": "environment",
+      "claims": [
+        "ref:azure-government-avd#usgov-portal-and-arm",
+        "gap:collection-map"
+      ]
+    },
+    {
+      "fact": "intake.cloud",
+      "from": "intake",
+      "claims": [
+        "ref:azure-government-avd#usgov-regions",
+        "gap:intake"
+      ]
+    },
+    {
+      "fact": "intake.complianceProfile",
+      "from": "intake",
+      "claims": [
+        "ref:azure-government-avd#fips-tls-baseline",
+        "gap:security-scope",
         "gap:intake"
       ]
     }
@@ -3678,6 +3704,163 @@
         "kind": "lz-setting",
         "plane": "azure",
         "name": "session-host-nsg-no-public-rdp"
+      }
+    },
+    {
+      "id": "asm-gov-allowed-locations",
+      "plane": "azure",
+      "title": "US Government subscriptions enforce Azure Policy allowed-locations guardrails with zero do-not-enforce exemptions",
+      "pillar": "security",
+      "severity": "high",
+      "claims": [
+        "ref:azure-government-avd#usgov-regions",
+        "ref:review-checklists-avd#E01.02"
+      ],
+      "facts": [
+        "c11.cloud",
+        "c11.policy.assignments",
+        "c11.policy.doNotEnforce"
+      ],
+      "rule": {
+        "each": "/subscriptions/*",
+        "expect": {
+          "policy/assignments": {
+            "min": 1
+          },
+          "policy/doNotEnforce": {
+            "max": 0
+          }
+        },
+        "onFail": "gap"
+      },
+      "informs": [
+        "region"
+      ],
+      "remediation": {
+        "kind": "lz-parameter",
+        "plane": "azure",
+        "name": "enableSubscriptionGuardrails",
+        "to": true
+      }
+    },
+    {
+      "id": "asm-gov-private-dns-zones",
+      "plane": "azure",
+      "title": "US Government profile storage accounts use Private Link endpoints backed by sovereign Private DNS zones",
+      "pillar": "security",
+      "severity": "high",
+      "claims": [
+        "ref:azure-government-private-link#usgov-private-dns-zones",
+        "ref:review-checklists-avd#F01.10"
+      ],
+      "facts": [
+        "c11.cloud",
+        "c11.storage.kind",
+        "c11.storage.privateEndpoint"
+      ],
+      "rule": {
+        "each": "/subscriptions/*/storageAccounts/*",
+        "where": {
+          "kind": {
+            "eq": "FileStorage"
+          }
+        },
+        "expect": {
+          "privateEndpoint": {
+            "eq": true
+          }
+        },
+        "onFail": "gap"
+      },
+      "informs": [
+        "network"
+      ],
+      "remediation": {
+        "kind": "lz-setting",
+        "plane": "azure",
+        "name": "storage-private-endpoint"
+      }
+    },
+    {
+      "id": "asm-gov-itar-redirection-lockdown",
+      "plane": "azure",
+      "title": "ITAR and CUI host pools disable clipboard, drive, USB and printer redirection",
+      "pillar": "security",
+      "severity": "high",
+      "claims": [
+        "ref:avd-security-guide#device-redirection",
+        "ref:rdp-properties#redirection-properties"
+      ],
+      "facts": [
+        "intake.complianceProfile",
+        "c11.hostPool.redirection.drives",
+        "c11.hostPool.redirection.clipboard",
+        "c11.hostPool.redirection.printers",
+        "c11.hostPool.redirection.usb"
+      ],
+      "rule": {
+        "each": "/subscriptions/*/hostPools/*",
+        "expect": {
+          "redirection/drives": {
+            "eq": "off"
+          },
+          "redirection/clipboard": {
+            "eq": "off"
+          },
+          "redirection/printers": {
+            "eq": "off"
+          },
+          "redirection/usb": {
+            "eq": "off"
+          }
+        },
+        "onFail": "gap"
+      },
+      "informs": [],
+      "remediation": {
+        "kind": "lz-parameter",
+        "plane": "azure",
+        "name": "complianceProfile",
+        "to": "itar_cui"
+      }
+    },
+    {
+      "id": "asm-gov-fips-tls-baseline",
+      "plane": "azure",
+      "title": "US Government and ITAR storage accounts enforce AES-GCM SMB channel encryption",
+      "pillar": "security",
+      "severity": "high",
+      "claims": [
+        "ref:azure-government-avd#fips-tls-baseline",
+        "ref:mcsb-avd-baseline#DP-3"
+      ],
+      "facts": [
+        "intake.complianceProfile",
+        "c11.storage.kind",
+        "c11.storage.smbChannelEncryption"
+      ],
+      "rule": {
+        "each": "/subscriptions/*/storageAccounts/*",
+        "where": {
+          "kind": {
+            "eq": "FileStorage"
+          }
+        },
+        "expect": {
+          "smbChannelEncryption": {
+            "in": [
+              "gcm",
+              "aes256-gcm-only"
+            ]
+          }
+        },
+        "onFail": "gap"
+      },
+      "informs": [],
+      "remediation": {
+        "kind": "lz-setting",
+        "plane": "azure",
+        "name": "storage-smb-channel-encryption-gcm"
       }
     }
   ],

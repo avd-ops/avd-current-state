@@ -140,21 +140,100 @@ function Test-AvdReadOnlyToken {
     return $true
 }
 
+function Resolve-AvdCloudEnvironment {
+    <#
+    .SYNOPSIS
+        Loads the C26 cloud-environments.json map and returns the environment descriptor
+        for 'commercial' or 'usgov'.
+    #>
+    param(
+        [ValidateSet('commercial', 'usgov')]
+        [string]$Cloud = 'commercial',
+        [string]$Path = (Join-Path (Split-Path -Parent $PSScriptRoot) 'contracts/cloud-environments.json')
+    )
+    if (-not (Test-Path -LiteralPath $Path)) {
+        throw "Cloud environments contract (C26) not found at $Path"
+    }
+    $doc = Get-Content -LiteralPath $Path -Raw | ConvertFrom-Json
+    $envObj = Get-RebuildValue $doc "clouds.$Cloud"
+    if ($null -eq $envObj) {
+        throw "Cloud '$Cloud' not defined in $Path"
+    }
+    if ($null -eq (Get-RebuildValue $envObj 'azure')) {
+        $envObj | Add-Member -NotePropertyName 'azure' -NotePropertyValue ([pscustomobject]@{
+            environmentName       = Get-RebuildValue $envObj 'azCloudName'
+            armEndpoint           = Get-RebuildValue $envObj 'armEndpoint'
+            storageEndpointSuffix = Get-RebuildValue $envObj 'storageEndpointSuffix'
+            keyVaultDnsSuffix     = Get-RebuildValue $envObj 'keyVaultDnsSuffix'
+        }) -Force
+    }
+    if ($null -eq (Get-RebuildValue $envObj 'entra')) {
+        $envObj | Add-Member -NotePropertyName 'entra' -NotePropertyValue ([pscustomobject]@{
+            environmentName = Get-RebuildValue $envObj 'entraEnvironment'
+            loginEndpoint   = Get-RebuildValue $envObj 'loginEndpoint'
+            graphEndpoint   = Get-RebuildValue $envObj 'graphEndpoint'
+        }) -Force
+    }
+    return $envObj
+}
+
+function Resolve-AvdScopeUri {
+    <#
+    .SYNOPSIS
+        Expands {armHost}, {graphHost}, {bapHost}, {dataverseSuffix}, and {logAnalyticsHost}
+        tokens in a scope.json uriPattern using C26 cloud-environments.json.
+    #>
+    param(
+        [Parameter(Mandatory)]
+        [Alias('Uri')]
+        [string]$UriPattern,
+        [ValidateSet('commercial', 'usgov')][string]$Cloud = 'commercial',
+        [string]$Org = ''
+    )
+    $envObj = Resolve-AvdCloudEnvironment -Cloud $Cloud
+    $armHost   = ("$(Get-RebuildValue $envObj 'armEndpoint' 'https://management.azure.com')" -replace '^https?://', '').TrimEnd('/')
+    $graphHost = ("$(Get-RebuildValue $envObj 'graphEndpoint' 'https://graph.microsoft.com')" -replace '^https?://', '').TrimEnd('/')
+    $bapRaw    = Get-RebuildValue $envObj 'powerPlatform.bapEndpoint' (Get-RebuildValue $envObj 'bapEndpoint' 'https://api.bap.microsoft.com')
+    $bapHost   = ("$bapRaw" -replace '^https?://', '').TrimEnd('/')
+    $dvArr     = @(Get-RebuildValue $envObj 'powerPlatform.dataverseSuffixes' @())
+    $dvRaw     = if ($dvArr.Count -gt 0 -and $dvArr[0]) { "$($dvArr[0])" } else { "$(Get-RebuildValue $envObj 'dataverseSuffix' 'crm.dynamics.com')" }
+    $dvSuffix  = $dvRaw.TrimStart('.')
+    $defaultLa = if ($Cloud -eq 'usgov') { 'api.loganalytics.us' } else { 'api.loganalytics.io' }
+    $laHost    = ("$(Get-RebuildValue $envObj 'logAnalyticsApiHost' $defaultLa)" -replace '^https?://', '').TrimEnd('/')
+
+    $resolved = $UriPattern -replace '\{armHost\}', $armHost `
+        -replace '\{graphHost\}', $graphHost `
+        -replace '\{bapHost\}', $bapHost `
+        -replace '\{dataverseSuffix\}', $dvSuffix `
+        -replace '\{logAnalyticsHost\}', $laHost
+    if ($Org) {
+        $resolved = $resolved -replace '\{org\}', $Org
+    }
+    return $resolved
+}
+
 function Get-AvdStateEntra {
     <#
     .SYNOPSIS
         Read-only Entra ID plane collector (Graph v1.0 groups, Conditional Access policies, servicePrincipals, subscribedSkus).
     #>
     param(
-        [Parameter(Mandatory)][scriptblock]$Invoker,
-        [string]$Token = ''
+        [scriptblock]$Invoker = $null,
+        [object]$Scope = $null,
+        [string]$Token = '',
+        [ValidateSet('commercial', 'usgov')]
+        [string]$Cloud = 'commercial'
     )
     $null = Test-AvdReadOnlyToken -Token $Token
+    if ($null -eq $Invoker) {
+        return @{ Status = 'unconsented'; Reason = 'insufficient-scope'; Data = @{} }
+    }
+    $graphV1 = Resolve-AvdScopeUri -UriPattern 'https://{graphHost}/v1.0' -Cloud $Cloud
     $endpoints = [ordered]@{
-        groups                    = 'https://graph.microsoft.com/v1.0/groups'
-        conditionalAccessPolicies = 'https://graph.microsoft.com/v1.0/identity/conditionalAccess/policies'
-        servicePrincipals         = 'https://graph.microsoft.com/v1.0/servicePrincipals'
-        subscribedSkus            = 'https://graph.microsoft.com/v1.0/subscribedSkus'
+        groups                    = "$graphV1/groups"
+        conditionalAccessPolicies = "$graphV1/identity/conditionalAccess/policies"
+        servicePrincipals         = "$graphV1/servicePrincipals"
+        subscribedSkus            = "$graphV1/subscribedSkus"
     }
     $data = [ordered]@{}
     foreach ($k in $endpoints.Keys) {
@@ -167,7 +246,14 @@ function Get-AvdStateEntra {
         }
         $data[$k] = @($r.Items)
     }
-    return @{ Status = 'collected'; Data = $data }
+    return @{
+        Status                    = 'collected'
+        Data                      = $data
+        groups                    = $data['groups']
+        conditionalAccessPolicies = $data['conditionalAccessPolicies']
+        servicePrincipals         = $data['servicePrincipals']
+        subscribedSkus            = $data['subscribedSkus']
+    }
 }
 
 function Get-AvdStateIntune {
@@ -176,22 +262,30 @@ function Get-AvdStateIntune {
         Read-only Intune and Windows 365 plane collector (deviceManagement settings, MDM auto-enrollment, Settings Catalog, assignmentFilters, managedDevices, and virtualEndpoint).
     #>
     param(
-        [Parameter(Mandatory)][scriptblock]$Invoker,
-        [string]$Token = ''
+        [scriptblock]$Invoker = $null,
+        [object]$Scope = $null,
+        [string]$Token = '',
+        [ValidateSet('commercial', 'usgov')]
+        [string]$Cloud = 'commercial'
     )
     $null = Test-AvdReadOnlyToken -Token $Token
+    if ($null -eq $Invoker) {
+        return @{ Status = 'unconsented'; Reason = 'insufficient-scope'; Data = @{} }
+    }
+    $graphV1   = Resolve-AvdScopeUri -UriPattern 'https://{graphHost}/v1.0' -Cloud $Cloud
+    $graphBeta = Resolve-AvdScopeUri -UriPattern 'https://{graphHost}/beta' -Cloud $Cloud
     $endpoints = [ordered]@{
-        settings              = 'https://graph.microsoft.com/v1.0/deviceManagement/settings'
-        mdmPolicies           = 'https://graph.microsoft.com/v1.0/policies/mobileDeviceManagementPolicies'
-        configurationPolicies = 'https://graph.microsoft.com/beta/deviceManagement/configurationPolicies'
-        managedDevices        = 'https://graph.microsoft.com/v1.0/deviceManagement/managedDevices'
+        settings              = "$graphV1/deviceManagement/settings"
+        mdmPolicies           = "$graphV1/policies/mobileDeviceManagementPolicies"
+        configurationPolicies = "$graphBeta/deviceManagement/configurationPolicies"
+        managedDevices        = "$graphV1/deviceManagement/managedDevices"
     }
     $optionalEndpoints = [ordered]@{
-        assignmentFilters     = 'https://graph.microsoft.com/beta/deviceManagement/assignmentFilters'
-        cloudPcs              = 'https://graph.microsoft.com/v1.0/deviceManagement/virtualEndpoint/cloudPCs'
-        provisioningPolicies  = 'https://graph.microsoft.com/v1.0/deviceManagement/virtualEndpoint/provisioningPolicies'
-        userSettings          = 'https://graph.microsoft.com/v1.0/deviceManagement/virtualEndpoint/userSettings'
-        onPremisesConnections = 'https://graph.microsoft.com/v1.0/deviceManagement/virtualEndpoint/onPremisesConnections'
+        assignmentFilters     = "$graphBeta/deviceManagement/assignmentFilters"
+        cloudPcs              = "$graphV1/deviceManagement/virtualEndpoint/cloudPCs"
+        provisioningPolicies  = "$graphV1/deviceManagement/virtualEndpoint/provisioningPolicies"
+        userSettings          = "$graphV1/deviceManagement/virtualEndpoint/userSettings"
+        onPremisesConnections = "$graphV1/deviceManagement/virtualEndpoint/onPremisesConnections"
     }
     $data = [ordered]@{}
     foreach ($k in $endpoints.Keys) {
@@ -215,7 +309,12 @@ function Get-AvdStateIntune {
             $data[$optKey] = @()
         }
     }
-    return @{ Status = 'collected'; Data = $data }
+    return @{
+        Status                = 'collected'
+        Data                  = $data
+        managedDevices        = $data['managedDevices']
+        configurationPolicies = $data['configurationPolicies']
+    }
 }
 
 function Get-AvdStateM365 {
@@ -224,12 +323,19 @@ function Get-AvdStateM365 {
         Read-only Microsoft 365 plane collector (Intune Settings Catalog M365/OneDrive/Teams policies + optional Teams VDI policy).
     #>
     param(
-        [Parameter(Mandatory)][scriptblock]$Invoker,
+        [scriptblock]$Invoker = $null,
+        [object]$Scope = $null,
         [scriptblock]$TeamsInvoker = $null,
-        [string]$Token = ''
+        [string]$Token = '',
+        [ValidateSet('commercial', 'usgov')]
+        [string]$Cloud = 'commercial'
     )
     $null = Test-AvdReadOnlyToken -Token $Token
-    $r = Invoke-RebuildRestRead -Path 'https://graph.microsoft.com/beta/deviceManagement/configurationPolicies' -Invoker $Invoker
+    if ($null -eq $Invoker) {
+        return @{ Status = 'unconsented'; Reason = 'insufficient-scope'; Data = @{} }
+    }
+    $graphBeta = Resolve-AvdScopeUri -UriPattern 'https://{graphHost}/beta' -Cloud $Cloud
+    $r = Invoke-RebuildRestRead -Path "$graphBeta/deviceManagement/configurationPolicies" -Invoker $Invoker
     if ($r.Status -eq 'failed') {
         if ($r.Error -match 'HTTP (401|403)') {
             return @{ Status = 'unconsented'; Reason = 'insufficient-scope'; Data = @{} }
@@ -241,14 +347,14 @@ function Get-AvdStateM365 {
         teamsVdiPolicies      = @()
     }
     if ($null -eq $TeamsInvoker) {
-        return @{ Status = 'partial'; Reason = 'teams-ps-unavailable'; Data = $data }
+        return @{ Status = 'partial'; Reason = 'teams-ps-unavailable'; Data = $data; configurationPolicies = $data['configurationPolicies'] }
     }
     try {
         $teams = @(& $TeamsInvoker 'Get-CsTeamsVdiPolicy')
         $data['teamsVdiPolicies'] = $teams
-        return @{ Status = 'collected'; Data = $data }
+        return @{ Status = 'collected'; Data = $data; configurationPolicies = $data['configurationPolicies'] }
     } catch {
-        return @{ Status = 'partial'; Reason = 'teams-ps-unavailable'; Data = $data }
+        return @{ Status = 'partial'; Reason = 'teams-ps-unavailable'; Data = $data; configurationPolicies = $data['configurationPolicies'] }
     }
 }
 
@@ -258,11 +364,20 @@ function Get-AvdStatePowerPlatform {
         Read-only Power Platform plane collector (BAP environments and DLP policies, plus optional Dataverse solutions/workflows).
     #>
     param(
-        [Parameter(Mandatory)][scriptblock]$Invoker,
-        [string]$Token = ''
+        [scriptblock]$Invoker = $null,
+        [object]$Scope = $null,
+        [string]$SubscriptionId = '',
+        [string]$Token = '',
+        [ValidateSet('commercial', 'usgov')]
+        [string]$Cloud = 'commercial'
     )
     $null = Test-AvdReadOnlyToken -Token $Token
-    $envRead = Invoke-RebuildRestRead -Path 'https://api.bap.microsoft.com/providers/Microsoft.BusinessAppPlatform/scopes/admin/environments?api-version=2023-06-01' -Invoker $Invoker
+    if ($null -eq $Invoker) {
+        return @{ Status = 'skipped'; Reason = 'bap-unavailable'; Data = @{} }
+    }
+    $envUri = Resolve-AvdScopeUri -UriPattern 'https://{bapHost}/providers/Microsoft.BusinessAppPlatform/scopes/admin/environments?api-version=2023-06-01' -Cloud $Cloud
+    $dlpUri = Resolve-AvdScopeUri -UriPattern 'https://{bapHost}/providers/Microsoft.BusinessAppPlatform/scopes/admin/apiPolicies?api-version=2016-11-01' -Cloud $Cloud
+    $envRead = Invoke-RebuildRestRead -Path $envUri -Invoker $Invoker
     if ($envRead.Status -eq 'failed') {
         if ($envRead.Error -match 'HTTP (401|403)') {
             return @{ Status = 'unconsented'; Reason = 'insufficient-scope'; Data = @{} }
@@ -272,14 +387,14 @@ function Get-AvdStatePowerPlatform {
     if ($envRead.Status -eq 'none') {
         return @{ Status = 'skipped'; Reason = 'bap-unavailable'; Data = @{} }
     }
-    $dlpRead = Invoke-RebuildRestRead -Path 'https://api.bap.microsoft.com/providers/Microsoft.BusinessAppPlatform/scopes/admin/apiPolicies?api-version=2016-11-01' -Invoker $Invoker
+    $dlpRead = Invoke-RebuildRestRead -Path $dlpUri -Invoker $Invoker
     $data = [ordered]@{
         environments = @($envRead.Items)
         dlpPolicies  = $(if ($dlpRead.Status -eq 'ok') { @($dlpRead.Items) } else { @() })
         solutions    = @()
         workflows    = @()
     }
-    return @{ Status = 'collected'; Data = $data }
+    return @{ Status = 'collected'; Data = $data; enterprisePolicies = @(); environments = $data['environments'] }
 }
 
 function Get-RebuildFileName {
@@ -832,4 +947,4 @@ function Get-RebuildDataset {
 
 Export-ModuleMember -Function Get-RebuildValue, Get-RebuildScope, Get-RebuildFileName, Get-RebuildQuery, Get-RebuildRestPath,
     ConvertTo-RebuildSafeObject, Get-RebuildSecretFinding, Invoke-RebuildGraphQuery, Invoke-RebuildRestRead, Get-RebuildEvidence, Get-RebuildDataset,
-    Resolve-AvdPlanes, Test-AvdReadOnlyToken, Get-AvdStateEntra, Get-AvdStateIntune, Get-AvdStateM365, Get-AvdStatePowerPlatform
+    Resolve-AvdPlanes, Test-AvdReadOnlyToken, Resolve-AvdCloudEnvironment, Resolve-AvdScopeUri, Get-AvdStateEntra, Get-AvdStateIntune, Get-AvdStateM365, Get-AvdStatePowerPlatform

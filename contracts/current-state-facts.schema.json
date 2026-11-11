@@ -38,7 +38,8 @@
             "no-license",
             "teams-ps-unavailable",
             "bap-unavailable",
-            "not-applicable-intake"
+            "not-applicable-intake",
+            "unsupported-in-cloud"
           ]
         }
       }
@@ -47,6 +48,7 @@
   "properties": {
     "schema": { "const": "avd-current-state-facts/v1" },
     "estate": { "type": "string", "pattern": "^est-[0-9a-f]{8}$", "description": "Keyed pseudonym of the tenant" },
+    "cloud": { "enum": ["commercial", "usgov"], "description": "Cloud environment profile from C26 (default commercial)" },
     "generatedUtc": { "$ref": "#/$defs/utc" },
     "planesCollected": {
       "type": "object",

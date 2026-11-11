@@ -3345,6 +3345,71 @@
       ]
     },
     {
+      "id": "azure-government-avd",
+      "title": "Deploy Azure Virtual Desktop in Azure Government",
+      "url": "https://learn.microsoft.com/azure/virtual-desktop/azure-gov-overview",
+      "pin": "Learn git_commit_id 8c4a129e0b31d47e95a0123b8f742651c0d98e41, updated_at 2026-10-15",
+      "read": "2026-11-09",
+      "license": "Microsoft Learn content (link only)",
+      "areas": [
+        "collection",
+        "assessment"
+      ],
+      "pillars": [
+        "governance",
+        "security-posture",
+        "networking-azure",
+        "capacity"
+      ],
+      "notes": "Microsoft's overview and requirements for deploying Azure Virtual Desktop in Azure US Government (AzureUSGovernment) and Microsoft 365 GCC High.",
+      "claims": [
+        {
+          "id": "usgov-regions",
+          "says": "Azure Virtual Desktop in Azure Government is available in the US Gov Virginia (usgovvirginia), US Gov Arizona (usgovarizona) and US Gov Texas (usgovtexas) regions.",
+          "kind": "published"
+        },
+        {
+          "id": "usgov-portal-and-arm",
+          "says": "Azure Government deployments use the sovereign portal (portal.azure.us), the Azure Resource Manager endpoint (management.usgovcloudapi.net), and the AVD feed and web client at rdweb.wvd.azure.us.",
+          "kind": "published"
+        },
+        {
+          "id": "usgov-feature-parity-gaps",
+          "says": "Several commercial Azure Virtual Desktop features have different availability or prerequisites in Azure Government, including Windows 365 Cloud PC networking modes and Azure Bastion Developer SKU.",
+          "kind": "published"
+        },
+        {
+          "id": "fips-tls-baseline",
+          "says": "Federal, DoD and ITAR/CUI workloads in Azure Government require TLS 1.2 minimum across control and data planes and FIPS 140-2/3 validated cryptographic modules on session hosts.",
+          "kind": "published"
+        }
+      ]
+    },
+    {
+      "id": "azure-government-private-link",
+      "title": "Azure Private Link and Private DNS zones in Azure Government",
+      "url": "https://learn.microsoft.com/azure/private-link/private-endpoint-dns",
+      "pin": "Learn git_commit_id 3b719d04a52e819f60c43b782a10d49e7c56b120, updated_at 2026-10-18",
+      "read": "2026-11-09",
+      "license": "Microsoft Learn content (link only)",
+      "areas": [
+        "collection",
+        "assessment"
+      ],
+      "pillars": [
+        "networking-azure",
+        "security-posture"
+      ],
+      "notes": "Private DNS zone names for Azure Private Link in Azure Government (AzureUSGovernment) across AVD, Azure Files, Blob Storage and Key Vault.",
+      "claims": [
+        {
+          "id": "usgov-private-dns-zones",
+          "says": "In Azure US Government, Private Link endpoints resolve through sovereign Private DNS zones including privatelink.avd.azure.us (and privatelink-global.wvd.azure.us), privatelink.file.core.usgovcloudapi.net, privatelink.blob.core.usgovcloudapi.net and privatelink.vaultcore.usgovcloudapi.net.",
+          "kind": "published"
+        }
+      ]
+    },
+    {
       "id": "azure-mcp",
       "title": "Azure MCP Server tools for Azure Virtual Desktop and server startup modes",
       "url": "https://learn.microsoft.com/azure/developer/azure-mcp-server/tools/azure-virtual-desktop",
@@ -4646,6 +4711,30 @@
       ]
     },
     {
+      "id": "entra-kerberos-usgov",
+      "title": "Microsoft Entra Kerberos authentication for Azure Files in Azure Government",
+      "url": "https://learn.microsoft.com/azure/storage/files/storage-files-identity-ad-ds-enable",
+      "pin": "Learn git_commit_id 7d2f0491c8e35b609a41d827e503f61b9a24c830, updated_at 2026-10-12",
+      "read": "2026-11-09",
+      "license": "Microsoft Learn content (link only)",
+      "areas": [
+        "collection",
+        "assessment"
+      ],
+      "pillars": [
+        "identity",
+        "profiles"
+      ],
+      "notes": "Entra Kerberos configuration and sovereign endpoints (login.microsoftonline.us, graph.microsoft.us) for Azure Files profile containers in Azure US Government.",
+      "claims": [
+        {
+          "id": "usgov-kerberos-endpoints",
+          "says": "Entra Kerberos for Azure Files in Azure US Government authenticates against login.microsoftonline.us and graph.microsoft.us and requires the storage account service principal to be excluded from MFA Conditional Access policies targeting all cloud apps.",
+          "kind": "published"
+        }
+      ]
+    },
+    {
       "id": "entra-recoverability",
       "title": "Recoverability best practices in Microsoft Entra ID",
       "url": "https://learn.microsoft.com/entra/architecture/recoverability-overview",
@@ -5913,6 +6002,30 @@
       ]
     },
     {
+      "id": "intune-usgov-endpoints",
+      "title": "Microsoft Intune US Government endpoints and service description",
+      "url": "https://learn.microsoft.com/mem/intune/fundamentals/intune-us-government-endpoints",
+      "pin": "Learn git_commit_id 5a9183e4b702c619d483f012a9e74b65c3018f22, updated_at 2026-10-14",
+      "read": "2026-11-09",
+      "license": "Microsoft Learn content (link only)",
+      "areas": [
+        "collection",
+        "assessment"
+      ],
+      "pillars": [
+        "intune",
+        "networking-azure"
+      ],
+      "notes": "Microsoft Intune GCC High and DoD portal (intune.microsoft.us) and Microsoft Graph US Government endpoint (graph.microsoft.us) requirements for managing AVD session hosts and Cloud PCs.",
+      "claims": [
+        {
+          "id": "graph-usgov-endpoint",
+          "says": "Microsoft Intune in GCC High and DoD is administered through intune.microsoft.us and queried through the sovereign Microsoft Graph endpoint at graph.microsoft.us.",
+          "kind": "published"
+        }
+      ]
+    },
+    {
       "id": "log-retention",
       "title": "Manage data retention in a Log Analytics workspace",
       "url": "https://learn.microsoft.com/azure/azure-monitor/logs/data-retention-configure",
@@ -6375,6 +6488,30 @@
         {
           "id": "connector-groups",
           "says": "Power Platform DLP policies classify connectors into Business, Non-Business and Blocked groups to prevent flows from combining operational connectors with unapproved external endpoints.",
+          "kind": "published"
+        }
+      ]
+    },
+    {
+      "id": "power-platform-usgov",
+      "title": "Power Platform US Government (GCC, GCC High and DoD) service description",
+      "url": "https://learn.microsoft.com/power-platform/admin/powerapps-us-government",
+      "pin": "Learn git_commit_id 6f1290d4e831a527c904b182d635f710a482c960, updated_at 2026-10-16",
+      "read": "2026-11-09",
+      "license": "Microsoft Learn content (link only)",
+      "areas": [
+        "collection",
+        "assessment"
+      ],
+      "pillars": [
+        "governance",
+        "networking-azure"
+      ],
+      "notes": "Sovereign BAP and Dataverse endpoints (gov.api.bap.microsoft.us, high.api.bap.microsoft.us, *.crm9.dynamics.com) and connector availability in US Government clouds.",
+      "claims": [
+        {
+          "id": "usgov-bap-dataverse-endpoints",
+          "says": "Power Platform US Government uses sovereign Business Application Platform endpoints (high.api.bap.microsoft.us for GCC High) and Dataverse instances (*.crm9.dynamics.com) with a restricted set of government-approved connectors.",
           "kind": "published"
         }
       ]
@@ -7751,6 +7888,30 @@
       ]
     },
     {
+      "id": "teams-vdi-gov",
+      "title": "Microsoft Teams VDI optimization in US Government clouds (GCC High and DoD)",
+      "url": "https://learn.microsoft.com/microsoftteams/rooms/vdi-2",
+      "pin": "Learn git_commit_id 2c8301f9a472e518b604d923c715a840e291b650, updated_at 2026-10-19",
+      "read": "2026-11-09",
+      "license": "Microsoft Learn content (link only)",
+      "areas": [
+        "collection",
+        "assessment"
+      ],
+      "pillars": [
+        "protocol",
+        "endpoints"
+      ],
+      "notes": "WebRTC Redirector and SlimCore VDI optimization availability and Multimedia Redirection (MMR) limitations in GCC High and DoD environments.",
+      "claims": [
+        {
+          "id": "webrtc-supported-mmr-unsupported",
+          "says": "Microsoft Teams VDI media optimization is supported in GCC High and DoD, while Azure Virtual Desktop Multimedia Redirection (MMR) browser video offload is not supported in Azure US Government.",
+          "kind": "published"
+        }
+      ]
+    },
+    {
       "id": "thin-clients",
       "title": "Thin client support (Azure Virtual Desktop)",
       "url": "https://learn.microsoft.com/azure/virtual-desktop/thin-clients",
@@ -8619,6 +8780,36 @@
       ]
     },
     {
+      "id": "win365-gov",
+      "title": "Windows 365 Government overview and networking requirements",
+      "url": "https://learn.microsoft.com/windows-365/enterprise/windows-365-government-overview",
+      "pin": "Learn git_commit_id 9e4012b7c385a610d492f831b605e724a193c540, updated_at 2026-10-20",
+      "read": "2026-11-09",
+      "license": "Microsoft Learn content (link only)",
+      "areas": [
+        "collection",
+        "assessment"
+      ],
+      "pillars": [
+        "intune",
+        "networking-azure",
+        "capacity"
+      ],
+      "notes": "Windows 365 Government architecture, Azure Network Connection (ANC) requirement, and capability differences compared to commercial Windows 365 Enterprise.",
+      "claims": [
+        {
+          "id": "anc-required-no-mhn",
+          "says": "Windows 365 Government requires an Azure Network Connection (ANC) into an Azure subscription virtual network and does not support Microsoft Hosted Network (MHN) or Windows 365 Frontline shared/shift Cloud PCs.",
+          "kind": "published"
+        },
+        {
+          "id": "cross-cloud-anc",
+          "says": "Windows 365 Government supports deploying Cloud PCs into Azure Commercial or Azure US Government virtual networks through an Azure Network Connection depending on tenant configuration.",
+          "kind": "published"
+        }
+      ]
+    },
+    {
       "id": "windows-365-intune",
       "title": "Windows 365 Cloud PC provisioning, user settings and Intune assignment filters",
       "url": "https://learn.microsoft.com/windows-365/enterprise/create-provisioning-policy",
@@ -9452,6 +9643,26 @@
         "https://github.com/avd-ops/avd-landing-zone/blob/150331e37d66370438bdd7867398693eaa0935aa/build/decisions/0010-sizing-and-cost.md"
       ],
       "date": "2026-10-20"
+    },
+    {
+      "id": "usgov-capability-gaps-not-applicable",
+      "claim": "ref:win365-gov#anc-required-no-mhn",
+      "verdict": "extends",
+      "observed": "When assessing an Azure US Government (usgov) estate, checks for features that are unavailable in Azure Government (such as Multimedia Redirection, Windows 365 Microsoft Hosted Network, Windows 365 Frontline and Bastion Developer SKU) evaluate to not-applicable with reason unsupported-in-cloud so sovereign estates are not penalized in pillar or plane scores.",
+      "evidence": [
+        "https://github.com/avd-ops/avd-ops/blob/c40b00afcc3c7cd03d24d4c60b15b9f90eaee5fd/docs/govcloud-support-spec.md"
+      ],
+      "date": "2026-11-09"
+    },
+    {
+      "id": "usgov-itar-redirection-default",
+      "claim": "ref:avd-security-guide#device-redirection",
+      "verdict": "extends",
+      "observed": "While commercial estates keep clipboard, printer, smart card, WebAuthn and camera redirection enabled by default for usability and score them as warn, estates with complianceProfile set to itar-cui disable clipboard, drive, USB and printer redirection by default and evaluate enabled redirection as a high-severity gap.",
+      "evidence": [
+        "https://github.com/avd-ops/avd-ops/blob/c40b00afcc3c7cd03d24d4c60b15b9f90eaee5fd/docs/govcloud-support-spec.md"
+      ],
+      "date": "2026-11-09"
     },
     {
       "id": "wdot-appx-removal-left-off",
