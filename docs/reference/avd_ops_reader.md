@@ -19,6 +19,9 @@ Optional. The collector, validator and facts script never need it: with no reade
 | `-ResourceGroup` | string[] | no | `@()` | Resource groups for Reader instead of the whole subscription (needs exactly one -Subscription). |
 | `-LogAnalyticsWorkspace` | string[] | no | `@()` | Log Analytics workspace resource IDs for Log Analytics Reader (opt-in; they hold sign-in data). |
 | `-Cost` | switch | no |  | Cost Management Reader on the same subscriptions (opt-in). |
+| `-DesktopVirtualizationReader` | switch | no |  | Desktop Virtualization Reader on the same subscriptions or resource groups (opt-in, for narrow AVD-only reads). |
+| `-EmitMcpConfig` | string | no |  | Optional path to write a read-only, zero-secret .mcp.json for local operator MCP investigation. |
+| `-IncludeAzCliMcp` | switch | no |  | When used with -EmitMcpConfig, also include Azure/azure-api-mcp (--readonly) alongside microsoft/mcp. |
 | `-OutputContainer` | string | no |  | A blob container's resource ID for the run's output (opt-in: Storage Blob Data Contributor there only). |
 | `-AppName` | string | no | `'avd-ops-reader'` |  |
 | `-ClientId` | string | no | `$env:AVD_READER_CLIENT_ID` | The reader's client ID. The app is found by this only, never by its name. |
