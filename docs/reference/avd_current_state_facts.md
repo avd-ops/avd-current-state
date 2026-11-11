@@ -16,6 +16,7 @@ The collector and validator packages hold tenant data: subscription and object I
 | `-OutputPath` | string | no | `(Get-Location).Path` | Folder for avd-current-state-facts-<timestamp>.json. Defaults to the current folder. |
 | `-Assess` | switch | no |  | Also run the avd-assess method pinned in assess/ over the snapshot and write avd-assessment-<timestamp>.json (contract C21) beside it: one outcome per check (pass, warn, gap, unknown), the pillar scores with their coverage, and each design decision's readiness. It holds only pseudonyms, fact IDs and outcomes. Nothing is fetched; the method's copy must match its hash in assess/PINS.json. |
 | `-IntakePath` | string | no |  | With -Assess, the estate's intake.json (contract C19, written by the assessment portal's Discover stage). It must be for the same estate as the snapshot. Without it, the decisions that need intake answers report needs-intake. |
+| `-StatusReport` | switch | no |  | Also write avd-status-<timestamp>.md and avd-status-<timestamp>.html beside the snapshot: a redacted estate status dashboard in the avd-ops look built from the C11 snapshot (and the C21 assessment report when -Assess is set). |
 
 ## Examples
 

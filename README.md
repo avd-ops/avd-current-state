@@ -602,8 +602,11 @@ Each links its reference page, generated from the script's own help by the secon
 |---|---|
 | [`avd_current_state_drift.ps1`](docs/reference/avd_current_state_drift.md) | AVD Current State Drift -- compares a live landing zone with what avd-landing-zone last deployed, attributes every change, and reports it. |
 | [`avd_current_state_facts.ps1`](docs/reference/avd_current_state_facts.md) | AVD Current State Facts -- turns collector and validator evidence packages into one redacted facts snapshot (avd-current-state-facts/v1) for avd-second-brain and avd-swarm. |
+| [`avd_current_state.ps1`](docs/reference/avd_current_state.md) | Unified front door for avd-current-state (docs/local-collector-spec.md section 4). |
 | [`avd_ops_reader.ps1`](docs/reference/avd_ops_reader.md) | avd-ops-reader -- the optional read-only identity for unattended avd-current-state runs: set it up, check it, remove it (docs/reader-identity.md). |
 | [`avd_portal_publish.ps1`](docs/reference/avd_portal_publish.md) | Publishes a copy of the assessment portal into your own subscription (optional), or removes it. |
+| [`Export-AvdBenchmarkEvidence.ps1`](docs/reference/Export-AvdBenchmarkEvidence.md) | Exports collected read-only AVD Insights / Log Analytics telemetry into a redacted Contract C25 (avd-benchmark-result/v1) Tier 2 observational benchmark JSON bundle. |
+| [`Export-AvdInsightsUsage.ps1`](docs/reference/Export-AvdInsightsUsage.md) | Read-only AVD Insights / Log Analytics KQL exporter that emits a pseudonymous Contract C27 (avd-measured-usage/v1) Tier 2 measured-usage JSON document. |
 <!-- generated:entry-points end -->
 
 ## Contributing
