@@ -21,7 +21,9 @@ Describe 'PowerShell AST read-only guard' {
       'avd_current_state_collector.ps1',
       'avd_current_state_facts.ps1',
       'avd_current_state_drift.ps1',
-      'avd_deployment_validator.ps1'
+      'avd_deployment_validator.ps1',
+      'Export-AvdBenchmarkEvidence.ps1',
+      'Export-AvdInsightsUsage.ps1'
     )
     $script:files = @(
       $script:readOnlyScripts | ForEach-Object { Get-Item (Join-Path $script:root $_) }
