@@ -1146,6 +1146,7 @@ function Get-M365Fact {
     if (-not (Test-Path -LiteralPath $dir)) { return $null }
     $profiles = @(Read-Dataset -Directory $dir -Name 'configurationPolicies')
     $teams = @(Read-Dataset -Directory $dir -Name 'teamsVdiPolicies')
+    $spSettings = @(Read-Dataset -Directory $dir -Name 'sharepointSettings')
     foreach ($row in @($profiles + $teams)) {
         Add-KnownName (Get-Prop $row 'name')
         Add-KnownName (Get-Prop $row 'displayName')
@@ -1160,7 +1161,7 @@ function Get-M365Fact {
     $teamsOpt = if (@($profiles | Where-Object { "$(Get-Prop $_ 'teamsMediaOptimizationState' '')" -eq 'enabled' }).Count -gt 0 -or
         @($teams | Where-Object { "$(Get-Prop $_ 'VdiMediaOptimization' '')" -eq 'Enabled' }).Count -gt 0) { 'enabled' } else { 'disabled' }
     $mmr = @($profiles | Where-Object { Test-True (Get-Prop $_ 'mmrConfigured') }).Count -gt 0
-    return [ordered]@{
+    $fact = [ordered]@{
         oneDriveSilentConfigEnabled      = [bool]$silent
         oneDriveKfmState                 = $kfm
         oneDriveFilesOnDemandEnabled     = [bool]$fod
@@ -1169,6 +1170,15 @@ function Get-M365Fact {
         teamsMediaOptimizationState      = $teamsOpt
         mmrConfigured                    = [bool]$mmr
     }
+    if ($spSettings.Count -gt 0) {
+        $spRow = $spSettings[0]
+        $sharingCap = "$(Get-Prop $spRow 'sharingCapability' '')"
+        $idleObj = Get-Prop $spRow 'idleSessionSignOut'
+        $idleEnabled = if ($null -ne $idleObj) { Test-True (Get-Prop $idleObj 'isEnabled') } else { $false }
+        if ($sharingCap) { $fact['sharePointSharingCapability'] = $sharingCap }
+        $fact['sharePointIdleSessionSignOutEnabled'] = [bool]$idleEnabled
+    }
+    return $fact
 }
 
 function Get-PowerPlatformFact {

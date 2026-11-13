@@ -119,6 +119,7 @@
       "permissions": ["DeviceManagementConfiguration.Read.All", "Organization.Read.All", "SharePointTenantSettings.Read.All"],
       "calls": [
         { "plane": "m365", "transport": "graph-rest", "method": "GET", "uriPattern": "https://{graphHost}/beta/deviceManagement/configurationPolicies", "facts": ["c11.m365.oneDriveSilentConfigEnabled", "c11.m365.oneDriveKfmState", "c11.m365.oneDriveFilesOnDemandEnabled", "c11.m365.m365AppsSharedComputerActivation", "c11.m365.outlookCachedModeConfigured", "c11.m365.teamsMediaOptimizationState", "c11.m365.mmrConfigured"] },
+        { "plane": "m365", "transport": "graph-rest", "method": "GET", "uriPattern": "https://{graphHost}/v1.0/admin/sharepoint/settings", "facts": ["c11.m365.sharePointSharingCapability", "c11.m365.sharePointIdleSessionSignOutEnabled"] },
         { "plane": "m365", "transport": "teams-ps", "method": "Get-*", "command": "Get-CsTeamsVdiPolicy", "facts": ["c11.m365.teamsMediaOptimizationState"] }
       ]
     },
