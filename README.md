@@ -141,6 +141,20 @@ Names that are not found or not enabled produce a warning and are skipped.
 .\avd_current_state_collector.ps1 -SubscriptionNames "Subscription-A" -OutputPath "D:\Assessments"
 ```
 
+#### Lightweight daily snapshot (`-Mode Summary` / `-Light`)
+
+```powershell
+.\avd_current_state_collector.ps1 -Mode Summary -OutputPath "D:\Snapshots"
+# or:
+.\avd_current_state_collector.ps1 -Light -Stamp "2026-11-13" -OutputPath "D:\Snapshots"
+```
+
+Uses Azure Resource Graph and ARM REST (`Invoke-AzRestMethod`, or `az rest` when no `Az.Accounts`
+session is active) to emit compact `<stamp>-inventory.md` and `<stamp>-inventory.json` files
+with a one-line summary (`"<N> host pool(s), <N> session host(s), <N> ARM resource(s)"`) while
+skipping heavy per-resource exports, role/policy enumerations, and ZIP packaging. Subscription and
+tenant IDs are omitted by default unless `-IncludeIds` is passed.
+
 ### Run Sequence
 
 1. Detects Azure Cloud Shell and defaults output to `~/clouddrive/` for persistence
