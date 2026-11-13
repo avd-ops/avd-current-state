@@ -335,6 +335,7 @@ function Get-AvdStateM365 {
         return @{ Status = 'unconsented'; Reason = 'insufficient-scope'; Data = @{} }
     }
     $graphBeta = Resolve-AvdScopeUri -UriPattern 'https://{graphHost}/beta' -Cloud $Cloud
+    $graphV1   = Resolve-AvdScopeUri -UriPattern 'https://{graphHost}/v1.0' -Cloud $Cloud
     $r = Invoke-RebuildRestRead -Path "$graphBeta/deviceManagement/configurationPolicies" -Invoker $Invoker
     if ($r.Status -eq 'failed') {
         if ($r.Error -match 'HTTP (401|403)') {
@@ -342,19 +343,22 @@ function Get-AvdStateM365 {
         }
         return @{ Status = 'skipped'; Reason = 'no-license'; Data = @{} }
     }
+    $spResp = Invoke-RebuildRestRead -Path "$graphV1/admin/sharepoint/settings" -Invoker $Invoker
+    $spItems = if ($spResp.Status -eq 'ok') { @($spResp.Items) } else { @() }
     $data = [ordered]@{
         configurationPolicies = @($r.Items)
+        sharepointSettings    = $spItems
         teamsVdiPolicies      = @()
     }
     if ($null -eq $TeamsInvoker) {
-        return @{ Status = 'partial'; Reason = 'teams-ps-unavailable'; Data = $data; configurationPolicies = $data['configurationPolicies'] }
+        return @{ Status = 'partial'; Reason = 'teams-ps-unavailable'; Data = $data; configurationPolicies = $data['configurationPolicies']; sharepointSettings = $data['sharepointSettings'] }
     }
     try {
         $teams = @(& $TeamsInvoker 'Get-CsTeamsVdiPolicy')
         $data['teamsVdiPolicies'] = $teams
-        return @{ Status = 'collected'; Data = $data; configurationPolicies = $data['configurationPolicies'] }
+        return @{ Status = 'collected'; Data = $data; configurationPolicies = $data['configurationPolicies']; sharepointSettings = $data['sharepointSettings'] }
     } catch {
-        return @{ Status = 'partial'; Reason = 'teams-ps-unavailable'; Data = $data; configurationPolicies = $data['configurationPolicies'] }
+        return @{ Status = 'partial'; Reason = 'teams-ps-unavailable'; Data = $data; configurationPolicies = $data['configurationPolicies']; sharepointSettings = $data['sharepointSettings'] }
     }
 }
 

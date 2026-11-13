@@ -3585,9 +3585,11 @@ function Invoke-MultiPlanePostDeploymentValidation {
             $m365Manifest = if ($null -ne $script:LoadedManifests) { Get-Prop $script:LoadedManifests 'm365' } else { $null }
             if ($res.status -eq 'collected') {
                 $polCount = @($res.configurationPolicies).Count
+                $spCount = @($res.sharepointSettings).Count
+                $spNote = if ($spCount -gt 0) { ' and SharePoint tenant settings' } else { '' }
                 $manifestNote = if ($null -ne $m365Manifest) { ' (verified against m365-manifest.json)' } else { '' }
                 Add-Check -Category 'Microsoft 365' -Check 'OneDrive KFM, Shared Computer Activation and Teams VDI policies' -Status 'PASS' `
-                    -Detail "$polCount M365 policy/policies inspected$manifestNote." -Scope 'tenant'
+                    -Detail "$polCount M365 policy/policies$spNote inspected$manifestNote." -Scope 'tenant'
             } else {
                 Add-Check -Category 'Microsoft 365' -Check 'OneDrive KFM, Shared Computer Activation and Teams VDI policies' -Status 'SKIP' `
                     -Detail "M365 post-deployment check skipped ($($res.reason))." -Scope 'tenant'
