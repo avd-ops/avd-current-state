@@ -501,6 +501,29 @@ function Get-SubscriptionFact {
         $item = @(Get-Prop $read 'items' @()) | Select-Object -First 1
         if ($null -ne $item) { $fileServices["$(Get-Prop $read 'parentId' '')".ToLowerInvariant()] = $item }
     }
+    $hpGraphicsDiag = @{}
+    foreach ($read in @(Read-JsonFile -Path (Join-Path $rebuild 'rest/diagnostic-settings.json'))) {
+        if ("$(Get-Prop $read 'status' '')" -ne 'ok') { continue }
+        $parentId = "$(Get-Prop $read 'parentId' '')".ToLowerInvariant()
+        if (-not $parentId) { continue }
+        $hasGfxDiag = $false
+        foreach ($dsItem in @(Get-Prop $read 'items' @())) {
+            $wsId = "$(Get-PathValue $dsItem 'properties.workspaceId' '')".Trim()
+            if (-not $wsId) { continue }
+            foreach ($logCfg in @(Get-PathValue $dsItem 'properties.logs' @())) {
+                $isEnabled = (Get-Prop $logCfg 'enabled')
+                if ($null -eq $isEnabled -or "$isEnabled".ToLowerInvariant() -ne 'true') { continue }
+                $cat = "$(Get-Prop $logCfg 'category' '')"
+                $grp = "$(Get-Prop $logCfg 'categoryGroup' '')"
+                if ($cat -eq 'ConnectionGraphics' -or $grp -eq 'allLogs') {
+                    $hasGfxDiag = $true
+                    break
+                }
+            }
+            if ($hasGfxDiag) { break }
+        }
+        $hpGraphicsDiag[$parentId] = $hasGfxDiag
+    }
     $pricingFile = Join-Path $rebuild 'resources/microsoft.security-pricings.json'
     $defenderPlans = $null
     if (Test-Path -LiteralPath $pricingFile) {
@@ -644,6 +667,9 @@ function Get-SubscriptionFact {
         if ($null -ne $scaledPools -and $id) {
             $spMethod = if ($scaledPools.ContainsKey($id.ToLowerInvariant())) { 'power-management' } else { 'none' }
             $entry.scalingPlan = [ordered]@{ method = $spMethod }
+        }
+        if ($id -and $hpGraphicsDiag.ContainsKey($id.ToLowerInvariant())) {
+            $entry.graphicsDiagnosticsEnabled = [bool]$hpGraphicsDiag[$id.ToLowerInvariant()]
         }
         $hostPools += $entry
         $poolKey = "$(Get-Prop $hp 'Name' '')".ToLowerInvariant()
