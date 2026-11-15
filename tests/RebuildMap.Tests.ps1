@@ -268,3 +268,38 @@ Describe 'Get-LzRebuildMap: a brownfield estate' {
     $script:p.enableAutoShutdown.value | Should -BeFalse
   }
 }
+
+Describe 'avd-networking hub scope and central DNS mapping' {
+  It 'includes dnsresolvers and firewallpolicies in rebuild/scope.json' {
+    $scope = Get-Content -Raw (Join-Path $script:root 'rebuild/scope.json') | ConvertFrom-Json
+    $types = @($scope.resourceGraph | ForEach-Object { $_.type })
+    $types | Should -Contain 'microsoft.network/dnsresolvers'
+    $types | Should -Contain 'microsoft.network/firewallpolicies'
+  }
+
+  It 'maps centralPrivateDnsZoneResourceIds for commercial and usgov zones including avdGlobal' {
+    $e = Get-DevEstate
+    $hubZoneIds = @(
+      '/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-hub/providers/Microsoft.Network/privateDnsZones/privatelink.file.core.usgovcloudapi.net',
+      '/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-hub/providers/Microsoft.Network/privateDnsZones/privatelink.vaultcore.usgovcloudapi.net',
+      '/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-hub/providers/Microsoft.Network/privateDnsZones/privatelink.wvd.azure.us',
+      '/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-hub/providers/Microsoft.Network/privateDnsZones/privatelink-global.wvd.azure.us'
+    )
+    $existingParentId = $e.Rest['private-dns-zone-groups'][0].parentId
+    $e.Rest['private-dns-zone-groups'] = @(@{
+      parentId = $existingParentId
+      status   = 'ok'
+      items    = @(@{
+        properties = @{
+          privateDnsZoneConfigs = @($hubZoneIds | ForEach-Object { @{ properties = @{ privateDnsZoneId = $_ } } })
+        }
+      })
+    })
+    $map = (Get-LzRebuildMap -Rows $e.Rows -Rest $e.Rest -RoleAssignments $e.Roles -ParameterList $script:params)[0]
+    $central = $map.parameters.centralPrivateDnsZoneResourceIds.value
+    $central.file | Should -Be $hubZoneIds[0]
+    $central.keyVault | Should -Be $hubZoneIds[1]
+    $central.avd | Should -Be $hubZoneIds[2]
+    $central.avdGlobal | Should -Be $hubZoneIds[3]
+  }
+}

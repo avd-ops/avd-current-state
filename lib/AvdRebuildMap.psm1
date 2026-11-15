@@ -283,9 +283,10 @@ function Get-LzHostPoolMap {
             $central = [ordered]@{}
             foreach ($z in $zones) {
                 $zn = Get-LzLower (($z -split '/')[-1])
-                if ($zn -eq 'privatelink.file.core.windows.net') { $central.file = $z }
-                elseif ($zn -eq 'privatelink.vaultcore.azure.net') { $central.keyVault = $z }
-                elseif ($zn -eq 'privatelink.wvd.microsoft.com') { $central.avd = $z }
+                if ($zn -in @('privatelink.file.core.windows.net', 'privatelink.file.core.usgovcloudapi.net')) { $central.file = $z }
+                elseif ($zn -in @('privatelink.vaultcore.azure.net', 'privatelink.vaultcore.usgovcloudapi.net')) { $central.keyVault = $z }
+                elseif ($zn -in @('privatelink.wvd.microsoft.com', 'privatelink.wvd.azure.us')) { $central.avd = $z }
+                elseif ($zn -in @('privatelink-global.wvd.microsoft.com', 'privatelink-global.wvd.azure.us')) { $central.avdGlobal = $z }
             }
             $m.centralPrivateDnsZoneResourceIds = Get-LzEntry 'derived' $central @($zones) 'Zones live outside the spoke (central DNS).'
         }
