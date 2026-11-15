@@ -2,8 +2,8 @@
   "$schema": "https://datapackage.org/profiles/2.0/datapackage.json",
   "name": "avd-assess",
   "title": "avd-assess: the AVD assessment map",
-  "version": "2.3.0",
-  "created": "2026-11-09T16:29:37-06:00",
+  "version": "3.0.0",
+  "created": "2026-11-14T23:37:13-06:00",
   "homepage": "https://github.com/avd-ops/avd-assess",
   "description": "Personal project, not for production, as is; not affiliated with the author's employer, Liquidware or Microsoft.",
   "licenses": [
@@ -19,8 +19,8 @@
     }
   ],
   "avdAssess": {
-    "commit": "59375907c558a6e426b773d3704bd4e268e78db8",
-    "tag": "v2.3.0",
+    "commit": "c8ca035682e46c3327a10ae28bcb665dbb6abd45",
+    "tag": "v3.0.0",
     "profile": "avd-assess-bundle/v1"
   },
   "resources": [
@@ -53,8 +53,21 @@
       "path": "contracts/README.md",
       "format": "md",
       "mediatype": "text/markdown",
-      "bytes": 5949,
-      "hash": "sha256:a7d99d8eedcba5cce5dff4655634ffb44d1bf68b803fa2b58a3d3896bcd6c7f7"
+      "bytes": 7351,
+      "hash": "sha256:a32627ba05a889fd606fa91cc018411b7692dc0460c5deb0122b35dd12a2a480"
+    },
+    {
+      "name": "cloud-environments",
+      "path": "contracts/cloud-environments.json",
+      "format": "json",
+      "mediatype": "application/json",
+      "bytes": 9942,
+      "hash": "sha256:ad6a49356e3d61c2fbcec7a5fd305fc319a99ce6fd109e3885b34880d9796c39",
+      "schemaString": "avd-cloud-environments/v1",
+      "jsonSchema": "contracts/schemas/cloud-environments.schema.json",
+      "idPaths": [
+        "/environments/*/id"
+      ]
     },
     {
       "name": "example-assess-assessment",
@@ -87,6 +100,16 @@
       "jsonSchema": "contracts/schemas/assess-endpoints.schema.json"
     },
     {
+      "name": "example-assess-gcp-outputs",
+      "path": "contracts/examples/assess/gcp-outputs.example.json",
+      "format": "json",
+      "mediatype": "application/json",
+      "bytes": 586,
+      "hash": "sha256:f338501bd2e19993fe9b4dfdf22a028c4704671f16982e6d7e19a82865a41039",
+      "schemaString": "avd-gcp-outputs/v1",
+      "jsonSchema": "contracts/schemas/gcp-outputs.schema.json"
+    },
+    {
       "name": "example-assess-index",
       "path": "contracts/examples/assess/index.example.json",
       "format": "json",
@@ -117,6 +140,16 @@
       "jsonSchema": "contracts/schemas/assess-map.schema.json"
     },
     {
+      "name": "example-assess-measured-usage",
+      "path": "contracts/examples/assess/measured-usage.example.json",
+      "format": "json",
+      "mediatype": "application/json",
+      "bytes": 1325,
+      "hash": "sha256:7aeced5238d952d00352566205aabbd1f9e952547baafaf1c50a509cf02f9bdf",
+      "schemaString": "avd-measured-usage/v1",
+      "jsonSchema": "contracts/schemas/measured-usage.schema.json"
+    },
+    {
       "name": "example-assess-method",
       "path": "contracts/examples/assess/method.example.json",
       "format": "json",
@@ -125,6 +158,16 @@
       "hash": "sha256:e3b13b292cc52805987f20dcd71d936c2a9212ef8949bfbbd7e2ed245f9d6429",
       "schemaString": "avd-assess-method/v1",
       "jsonSchema": "contracts/schemas/assess-method.schema.json"
+    },
+    {
+      "name": "example-assess-networking-outputs",
+      "path": "contracts/examples/assess/networking-outputs.example.json",
+      "format": "json",
+      "mediatype": "application/json",
+      "bytes": 1415,
+      "hash": "sha256:33adfc3052643abd07e3a102599172a7464d9c494b059c78a268264167beffa3",
+      "schemaString": "avd-networking-outputs/v1",
+      "jsonSchema": "contracts/schemas/networking-outputs.schema.json"
     },
     {
       "name": "example-assess-plan",
@@ -145,6 +188,36 @@
       "hash": "sha256:e8fa0dba9f45a9b2ff4dee4fc3092eb82829ae6859a437df4a075af2bc20bece",
       "schemaString": "avd-assessment-review/v1",
       "jsonSchema": "contracts/schemas/assessment-review.schema.json"
+    },
+    {
+      "name": "example-assess-source-inventory",
+      "path": "contracts/examples/assess/source-inventory.example.json",
+      "format": "json",
+      "mediatype": "application/json",
+      "bytes": 659,
+      "hash": "sha256:4f59c8fc6850b522d68858218d7bf618c43ca1f63878e94aec75da31be2973e4",
+      "schemaString": "avd-source-inventory/v1",
+      "jsonSchema": "contracts/schemas/source-inventory.schema.json"
+    },
+    {
+      "name": "example-assess-verify-report",
+      "path": "contracts/examples/assess/verify-report.example.json",
+      "format": "json",
+      "mediatype": "application/json",
+      "bytes": 940,
+      "hash": "sha256:d7d2b5dd2a2768a669fe95a5fdac89f5885c3101bd5ae4b98ed50abcfb64fa1f",
+      "schemaString": "avd-verify-report/v1",
+      "jsonSchema": "contracts/schemas/verify-report.schema.json"
+    },
+    {
+      "name": "example-assess-wave-plan",
+      "path": "contracts/examples/assess/wave-plan.example.json",
+      "format": "json",
+      "mediatype": "application/json",
+      "bytes": 725,
+      "hash": "sha256:3721c4b7e38a65336f8fadf786d35cb1bdbffd91076a84b46efa82992bfb70e5",
+      "schemaString": "avd-wave-plan/v1",
+      "jsonSchema": "contracts/schemas/wave-plan.schema.json"
     },
     {
       "name": "example-checks-catalog",
@@ -190,8 +263,8 @@
       "path": "contracts/fact-register.json",
       "format": "json",
       "mediatype": "application/json",
-      "bytes": 83197,
-      "hash": "sha256:96928b1ddfc752016935ac01c5666dc7f12d946ca5fd11fcd57c924bc3849b59",
+      "bytes": 87723,
+      "hash": "sha256:b321c747756e071bd07ba40dc9db6c0f08f1eff3b7ba697b532ea1a13f598031",
       "schemaString": "avd-fact-register/v1",
       "jsonSchema": "contracts/schemas/fact-register.schema.json",
       "idPaths": [
@@ -272,8 +345,8 @@
       "path": "contracts/schemas/assessment.schema.json",
       "format": "json",
       "mediatype": "application/json",
-      "bytes": 7170,
-      "hash": "sha256:113d355e5a3d1ae35b921e817a8395cfb192e3a96410c772440c04f76cfbc3bf"
+      "bytes": 7259,
+      "hash": "sha256:6597b9a08e0db64c79e091713194af7a27bbd79015071507fa1df8b8bea736e3"
     },
     {
       "name": "schema-benchmark-result",
@@ -292,12 +365,20 @@
       "hash": "sha256:7d04ba2eeb4333104ca3ba45f5a8548407c3ca5fa7af47ae73a3dda411c0ccb4"
     },
     {
+      "name": "schema-cloud-environments",
+      "path": "contracts/schemas/cloud-environments.schema.json",
+      "format": "json",
+      "mediatype": "application/json",
+      "bytes": 9717,
+      "hash": "sha256:3b6dbd49d7dc068ea850e3cd1ff3ba5e22300def9883967c467093a231d53f9c"
+    },
+    {
       "name": "schema-current-state-facts",
       "path": "contracts/schemas/current-state-facts.schema.json",
       "format": "json",
       "mediatype": "application/json",
-      "bytes": 26560,
-      "hash": "sha256:eabadd8860ce34098a840697578b20b44ed75c269bab6475f5584b5e566b37ea"
+      "bytes": 27656,
+      "hash": "sha256:4a6c17f33a4648a0af1a822379d6794ab9825d5a3f46c0e4304e983a854f8106"
     },
     {
       "name": "schema-fact-register",
@@ -308,12 +389,44 @@
       "hash": "sha256:9d1174812123da87439595bb5f3727758655a89d1cf2ad4d9553861c4b328eb5"
     },
     {
+      "name": "schema-gcp-outputs",
+      "path": "contracts/schemas/gcp-outputs.schema.json",
+      "format": "json",
+      "mediatype": "application/json",
+      "bytes": 2878,
+      "hash": "sha256:53817500a600feef06726d42e77fb3cff5243fcec828ba5e8bcb4fe3866210fd"
+    },
+    {
+      "name": "schema-gpu-skus",
+      "path": "contracts/schemas/gpu-skus.schema.json",
+      "format": "json",
+      "mediatype": "application/json",
+      "bytes": 1970,
+      "hash": "sha256:321fefe9b2c3395bfdd9f9fabd3bb33dd70ff32466c5807abe7f7a56b09b00db"
+    },
+    {
       "name": "schema-intake",
       "path": "contracts/schemas/intake.schema.json",
       "format": "json",
       "mediatype": "application/json",
-      "bytes": 13560,
-      "hash": "sha256:ee7f5ae2fc258465cc75792197c38a67d03ad155854f2c4b8bbacd195e67d6ef"
+      "bytes": 13990,
+      "hash": "sha256:d686a4bc4c4207878bc1470a06e707d4346f2601ac01d6eaa086a66a411a9132"
+    },
+    {
+      "name": "schema-measured-usage",
+      "path": "contracts/schemas/measured-usage.schema.json",
+      "format": "json",
+      "mediatype": "application/json",
+      "bytes": 5324,
+      "hash": "sha256:b8aa9dea2e7c8907dbf91485673a51befb7e6ac2335b8fd7053ae9395bd5fcee"
+    },
+    {
+      "name": "schema-networking-outputs",
+      "path": "contracts/schemas/networking-outputs.schema.json",
+      "format": "json",
+      "mediatype": "application/json",
+      "bytes": 2475,
+      "hash": "sha256:46721667d940c923f6864f4e02af56bfd9c99d722435af06339aeb76ca856020"
     },
     {
       "name": "schema-remediation-plan",
@@ -348,12 +461,36 @@
       "hash": "sha256:8f9d0b26c4813c9db9c1dd420330c100ed087313e5d11d32a88181c884f2ffd9"
     },
     {
+      "name": "schema-source-inventory",
+      "path": "contracts/schemas/source-inventory.schema.json",
+      "format": "json",
+      "mediatype": "application/json",
+      "bytes": 3572,
+      "hash": "sha256:aa66560873462d5411ed9fd9408dfd7c45046dd1af69764db7319440b6c583ae"
+    },
+    {
+      "name": "schema-verify-report",
+      "path": "contracts/schemas/verify-report.schema.json",
+      "format": "json",
+      "mediatype": "application/json",
+      "bytes": 5202,
+      "hash": "sha256:d35e16d8c7fd95daadbab58a34d9591773adc176e14331e583200db83d49bd4f"
+    },
+    {
+      "name": "schema-wave-plan",
+      "path": "contracts/schemas/wave-plan.schema.json",
+      "format": "json",
+      "mediatype": "application/json",
+      "bytes": 3376,
+      "hash": "sha256:c45ba18fb5f0e1ae421cd31261198322c6426d70b76cde25d95a6f9ae1ccb8ab"
+    },
+    {
       "name": "endpoints",
       "path": "endpoints.json",
       "format": "json",
       "mediatype": "application/json",
       "bytes": 28449,
-      "hash": "sha256:dc9af13fa0155c2632cfc69930e54d36a15a268fb9de671d10e3fef9f5d40748",
+      "hash": "sha256:c73e8a8ecb58082be651e0166e570ec2399b634e4e7b87834dffcab06d488fd9",
       "schemaString": "avd-assess-endpoints/v1",
       "jsonSchema": "contracts/schemas/assess-endpoints.schema.json",
       "idPaths": [
@@ -374,8 +511,8 @@
       "path": "gaps/README.md",
       "format": "md",
       "mediatype": "text/markdown",
-      "bytes": 6119,
-      "hash": "sha256:8551aabb6e484c134d443f2bac64d41ec4122f56f0f1587626ea8a27551b96f7"
+      "bytes": 6677,
+      "hash": "sha256:5d6191a23d453e951879c326d225c0c4affa9adf19449e771a6b2fe3271002d2"
     },
     {
       "name": "gap-app-delivery-scope",
@@ -530,6 +667,14 @@
       "hash": "sha256:94721711ab1b19981e66da4ffc231bf881f8bd0912ec49f50c5022ecabfccef4"
     },
     {
+      "name": "gap-hybrid-scope",
+      "path": "gaps/hybrid-scope.md",
+      "format": "md",
+      "mediatype": "text/markdown",
+      "bytes": 8650,
+      "hash": "sha256:fb84f6bb00600f48a71c1c73b98d6874214293fc83fa2462cc77c13ea3ad2369"
+    },
+    {
       "name": "gap-identity-scope",
       "path": "gaps/identity-scope.md",
       "format": "md",
@@ -576,6 +721,14 @@
       "mediatype": "text/markdown",
       "bytes": 2765,
       "hash": "sha256:34b52d542ed5c64f38e8b691331f3b9069021e4c4f899eb72a32ab9001c6ac61"
+    },
+    {
+      "name": "gap-migration-readiness",
+      "path": "gaps/migration-readiness.md",
+      "format": "md",
+      "mediatype": "text/markdown",
+      "bytes": 3700,
+      "hash": "sha256:a652d7511ab4a336509f75ac77eda106489776ae9bac3a510fe67d1d2082d3fd"
     },
     {
       "name": "gap-monitoring-scope",
@@ -632,6 +785,14 @@
       "mediatype": "text/markdown",
       "bytes": 3586,
       "hash": "sha256:a86696b67a7a34c966f754a23f9c3d4015909de65cf376692b2c029d412d1e66"
+    },
+    {
+      "name": "gap-scale-and-sharding",
+      "path": "gaps/scale-and-sharding.md",
+      "format": "md",
+      "mediatype": "text/markdown",
+      "bytes": 3403,
+      "hash": "sha256:6a78f98e881b1014ece7faeec4381d26b92c71b1bee05a57645c11b00f870674"
     },
     {
       "name": "gap-scoring",
@@ -742,8 +903,8 @@
       "path": "index.json",
       "format": "json",
       "mediatype": "application/json",
-      "bytes": 431393,
-      "hash": "sha256:b3b9a38998be6f611700bc1ceaed0d6fb3588fb80a5182b333340e7ed40b343d",
+      "bytes": 453795,
+      "hash": "sha256:c29a0c20396af438b3071e12b9e101375885de25b8a413af0e9845c71715a4fa",
       "schemaString": "avd-assess-index/v1",
       "jsonSchema": "contracts/schemas/assess-index.schema.json",
       "idPaths": [
@@ -758,8 +919,8 @@
       "path": "map.json",
       "format": "json",
       "mediatype": "application/json",
-      "bytes": 278065,
-      "hash": "sha256:182455b4dcb10b12bfcd81c7119112ae68333e56aee31d3f21ed0986f9eb9aec",
+      "bytes": 289653,
+      "hash": "sha256:13f7f26abe074dcfd1caf3cd647a79f90881c3ddf422478e078d1e1740151d6f",
       "schemaString": "avd-assess-map/v1",
       "jsonSchema": "contracts/schemas/assess-map.schema.json",
       "idPaths": [
@@ -776,8 +937,8 @@
       "path": "method.json",
       "format": "json",
       "mediatype": "application/json",
-      "bytes": 104176,
-      "hash": "sha256:b0c5bc93053b1f3931de266aef4a483ab7df14a1789e50aef207b54e709ad8ee",
+      "bytes": 113418,
+      "hash": "sha256:0b69e7f77fcfc15a8a37da88e22de66ea2fe86db076febc5b86b932abe11b197",
       "schemaString": "avd-assess-method/v1",
       "jsonSchema": "contracts/schemas/assess-method.schema.json",
       "idPaths": [
@@ -813,8 +974,8 @@
       "path": "methods/desktop-devops.md",
       "format": "md",
       "mediatype": "text/markdown",
-      "bytes": 5086,
-      "hash": "sha256:2b54759ab351dd2df6258bc56146e08952670c77a2b3c940a6f545561add527d"
+      "bytes": 5190,
+      "hash": "sha256:4b181146331327d1e74dc1ec7f928458fb036bd9e8cef8395da72852e2b85c41"
     },
     {
       "name": "method-diagnostics",
@@ -845,8 +1006,8 @@
       "path": "methods/intune.md",
       "format": "md",
       "mediatype": "text/markdown",
-      "bytes": 6078,
-      "hash": "sha256:a8aaf690deda97e928c467c7fdae0253cb33c5e0e8512ebb5adcca9ee763d120"
+      "bytes": 6399,
+      "hash": "sha256:c6d5e5feeb560e53db3e435a67ee922c28f688b2c64d9ba46d3563a8d0e7a51c"
     },
     {
       "name": "method-m365",
@@ -917,8 +1078,8 @@
       "path": "methods/security.md",
       "format": "md",
       "mediatype": "text/markdown",
-      "bytes": 5537,
-      "hash": "sha256:678f9d75320ec6e8638726d8fd314f4361929d2214c9f09d5598e0e7be745029"
+      "bytes": 6094,
+      "hash": "sha256:0b034ccc2aecc4193651051ecbf32dfad53699da13a4240c80b6171a4e65033a"
     },
     {
       "name": "method-targets-benchmarks",
@@ -949,8 +1110,8 @@
       "path": "security-review.json",
       "format": "json",
       "mediatype": "application/json",
-      "bytes": 73297,
-      "hash": "sha256:6b168df39079d0245c0ee7f39a7020cfbdda0ffc691457effc0138a7940d5cd7",
+      "bytes": 84098,
+      "hash": "sha256:ca0a66b4901a568f8a3a50957bf6e315af3cc4cb4dfdde1a8bd45e30ee7518ea",
       "schemaString": "avd-assess-security-review/v1",
       "jsonSchema": "contracts/schemas/assess-security-review.schema.json",
       "idPaths": [
@@ -966,8 +1127,8 @@
       "path": "tests/public-ids.txt",
       "format": "txt",
       "mediatype": "text/plain",
-      "bytes": 397,
-      "hash": "sha256:9114de452f3c4bc58629ed2d41c6797d96d41050dad93f37a8d739965e32888e"
+      "bytes": 542,
+      "hash": "sha256:398dff51c0a9605ebd232842840dd3933294d3ef05f5026b0193d2887a0413ee"
     },
     {
       "name": "tests-public-ipv4-txt",
@@ -982,16 +1143,16 @@
       "path": "tools/AvdAssessBundle.psm1",
       "format": "psm1",
       "mediatype": "text/plain",
-      "bytes": 16133,
-      "hash": "sha256:59771625d1ba8bc4d002ab703fa874d7d88667e5f90eb50bb6cb6b0efe6ad8c2"
+      "bytes": 16166,
+      "hash": "sha256:d266101e6a2d431bfa23961a84e58e6e59472b47750f2ccf585fa965bd23b3e6"
     },
     {
       "name": "tool-avd-assess-bundle-py",
       "path": "tools/avd_assess_bundle.py",
       "format": "py",
       "mediatype": "text/x-python",
-      "bytes": 14480,
-      "hash": "sha256:0a8ad5fe63436c500f1fd46c348152d39378b586472dd77d5779969d7780c934"
+      "bytes": 14511,
+      "hash": "sha256:a37a4662f21503a996dafb655f7cc2cf9326d87ffbb898bbee3cae6842d12dd8"
     },
     {
       "name": "tool-diff-bundle-py",

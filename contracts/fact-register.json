@@ -2837,6 +2837,84 @@
       ]
     },
     {
+      "id": "c11.hostPool.graphicsDiagnosticsEnabled",
+      "tier": "azure",
+      "contract": "C11",
+      "path": "/subscriptions/*/hostPools/*/graphicsDiagnosticsEnabled",
+      "grain": "hostPool",
+      "unit": "bool",
+      "privacy": "boolean",
+      "status": "built",
+      "evidences": [
+        "hostPool.vmSize"
+      ]
+    },
+    {
+      "id": "c11.hostPool.sessionHosts.gpuHosts",
+      "tier": "azure",
+      "contract": "C11",
+      "path": "/subscriptions/*/hostPools/*/sessionHosts/gpuHosts",
+      "grain": "hostPool",
+      "unit": "hosts",
+      "privacy": "count",
+      "status": "built",
+      "evidences": [
+        "hostPool.vmSize"
+      ]
+    },
+    {
+      "id": "c11.hostPool.sessionHosts.gpuComputeSkus",
+      "tier": "azure",
+      "contract": "C11",
+      "path": "/subscriptions/*/hostPools/*/sessionHosts/gpuComputeSkus",
+      "grain": "hostPool",
+      "unit": "hosts",
+      "privacy": "count",
+      "status": "built",
+      "evidences": [
+        "hostPool.vmSize"
+      ]
+    },
+    {
+      "id": "c11.hostPool.sessionHosts.gpuRetiredSkus",
+      "tier": "azure",
+      "contract": "C11",
+      "path": "/subscriptions/*/hostPools/*/sessionHosts/gpuRetiredSkus",
+      "grain": "hostPool",
+      "unit": "hosts",
+      "privacy": "count",
+      "status": "built",
+      "evidences": [
+        "hostPool.vmSize"
+      ]
+    },
+    {
+      "id": "c11.hostPool.sessionHosts.gpuDriverMissing",
+      "tier": "azure",
+      "contract": "C11",
+      "path": "/subscriptions/*/hostPools/*/sessionHosts/gpuDriverMissing",
+      "grain": "hostPool",
+      "unit": "hosts",
+      "privacy": "count",
+      "status": "built",
+      "evidences": [
+        "hostPool.vmSize"
+      ]
+    },
+    {
+      "id": "c11.hostPool.sessionHosts.gpuMaxSessionOver25",
+      "tier": "azure",
+      "contract": "C11",
+      "path": "/subscriptions/*/hostPools/*/sessionHosts/gpuMaxSessionOver25",
+      "grain": "hostPool",
+      "unit": "hosts",
+      "privacy": "count",
+      "status": "built",
+      "evidences": [
+        "hostPool.maxSessions"
+      ]
+    },
+    {
       "id": "c11.hostPool.sessionHosts.notEncryptionAtHost",
       "tier": "azure",
       "contract": "C11",
@@ -3272,6 +3350,111 @@
       "privacy": "public",
       "status": "built",
       "evidences": []
+    },
+    {
+      "id": "c11.cloud",
+      "tier": "azure",
+      "contract": "C11",
+      "path": "/cloud",
+      "grain": "estate",
+      "unit": "enum",
+      "privacy": "public",
+      "status": "built",
+      "evidences": [
+        "region"
+      ]
+    },
+    {
+      "id": "intake.cloud",
+      "tier": "intake",
+      "contract": "C19",
+      "path": "/cloud",
+      "grain": "estate",
+      "unit": "enum",
+      "privacy": "public",
+      "status": "built",
+      "evidences": [
+        "region"
+      ]
+    },
+    {
+      "id": "intake.complianceProfile",
+      "tier": "intake",
+      "contract": "C19",
+      "path": "/complianceProfile",
+      "grain": "estate",
+      "unit": "enum",
+      "privacy": "public",
+      "status": "built",
+      "evidences": []
+    },
+    {
+      "id": "c12.group.perUser.steadyStateIopsP95",
+      "tier": "forensic",
+      "contract": "C12",
+      "path": "/groups/*/steadyStateIopsPerUser/p95",
+      "grain": "group",
+      "unit": "iops",
+      "privacy": "group-behavior",
+      "status": "specified",
+      "evidences": [
+        "hostPool.profileQuotaGiB"
+      ]
+    },
+    {
+      "id": "c12.group.profile.dailyChurnPercent",
+      "tier": "forensic",
+      "contract": "C12",
+      "path": "/groups/*/dailyProfileChurnPercent",
+      "grain": "group",
+      "unit": "%",
+      "privacy": "group-behavior",
+      "status": "specified",
+      "evidences": [
+        "hostPool.profileQuotaGiB"
+      ]
+    },
+    {
+      "id": "c12.group.perUser.gpuRequired",
+      "tier": "forensic",
+      "contract": "C12",
+      "path": "/groups/*/gpuRequired",
+      "grain": "group",
+      "unit": "bool",
+      "privacy": "boolean",
+      "status": "specified",
+      "evidences": [
+        "hostPool.vmSize",
+        "hostPool.type"
+      ]
+    },
+    {
+      "id": "c12.group.perUser.needsLocalAdmin",
+      "tier": "forensic",
+      "contract": "C12",
+      "path": "/groups/*/needsLocalAdmin",
+      "grain": "group",
+      "unit": "bool",
+      "privacy": "boolean",
+      "status": "specified",
+      "evidences": [
+        "hostPool.type",
+        "identity"
+      ]
+    },
+    {
+      "id": "c12.group.sharedBackendIds",
+      "tier": "forensic",
+      "contract": "C12",
+      "path": "/groups/*/sharedBackendIds",
+      "grain": "group",
+      "unit": "list",
+      "privacy": "pseudonym",
+      "status": "specified",
+      "evidences": [
+        "region",
+        "network"
+      ]
     }
   ]
 }

@@ -63,6 +63,14 @@
     "schema": { "const": "avd-intake/v1" },
     "estate": { "type": "string", "pattern": "^est-[0-9a-f]{8}$", "description": "The same keyed pseudonym as the estate's C11 snapshot" },
     "answeredOn": { "type": "string", "format": "date" },
+    "cloud": {
+      "description": "Fact intake.cloud (optional). Target sovereign or commercial cloud environment (default commercial).",
+      "enum": ["commercial", "usgov"]
+    },
+    "complianceProfile": {
+      "description": "Fact intake.complianceProfile (optional). Regulatory compliance profile governing device redirection and cryptographic defaults (default standard).",
+      "enum": ["standard", "itar-cui"]
+    },
     "residency": {
       "type": "object",
       "description": "Fact intake.residency. Whether data must stay in named regions, and which.",
