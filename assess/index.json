@@ -42,8 +42,8 @@
       "id": "activity-log",
       "title": "Activity log in Azure Monitor",
       "url": "https://learn.microsoft.com/azure/azure-monitor/fundamentals/activity-log",
-      "pin": "Learn git_commit_id 25304e36332b7851db820ab35a8b2814ccbe7614, updated_at 2026-10-27",
-      "read": "2026-10-29",
+      "pin": "Learn git_commit_id a07b757d650e1215708e13f8546d4359adb8c38c, updated_at 2026-11-05",
+      "read": "2026-11-09",
       "license": "Microsoft Learn content (link only)",
       "areas": [
         "assessment",
@@ -392,8 +392,8 @@
       "id": "app-attach",
       "title": "App Attach in Azure Virtual Desktop",
       "url": "https://learn.microsoft.com/azure/virtual-desktop/app-attach-overview",
-      "pin": "Learn git_commit_id 18f8ed292f3df23081d1cb2446c480105abdbaf9, updated_at 2026-08-26",
-      "read": "2026-10-21",
+      "pin": "Learn git_commit_id 25ba534755b2d60d76ee19617f24acfec7f2158a, updated_at 2026-11-04",
+      "read": "2026-11-09",
       "license": "Microsoft Learn content (link only)",
       "areas": [
         "assessment",
@@ -517,6 +517,60 @@
       ]
     },
     {
+      "id": "arc-servers-overview",
+      "title": "What is Azure Arc-enabled servers?",
+      "url": "https://learn.microsoft.com/azure/azure-arc/servers/overview",
+      "pin": "Learn git_commit_id fff57502de0ce17a36606368322f03c2823ac046, updated_at 2026-07-27",
+      "read": "2026-11-09",
+      "license": "Microsoft Learn content (link only)",
+      "areas": [
+        "collection",
+        "assessment"
+      ],
+      "pillars": [
+        "hybrid"
+      ],
+      "claims": [
+        {
+          "id": "azure-resource-projection",
+          "says": "Onboarding a physical or virtual machine outside Azure with the Connected Machine agent gives it an Azure Resource ID in a resource group so Azure Policy, tags and Resource Graph read it alongside Azure VMs.",
+          "kind": "published"
+        },
+        {
+          "id": "ama-and-extensions",
+          "says": "Arc-enabled servers support VM extensions, Azure Update Manager, and the Azure Monitor Agent for log collection and change tracking and inventory into Log Analytics.",
+          "kind": "published"
+        }
+      ]
+    },
+    {
+      "id": "arc-servers-run-command",
+      "title": "Run command on Azure Arc-enabled servers",
+      "url": "https://learn.microsoft.com/azure/azure-arc/servers/run-command",
+      "pin": "Learn git_commit_id a5faa4c9f98e83533dce5b2581a2a19116f7d874, updated_at 2026-02-24",
+      "read": "2026-11-09",
+      "license": "Microsoft Learn content (link only)",
+      "areas": [
+        "collection",
+        "assessment"
+      ],
+      "pillars": [
+        "hybrid"
+      ],
+      "claims": [
+        {
+          "id": "agent-script-execution",
+          "says": "Run command built into the Connected Machine agent (version 1.33 and later) executes scripts or commands remotely through Azure CLI, PowerShell or REST without direct RDP, WinRM or SSH access.",
+          "kind": "published"
+        },
+        {
+          "id": "free-control-plane",
+          "says": "Running commands on Arc-enabled servers carries no extra Azure charge unless scripts are stored in Azure storage.",
+          "kind": "published"
+        }
+      ]
+    },
+    {
       "id": "arch-avd-design-guide",
       "title": "Azure Architecture Center, Azure Virtual Desktop landing zone design guide",
       "url": "https://learn.microsoft.com/azure/architecture/landing-zones/azure-virtual-desktop/design-guide",
@@ -556,8 +610,8 @@
       "id": "arch-private-link-hub-spoke",
       "title": "Azure Architecture Center, Azure Private Link in a hub-and-spoke network",
       "url": "https://learn.microsoft.com/azure/architecture/networking/guide/private-link-hub-spoke-network",
-      "pin": "Learn git_commit_id 944e50dba8a8e76286bd3dcc6a1b837d0f5ac908, updated_at 2026-05-04",
-      "read": "2026-10-21",
+      "pin": "Learn git_commit_id 420cfb5ad93f30b1a84c0108271a0ab625d38751, updated_at 2026-11-05",
+      "read": "2026-11-09",
       "license": "Microsoft Learn content (link only)",
       "areas": [
         "assessment"
@@ -676,8 +730,8 @@
       "id": "autoscale-faq",
       "title": "Azure Virtual Desktop autoscale FAQ",
       "url": "https://learn.microsoft.com/azure/virtual-desktop/autoscale-faq",
-      "pin": "Learn git_commit_id 14f9b38caae4e231e4245e435e9cc6cda26c84ca, updated_at 2026-06-29",
-      "read": "2026-10-21",
+      "pin": "Learn git_commit_id 25ba534755b2d60d76ee19617f24acfec7f2158a, updated_at 2026-11-04",
+      "read": "2026-11-09",
       "license": "Microsoft Learn content (link only)",
       "areas": [
         "assessment"
@@ -727,8 +781,8 @@
       "id": "autoscale-plan",
       "title": "Create and assign an autoscale scaling plan for Azure Virtual Desktop",
       "url": "https://learn.microsoft.com/azure/virtual-desktop/autoscale-create-assign-scaling-plan",
-      "pin": "Learn git_commit_id 9482be6e3db06c8a844a8d6bfbf0cc312a7ba4c3, updated_at 2026-08-31",
-      "read": "2026-10-21",
+      "pin": "Learn git_commit_id 25ba534755b2d60d76ee19617f24acfec7f2158a, updated_at 2026-11-04",
+      "read": "2026-11-09",
       "license": "Microsoft Learn content (link only)",
       "areas": [
         "assessment",
@@ -795,8 +849,8 @@
       "id": "availability-zones",
       "title": "What are Azure availability zones?",
       "url": "https://learn.microsoft.com/azure/reliability/availability-zones-overview",
-      "pin": "Learn git_commit_id 454863f3dc91952428e31d5a5fcd4ba88bdb1ad7, updated_at 2026-10-27",
-      "read": "2026-10-29",
+      "pin": "Learn git_commit_id 1db549d82fcbb266a75fe4914e62b130dd296d6d, updated_at 2026-11-03",
+      "read": "2026-11-09",
       "license": "Microsoft Learn content (link only)",
       "areas": [
         "assessment"
@@ -924,8 +978,8 @@
       "id": "avd-authentication",
       "title": "Supported identities and authentication methods for Azure Virtual Desktop",
       "url": "https://learn.microsoft.com/azure/virtual-desktop/authentication",
-      "pin": "Learn git_commit_id 74270aaa6471ca1c29c36103e393e55d95578ccb, updated_at 2026-10-15",
-      "read": "2026-10-21",
+      "pin": "Learn git_commit_id 25ba534755b2d60d76ee19617f24acfec7f2158a, updated_at 2026-11-04",
+      "read": "2026-11-09",
       "license": "Microsoft Learn content (link only)",
       "areas": [
         "assessment"
@@ -1009,8 +1063,8 @@
       "id": "avd-autoscale",
       "title": "Autoscale scaling plans and example scenarios in Azure Virtual Desktop",
       "url": "https://learn.microsoft.com/azure/virtual-desktop/autoscale-scenarios",
-      "pin": "Learn git_commit_id 14f9b38caae4e231e4245e435e9cc6cda26c84ca, updated_at 2026-06-29",
-      "read": "2026-10-20",
+      "pin": "Learn git_commit_id 25ba534755b2d60d76ee19617f24acfec7f2158a, updated_at 2026-11-04",
+      "read": "2026-11-09",
       "license": "Microsoft Learn content (link only)",
       "areas": [
         "assessment",
@@ -1089,12 +1143,41 @@
       "areas": [
         "assessment"
       ],
-      "notes": "Extension point only: the network pillar has no Azure Local method yet.",
+      "pillars": [
+        "hybrid",
+        "networking-azure"
+      ],
+      "notes": "Covers AVD on Azure Local host pool separation, supported operating systems, Connected Machine agent requirement, three-part billing, and profile storage.",
       "claims": [
         {
           "id": "no-mixed-pools",
           "says": "A host pool holds session hosts on Azure or on Azure Local, never both.",
           "kind": "published"
+        },
+        {
+          "id": "multisession-and-shortpath",
+          "says": "Supports Windows 10 and 11 Enterprise multi-session, single-session client, and Windows Server 2019 through 2025 on registered Azure Local 23H2 or later instances, with RDP Shortpath and Azure Marketplace images.",
+          "kind": "published"
+        },
+        {
+          "id": "connected-machine-agent",
+          "says": "Session hosts on Azure Local run the Azure Connected Machine agent to reach the Azure Instance Metadata Service endpoint that AVD requires.",
+          "kind": "published"
+        },
+        {
+          "id": "three-part-pricing",
+          "says": "Running AVD on Azure Local carries three cost components - user access rights, the Azure Local service fee, and the AVD for Azure Local fee per active vCPU.",
+          "kind": "published"
+        },
+        {
+          "id": "entra-join-outside-portal",
+          "says": "The Azure portal adds Azure Local session hosts only to AD DS (including Entra hybrid join); native Entra join uses PowerShell or another deployment method.",
+          "kind": "published"
+        },
+        {
+          "id": "local-smb-for-profiles",
+          "says": "FSLogix profile containers on Azure Local use an on-premises SMB share - a clustered file server on the instance, or an external SMB share on the same network for larger deployments.",
+          "kind": "guidance"
         }
       ]
     },
@@ -1196,8 +1279,8 @@
       "id": "avd-data-locations",
       "title": "Data locations for Azure Virtual Desktop",
       "url": "https://learn.microsoft.com/azure/virtual-desktop/data-locations",
-      "pin": "Learn git_commit_id ebbe087e9ad40882b4901691bb5c93bab04a149c, updated_at 2026-09-30",
-      "read": "2026-10-21",
+      "pin": "Learn git_commit_id 25ba534755b2d60d76ee19617f24acfec7f2158a, updated_at 2026-11-04",
+      "read": "2026-11-09",
       "license": "Microsoft Learn content (link only)",
       "areas": [
         "assessment"
@@ -1234,8 +1317,8 @@
       "id": "avd-deploy-host-pool",
       "title": "Deploy Azure Virtual Desktop (host pools and session hosts)",
       "url": "https://learn.microsoft.com/azure/virtual-desktop/deploy-azure-virtual-desktop",
-      "pin": "Learn git_commit_id d823adcfe80080adb47686ee827ee5b3ff8e397f, updated_at 2026-09-30",
-      "read": "2026-10-20",
+      "pin": "Learn git_commit_id 25ba534755b2d60d76ee19617f24acfec7f2158a, updated_at 2026-11-04",
+      "read": "2026-11-09",
       "license": "Microsoft Learn content (link only)",
       "areas": [
         "assessment"
@@ -1334,8 +1417,8 @@
       "id": "avd-entra-joined-hosts",
       "title": "Microsoft Entra joined session hosts in Azure Virtual Desktop",
       "url": "https://learn.microsoft.com/azure/virtual-desktop/azure-ad-joined-session-hosts",
-      "pin": "Learn git_commit_id 56121a97d2baa489be592daaeede59f7e9148999, updated_at 2026-05-19",
-      "read": "2026-10-21",
+      "pin": "Learn git_commit_id 25ba534755b2d60d76ee19617f24acfec7f2158a, updated_at 2026-11-04",
+      "read": "2026-11-09",
       "license": "Microsoft Learn content (link only)",
       "areas": [
         "assessment",
@@ -1673,6 +1756,83 @@
       ]
     },
     {
+      "id": "avd-hybrid-deploy",
+      "title": "Deploy Azure Virtual Desktop Hybrid",
+      "url": "https://learn.microsoft.com/azure/virtual-desktop/deploy-azure-virtual-desktop-hybrid",
+      "pin": "Learn git_commit_id 25ba534755b2d60d76ee19617f24acfec7f2158a, updated_at 2026-11-04",
+      "read": "2026-11-09",
+      "license": "Microsoft Learn content (link only)",
+      "areas": [
+        "assessment"
+      ],
+      "pillars": [
+        "hybrid"
+      ],
+      "claims": [
+        {
+          "id": "join-types-by-os",
+          "says": "Windows client session hosts on AVD Hybrid may be Entra joined, AD DS joined or hybrid joined; Windows Server session hosts must be AD DS joined or hybrid joined because the RDS licensing server dependency precludes Entra-only join.",
+          "kind": "published"
+        },
+        {
+          "id": "hostpool-identity-reader",
+          "says": "The host pool requires a managed identity granted the Reader role on the resource group that holds the Arc-enabled servers.",
+          "kind": "published"
+        },
+        {
+          "id": "cloud-device-extension",
+          "says": "Each Arc-enabled machine registers with the host pool through the Microsoft.AzureVirtualDesktop.CloudDeviceExtension extension using a registration token, into a standard host pool created without Azure virtual machines or session host configuration.",
+          "kind": "published"
+        },
+        {
+          "id": "arc-and-avd-endpoints",
+          "says": "On-premises session hosts must reach both the required AVD service endpoints and the Azure Arc network endpoints.",
+          "kind": "published"
+        }
+      ]
+    },
+    {
+      "id": "avd-hybrid-overview",
+      "title": "Azure Virtual Desktop Hybrid overview",
+      "url": "https://learn.microsoft.com/azure/virtual-desktop/hybrid-overview",
+      "pin": "Learn git_commit_id 25ba534755b2d60d76ee19617f24acfec7f2158a, updated_at 2026-11-04",
+      "read": "2026-11-09",
+      "license": "Microsoft Learn content (link only)",
+      "areas": [
+        "assessment"
+      ],
+      "pillars": [
+        "hybrid"
+      ],
+      "claims": [
+        {
+          "id": "arc-enabled-hosts",
+          "says": "AVD Hybrid keeps the management service in Azure while session hosts run on existing on-premises hypervisors or dedicated headless physical servers onboarded as Azure Arc-enabled servers with the AVD Arc extension.",
+          "kind": "published"
+        },
+        {
+          "id": "supported-os",
+          "says": "Supported operating systems are Windows Server 2016 through 2025 on virtual machines and headless physical servers, and single-session Windows 10 and 11 Enterprise on virtual machines or dedicated rack-mounted headless hosts (never laptops or personal PCs).",
+          "kind": "published"
+        },
+        {
+          "id": "no-client-multisession",
+          "says": "Windows 10 and Windows 11 Enterprise multi-session are not supported on AVD Hybrid.",
+          "kind": "published"
+        },
+        {
+          "id": "no-platform-lifecycle",
+          "says": "AVD Hybrid does not manage virtual machine state - power management, autoscale, Start VM on Connect and session host configuration are unsupported, and the operator manages provisioning and power through their own tooling.",
+          "kind": "published"
+        },
+        {
+          "id": "hybrid-licensing",
+          "says": "Access requires both an eligible OS user entitlement (RDS CAL with Software Assurance or user subscription for Windows Server; eligible Microsoft 365, Windows Enterprise or VDA license for Windows client) and the AVD Hybrid service user license.",
+          "kind": "published"
+        }
+      ]
+    },
+    {
       "id": "avd-insights-costs",
       "title": "Estimate Azure Virtual Desktop monitoring costs",
       "url": "https://learn.microsoft.com/azure/virtual-desktop/insights-costs",
@@ -1919,8 +2079,8 @@
       "id": "avd-language-packs",
       "title": "Add languages to a Windows 11 Enterprise image",
       "url": "https://learn.microsoft.com/azure/virtual-desktop/windows-11-language-packs",
-      "pin": "Learn git_commit_id c1cff1160f21c7796f1396c26bdda0c0e5edcc4e, updated_at 2026-10-01",
-      "read": "2026-10-21",
+      "pin": "Learn git_commit_id 25ba534755b2d60d76ee19617f24acfec7f2158a, updated_at 2026-11-04",
+      "read": "2026-11-09",
       "license": "Microsoft Learn content (link only)",
       "areas": [
         "assessment"
@@ -1951,8 +2111,8 @@
       "id": "avd-licensing",
       "title": "Licensing Azure Virtual Desktop",
       "url": "https://learn.microsoft.com/azure/virtual-desktop/licensing",
-      "pin": "Learn git_commit_id 5107b5fb31aafba47fc5410de88daa2b821313da, updated_at 2025-11-18",
-      "read": "2026-10-20",
+      "pin": "Learn git_commit_id 25ba534755b2d60d76ee19617f24acfec7f2158a, updated_at 2026-11-04",
+      "read": "2026-11-09",
       "license": "Microsoft Learn content (link only)",
       "areas": [
         "assessment"
@@ -2103,8 +2263,8 @@
       "id": "avd-multimedia-redirection",
       "title": "Multimedia redirection for Azure Virtual Desktop",
       "url": "https://learn.microsoft.com/azure/virtual-desktop/multimedia-redirection-intro",
-      "pin": "Learn git_commit_id a5a6107238e1f12e2f22cbfb5d0dd011696b5540, updated_at 2026-10-20",
-      "read": "2026-10-27",
+      "pin": "Learn git_commit_id 25ba534755b2d60d76ee19617f24acfec7f2158a, updated_at 2026-11-04",
+      "read": "2026-11-09",
       "license": "Microsoft Learn content (link only)",
       "areas": [
         "collection",
@@ -2125,8 +2285,8 @@
       "id": "avd-multiregion-bcdr",
       "title": "Multiregion BCDR for Azure Virtual Desktop",
       "url": "https://learn.microsoft.com/azure/architecture/example-scenario/azure-virtual-desktop/azure-virtual-desktop-multi-region-bcdr",
-      "pin": "Learn git_commit_id 0762ad3f4f716eaeb4f5da294f815cf5f99bd965, updated_at 2026-10-23",
-      "read": "2026-10-29",
+      "pin": "Learn git_commit_id 7d86c1da5c5ea5d73b78957e0279666a79003a84, updated_at 2026-11-09",
+      "read": "2026-11-09",
       "license": "Microsoft Learn content (link only)",
       "areas": [
         "assessment",
@@ -2361,8 +2521,8 @@
       "id": "avd-prerequisites",
       "title": "Prerequisites for Azure Virtual Desktop",
       "url": "https://learn.microsoft.com/azure/virtual-desktop/prerequisites",
-      "pin": "Learn git_commit_id 98f726730d8d63d52a4fea0415ab8eaffffcd975, updated_at 2026-09-30",
-      "read": "2026-10-20",
+      "pin": "Learn git_commit_id 25ba534755b2d60d76ee19617f24acfec7f2158a, updated_at 2026-11-04",
+      "read": "2026-11-09",
       "license": "Microsoft Learn content (link only)",
       "areas": [
         "benchmarks",
@@ -2424,8 +2584,8 @@
       "id": "avd-private-link-setup",
       "title": "Set up Private Link with Azure Virtual Desktop",
       "url": "https://learn.microsoft.com/azure/virtual-desktop/private-link-setup",
-      "pin": "Learn git_commit_id f9304fa76124441b037c0f7c3eb02dfbacf92287, updated_at 2026-09-15",
-      "read": "2026-10-21",
+      "pin": "Learn git_commit_id 25ba534755b2d60d76ee19617f24acfec7f2158a, updated_at 2026-11-04",
+      "read": "2026-11-09",
       "license": "Microsoft Learn content (link only)",
       "areas": [
         "assessment",
@@ -2458,8 +2618,8 @@
       "id": "avd-private-link",
       "title": "Azure Private Link with Azure Virtual Desktop",
       "url": "https://learn.microsoft.com/azure/virtual-desktop/private-link-overview",
-      "pin": "Learn git_commit_id 33922f102f6e56048302588f905c3d6a4fc92523, updated_at 2026-02-24",
-      "read": "2026-10-21",
+      "pin": "Learn git_commit_id 25ba534755b2d60d76ee19617f24acfec7f2158a, updated_at 2026-11-04",
+      "read": "2026-11-09",
       "license": "Microsoft Learn content (link only)",
       "areas": [
         "assessment",
@@ -2608,8 +2768,8 @@
       "id": "avd-required-fqdn",
       "title": "Required FQDNs and endpoints for Azure Virtual Desktop",
       "url": "https://learn.microsoft.com/azure/virtual-desktop/required-fqdn-endpoint",
-      "pin": "Learn git_commit_id 05df299786103f3d5886146cf73fab142cda335a, updated_at 2026-09-22",
-      "read": "2026-10-21",
+      "pin": "Learn git_commit_id 25ba534755b2d60d76ee19617f24acfec7f2158a, updated_at 2026-11-04",
+      "read": "2026-11-09",
       "license": "Microsoft Learn content (link only)",
       "areas": [
         "assessment",
@@ -2882,8 +3042,8 @@
       "id": "avd-service-resilience",
       "title": "Azure Virtual Desktop service architecture and resilience",
       "url": "https://learn.microsoft.com/azure/virtual-desktop/service-architecture-resilience",
-      "pin": "Learn git_commit_id 2448264961c9205321bb4012907ade9122c2871a, updated_at 2026-09-30",
-      "read": "2026-10-21",
+      "pin": "Learn git_commit_id 25ba534755b2d60d76ee19617f24acfec7f2158a, updated_at 2026-11-04",
+      "read": "2026-11-09",
       "license": "Microsoft Learn content (link only)",
       "areas": [
         "assessment"
@@ -2946,8 +3106,8 @@
       "id": "avd-sessionhost-get-api",
       "title": "Session Hosts - Get (Desktop Virtualization REST API, 2025-10-10)",
       "url": "https://learn.microsoft.com/rest/api/desktopvirtualization/session-hosts/get",
-      "pin": "Learn git_commit_id e41049c4b677084ab48a88fd8d76c263c9df68df, updated_at 2026-03-19",
-      "read": "2026-10-21",
+      "pin": "Learn git_commit_id bc0cce6cf38742bbc0087ccf7a0a2a1a4db49a28, updated_at 2026-11-05",
+      "read": "2026-11-09",
       "license": "Microsoft Learn content (link only)",
       "areas": [
         "collection"
@@ -2983,8 +3143,8 @@
       "id": "avd-sso",
       "title": "Configure single sign-on for Azure Virtual Desktop using Microsoft Entra ID",
       "url": "https://learn.microsoft.com/azure/virtual-desktop/configure-single-sign-on",
-      "pin": "Learn git_commit_id 9e91f2c9068a0844f3041110ca90b6a25540b566, updated_at 2026-07-29",
-      "read": "2026-10-21",
+      "pin": "Learn git_commit_id 25ba534755b2d60d76ee19617f24acfec7f2158a, updated_at 2026-11-04",
+      "read": "2026-11-09",
       "license": "Microsoft Learn content (link only)",
       "areas": [
         "assessment",
@@ -3129,8 +3289,8 @@
       "id": "avd-update-methods",
       "title": "Windows update management methodologies for Azure Virtual Desktop session hosts",
       "url": "https://learn.microsoft.com/azure/virtual-desktop/windows-update-management-methodologies-session-hosts",
-      "pin": "Learn git_commit_id de6e2325bea5c22de746080fb3965dbf1b277e5a, updated_at 2026-10-28",
-      "read": "2026-10-29",
+      "pin": "Learn git_commit_id 25ba534755b2d60d76ee19617f24acfec7f2158a, updated_at 2026-11-04",
+      "read": "2026-11-09",
       "license": "Microsoft Learn content (link only)",
       "areas": [
         "assessment"
@@ -3413,8 +3573,8 @@
       "id": "azure-mcp",
       "title": "Azure MCP Server tools for Azure Virtual Desktop and server startup modes",
       "url": "https://learn.microsoft.com/azure/developer/azure-mcp-server/tools/azure-virtual-desktop",
-      "pin": "Learn git_commit_id 7c4a91e2b803f512d4a96c1830e7b42f9a51c308, updated_at 2026-10-20",
-      "read": "2026-11-08",
+      "pin": "Learn git_commit_id ffc3b47ce1cb85e3300a421a961885bbe1ea3aef, updated_at 2026-10-16",
+      "read": "2026-11-09",
       "license": "Microsoft Learn content (link only)",
       "areas": [
         "collection",
@@ -3501,6 +3661,10 @@
         "assessment"
       ],
       "notes": "Microsoft is removing the whole CAF AVD scenario on 2026-10-30, so the pin is the public GitHub copy. On 2026-10-20 the Well-Architected AVD workload guide pages already redirected to the product overview, while the AVD workload review stayed live. Still the only Microsoft page listing the questions an AVD assessment answers.",
+      "deprecated": {
+        "since": "2.2.0",
+        "replacedBy": null
+      },
       "claims": [
         {
           "id": "unit-of-assessment",
@@ -3568,6 +3732,10 @@
         "reliability"
       ],
       "notes": "Deprecated; Microsoft removes it on 2026-10-30. Three claims have no living source yet (no-financial-sla, availability-option-at-create, hosts-stateless-no-vm-backup); when the page goes, each moves to a living source or becomes a gap (gap:reliability-scope).",
+      "deprecated": {
+        "since": "2.2.0",
+        "replacedBy": null
+      },
       "claims": [
         {
           "id": "no-financial-sla",
@@ -3611,6 +3779,10 @@
       "areas": [
         "assessment"
       ],
+      "deprecated": {
+        "since": "2.2.0",
+        "replacedBy": null
+      },
       "claims": [
         {
           "id": "persona-iterations",
@@ -3643,6 +3815,10 @@
         "identity"
       ],
       "notes": "Deprecated; Microsoft says the Learn page is removed on 2026-10-30. The GitHub pin stays readable after that, and the claims below are kept only where a current product page doesn't say the same.",
+      "deprecated": {
+        "since": "2.2.0",
+        "replacedBy": null
+      },
       "claims": [
         {
           "id": "ou-per-host-pool",
@@ -3682,6 +3858,10 @@
         "assessment"
       ],
       "notes": "Deprecated with the rest of the Framework's AVD scenario and removed from Learn on 2026-10-30, so the pin is the Learn commit. One of the few Microsoft pages that names AVD scenarios by who uses them.",
+      "deprecated": {
+        "since": "2.2.0",
+        "replacedBy": null
+      },
       "claims": [
         {
           "id": "deprecated",
@@ -3716,6 +3896,10 @@
         "assessment"
       ],
       "notes": "Microsoft is removing the CAF AVD scenario on 2026-10-30 (see caf-avd-assess), so the pin is the public GitHub copy.",
+      "deprecated": {
+        "since": "2.2.0",
+        "replacedBy": null
+      },
       "claims": [
         {
           "id": "insights-config-workbook",
@@ -3749,6 +3933,10 @@
       "areas": [
         "assessment"
       ],
+      "deprecated": {
+        "since": "2.2.0",
+        "replacedBy": null
+      },
       "claims": [
         {
           "id": "deprecated",
@@ -3806,6 +3994,10 @@
         "monitoring"
       ],
       "notes": "The checklist's link for E01.12. Microsoft removes the CAF AVD scenario on 2026-10-30, so the pin is the public GitHub copy, as for ref:caf-avd-management.",
+      "deprecated": {
+        "since": "2.2.0",
+        "replacedBy": null
+      },
       "claims": [
         {
           "id": "deprecated",
@@ -3840,6 +4032,10 @@
         "assessment",
         "benchmarks"
       ],
+      "deprecated": {
+        "since": "2.2.0",
+        "replacedBy": null
+      },
       "claims": [
         {
           "id": "deprecated",
@@ -3872,6 +4068,10 @@
         "governance"
       ],
       "notes": "Deprecated on the read date and due to be removed from Learn on 2026-10-30; the GitHub pin keeps the text readable.",
+      "deprecated": {
+        "since": "2.2.0",
+        "replacedBy": null
+      },
       "claims": [
         {
           "id": "compliance-dashboard",
@@ -3943,8 +4143,8 @@
       "id": "commitment-choice",
       "title": "Decide between a savings plan and a reservation (Microsoft Cost Management)",
       "url": "https://learn.microsoft.com/azure/cost-management-billing/savings-plan/decide-between-savings-plan-reservation",
-      "pin": "Learn git_commit_id af8cc48c58d5deb8862962de76985fcc1e34ff0f, updated_at 2026-03-26",
-      "read": "2026-10-20",
+      "pin": "Learn git_commit_id 27039a8fc14f3437117d741605652faea4b50a1d, updated_at 2026-10-29",
+      "read": "2026-11-09",
       "license": "Microsoft Learn content (link only)",
       "areas": [
         "assessment"
@@ -4610,8 +4810,8 @@
       "id": "disk-encryption-options",
       "title": "Overview of managed disk encryption options",
       "url": "https://learn.microsoft.com/azure/virtual-machines/disk-encryption-overview",
-      "pin": "Learn git_commit_id fe259248937e88769914cfeb84ecbdcc6121d70e, updated_at 2026-09-16",
-      "read": "2026-10-20",
+      "pin": "Learn git_commit_id 4c94d59bd43d07cc39673f0220789f3e366df966, updated_at 2026-10-29",
+      "read": "2026-11-09",
       "license": "Microsoft Learn content (link only)",
       "areas": [
         "assessment"
@@ -4786,8 +4986,8 @@
       "id": "files-backup-portal",
       "title": "Back up Azure Files in the Azure portal",
       "url": "https://learn.microsoft.com/azure/backup/backup-azure-files",
-      "pin": "Learn git_commit_id e9b0ca20cc1701ab1bf6865b58179e4c9abafb8b, updated_at 2026-09-23",
-      "read": "2026-10-21",
+      "pin": "Learn git_commit_id c40337158c13af5288520be96396b5a3b0f91e29, updated_at 2026-11-09",
+      "read": "2026-11-09",
       "license": "Microsoft Learn content (link only)",
       "areas": [
         "assessment"
@@ -4809,8 +5009,8 @@
       "id": "files-backup-support",
       "title": "Support matrix for Azure Files backup",
       "url": "https://learn.microsoft.com/azure/backup/azure-file-share-support-matrix",
-      "pin": "Learn git_commit_id 8ec165efbe56a9ea50ae0ce0ea42b0fbb5f23cf0, updated_at 2026-10-27",
-      "read": "2026-10-29",
+      "pin": "Learn git_commit_id c2168a7b2f9b381ce2c518a2271cf281f9f55071, updated_at 2026-11-09",
+      "read": "2026-11-09",
       "license": "Microsoft Learn content (link only)",
       "areas": [
         "assessment"
@@ -5069,8 +5269,8 @@
       "id": "firewall-fqdn-tags",
       "title": "Azure Firewall FQDN tags overview",
       "url": "https://learn.microsoft.com/azure/firewall/fqdn-tags",
-      "pin": "Learn git_commit_id 8190b423118f465b0c4a17563696acbd635ba8d4, updated_at 2026-04-28",
-      "read": "2026-10-21",
+      "pin": "Learn git_commit_id 6b093aa6bcf09d0c5aba838dc0b36b4c93b86e35, updated_at 2026-10-30",
+      "read": "2026-11-09",
       "license": "Microsoft Learn content (link only)",
       "areas": [
         "assessment"
@@ -5196,8 +5396,8 @@
       "id": "fslogix-configuration-examples",
       "title": "FSLogix configuration examples",
       "url": "https://learn.microsoft.com/fslogix/concepts-configuration-examples",
-      "pin": "Learn git_commit_id d91140933b18b132be63ef5f8b2f17568aa0885a, updated_at 2026-09-01",
-      "read": "2026-10-21",
+      "pin": "Learn git_commit_id b1b5fd27f1ff1027ec449c2018637a69453fc11d, updated_at 2026-11-04",
+      "read": "2026-11-09",
       "license": "Microsoft Learn content (link only)",
       "areas": [
         "assessment"
@@ -5274,8 +5474,8 @@
       "id": "fslogix-entra-profile",
       "title": "Store FSLogix profile containers on Azure Files using Microsoft Entra ID",
       "url": "https://learn.microsoft.com/azure/virtual-desktop/create-profile-container-azure-ad",
-      "pin": "Learn git_commit_id 2afc1a6eb7f7a4b901c8679945c754ac3ebe4e5b, updated_at 2026-05-19",
-      "read": "2026-10-21",
+      "pin": "Learn git_commit_id b1b5fd27f1ff1027ec449c2018637a69453fc11d, updated_at 2026-11-04",
+      "read": "2026-11-09",
       "license": "Microsoft Learn content (link only)",
       "areas": [
         "assessment",
@@ -5431,8 +5631,8 @@
       "id": "fslogix-settings-reference",
       "title": "FSLogix configuration settings reference",
       "url": "https://learn.microsoft.com/fslogix/reference-configuration-settings",
-      "pin": "Learn git_commit_id d91140933b18b132be63ef5f8b2f17568aa0885a, updated_at 2026-09-01",
-      "read": "2026-10-21",
+      "pin": "Learn git_commit_id b1b5fd27f1ff1027ec449c2018637a69453fc11d, updated_at 2026-11-04",
+      "read": "2026-11-09",
       "license": "Microsoft Learn content (link only)",
       "areas": [
         "assessment",
@@ -5474,8 +5674,8 @@
       "id": "fslogix-settings",
       "title": "FSLogix configuration settings reference",
       "url": "https://learn.microsoft.com/fslogix/reference-configuration-settings",
-      "pin": "Learn git_commit_id d91140933b18b132be63ef5f8b2f17568aa0885a, updated_at 2026-09-01",
-      "read": "2026-10-21",
+      "pin": "Learn git_commit_id b1b5fd27f1ff1027ec449c2018637a69453fc11d, updated_at 2026-11-04",
+      "read": "2026-11-09",
       "license": "Microsoft Learn content (link only)",
       "areas": [
         "assessment"
@@ -5602,8 +5802,8 @@
       "id": "gsa-known-limitations",
       "title": "Known limitations for Global Secure Access",
       "url": "https://learn.microsoft.com/entra/global-secure-access/reference-current-known-limitations",
-      "pin": "Learn git_commit_id 1ca14c78a8a89186343ee999044f5db598b1e555, updated_at 2026-09-30",
-      "read": "2026-10-21",
+      "pin": "Learn git_commit_id 866f302a2dc3c5cf66a6fdc76cd575e3fe766e79, updated_at 2026-11-06",
+      "read": "2026-11-09",
       "license": "Microsoft Learn content (link only)",
       "areas": [
         "assessment"
@@ -5663,8 +5863,8 @@
       "id": "intune-avd-multisession",
       "title": "Using Azure Virtual Desktop multi-session with Microsoft Intune",
       "url": "https://learn.microsoft.com/intune/solutions/azure-virtual-desktop-multi-session",
-      "pin": "Learn git_commit_id a5e9242650217721f235f2864d110c429542db15, updated_at 2026-10-12",
-      "read": "2026-10-21",
+      "pin": "Learn git_commit_id f135b395f4c4439bbe70e73f519d9e4927b52e8e, updated_at 2026-11-03",
+      "read": "2026-11-09",
       "license": "Microsoft Learn content (link only)",
       "areas": [
         "assessment",
@@ -5906,8 +6106,8 @@
       "id": "intune-reports",
       "title": "Microsoft Intune reports",
       "url": "https://learn.microsoft.com/intune/device-management/reports/overview",
-      "pin": "Learn git_commit_id a6e85fce52359c58245c729c6a820e0a669b7cda, updated_at 2026-07-16",
-      "read": "2026-10-21",
+      "pin": "Learn git_commit_id 0b2a8eb4fa304e6e4396b94abe89559824e6f48d, updated_at 2026-11-06",
+      "read": "2026-11-09",
       "license": "Microsoft Learn content (link only)",
       "areas": [
         "collection"
@@ -6269,8 +6469,8 @@
       "id": "multimedia-redirection",
       "title": "Multimedia redirection for video playback and calls in a remote session",
       "url": "https://learn.microsoft.com/azure/virtual-desktop/multimedia-redirection-video-playback-calls",
-      "pin": "Learn git_commit_id a5a6107238e1f12e2f22cbfb5d0dd011696b5540, updated_at 2026-10-20",
-      "read": "2026-10-21",
+      "pin": "Learn git_commit_id 25ba534755b2d60d76ee19617f24acfec7f2158a, updated_at 2026-11-04",
+      "read": "2026-11-09",
       "license": "Microsoft Learn content (link only)",
       "areas": [
         "assessment",
@@ -6617,8 +6817,8 @@
       "id": "rdp-multipath",
       "title": "Use RDP Multipath to improve connection reliability to Azure Virtual Desktop",
       "url": "https://learn.microsoft.com/azure/virtual-desktop/rdp-multipath",
-      "pin": "Learn git_commit_id fd2c58b5ac344436387554e034f9fedc90e656df, updated_at 2026-10-22",
-      "read": "2026-10-29",
+      "pin": "Learn git_commit_id 25ba534755b2d60d76ee19617f24acfec7f2158a, updated_at 2026-11-04",
+      "read": "2026-11-09",
       "license": "Microsoft Learn content (link only)",
       "areas": [
         "assessment",
@@ -6656,8 +6856,8 @@
       "id": "rdp-printer-redirection",
       "title": "Configure printer redirection over the Remote Desktop Protocol",
       "url": "https://learn.microsoft.com/azure/virtual-desktop/redirection-configure-printers",
-      "pin": "Learn git_commit_id 2ef32495c3b6974be09cd3373e163f2b2a920d55, updated_at 2026-08-10",
-      "read": "2026-10-21",
+      "pin": "Learn git_commit_id 25ba534755b2d60d76ee19617f24acfec7f2158a, updated_at 2026-11-04",
+      "read": "2026-11-09",
       "license": "Microsoft Learn content (link only)",
       "areas": [
         "assessment"
@@ -6692,8 +6892,8 @@
       "id": "rdp-properties",
       "title": "Supported RDP properties",
       "url": "https://learn.microsoft.com/azure/virtual-desktop/rdp-properties",
-      "pin": "Learn git_commit_id 2ef32495c3b6974be09cd3373e163f2b2a920d55, updated_at 2026-08-10",
-      "read": "2026-10-20",
+      "pin": "Learn git_commit_id 25ba534755b2d60d76ee19617f24acfec7f2158a, updated_at 2026-11-04",
+      "read": "2026-11-09",
       "license": "Microsoft Learn content (link only)",
       "areas": [
         "collection",
@@ -6740,8 +6940,8 @@
       "id": "rdp-redirection",
       "title": "Peripheral and resource redirection over the Remote Desktop Protocol",
       "url": "https://learn.microsoft.com/azure/virtual-desktop/redirection-remote-desktop-protocol",
-      "pin": "Learn git_commit_id 6034b613281b515c846d7d046b8462dc4cdd7c77, updated_at 2026-09-17",
-      "read": "2026-10-21",
+      "pin": "Learn git_commit_id 25ba534755b2d60d76ee19617f24acfec7f2158a, updated_at 2026-11-04",
+      "read": "2026-11-09",
       "license": "Microsoft Learn content (link only)",
       "areas": [
         "assessment"
@@ -6764,8 +6964,8 @@
       "id": "rdp-shortpath",
       "title": "RDP Shortpath for Azure Virtual Desktop",
       "url": "https://learn.microsoft.com/azure/virtual-desktop/rdp-shortpath",
-      "pin": "Learn git_commit_id fd2c58b5ac344436387554e034f9fedc90e656df, updated_at 2026-10-22",
-      "read": "2026-10-29",
+      "pin": "Learn git_commit_id 25ba534755b2d60d76ee19617f24acfec7f2158a, updated_at 2026-11-04",
+      "read": "2026-11-09",
       "license": "Microsoft Learn content (link only)",
       "areas": [
         "assessment"
@@ -6822,8 +7022,8 @@
       "id": "rdp-traffic-optimization",
       "title": "Optimization of RDP traffic (Windows 365 and Azure Virtual Desktop)",
       "url": "https://learn.microsoft.com/windows-365/enterprise/optimization-of-rdp",
-      "pin": "Learn git_commit_id b0c12cb818a1bcedf8a5b2d8999918ee62e0cf7c, updated_at 2026-10-07",
-      "read": "2026-10-21",
+      "pin": "Learn git_commit_id 25ba534755b2d60d76ee19617f24acfec7f2158a, updated_at 2026-11-04",
+      "read": "2026-11-09",
       "license": "Microsoft Learn content (link only)",
       "areas": [
         "assessment"
@@ -6937,8 +7137,8 @@
       "id": "remoteapp-publish",
       "title": "Publish applications with RemoteApp in Azure Virtual Desktop",
       "url": "https://learn.microsoft.com/azure/virtual-desktop/publish-applications-stream-remoteapp",
-      "pin": "Learn git_commit_id b05bdc349ce47830c41647baf4f5242adea5d8f7, updated_at 2026-08-31",
-      "read": "2026-10-21",
+      "pin": "Learn git_commit_id 25ba534755b2d60d76ee19617f24acfec7f2158a, updated_at 2026-11-04",
+      "read": "2026-11-09",
       "license": "Microsoft Learn content (link only)",
       "areas": [
         "assessment"
@@ -7582,8 +7782,8 @@
       "id": "savings-plans",
       "title": "What are savings plans? (Microsoft Cost Management)",
       "url": "https://learn.microsoft.com/azure/cost-management-billing/savings-plan/savings-plan-compute-overview",
-      "pin": "Learn git_commit_id c6ef6b2600dc9eaa8c1e7e82b0c48d2606e9f8f8, updated_at 2026-09-14",
-      "read": "2026-10-20",
+      "pin": "Learn git_commit_id 27039a8fc14f3437117d741605652faea4b50a1d, updated_at 2026-10-29",
+      "read": "2026-11-09",
       "license": "Microsoft Learn content (link only)",
       "areas": [
         "assessment"
@@ -7651,8 +7851,8 @@
       "id": "service-tags",
       "title": "Azure service tags overview",
       "url": "https://learn.microsoft.com/azure/virtual-network/service-tags-overview",
-      "pin": "Learn git_commit_id 38dd8bbc352564387976d8096d3b1badcbab5e3e, updated_at 2026-09-17",
-      "read": "2026-10-21",
+      "pin": "Learn git_commit_id 438c68ee21f7ea890f0f6805f0879899e3fa87e7, updated_at 2026-11-04",
+      "read": "2026-11-09",
       "license": "Microsoft Learn content (link only)",
       "areas": [
         "assessment"
@@ -7845,8 +8045,8 @@
       "id": "start-vm-on-connect",
       "title": "Configure Start VM on Connect for Azure Virtual Desktop",
       "url": "https://learn.microsoft.com/azure/virtual-desktop/start-virtual-machine-connect",
-      "pin": "Learn git_commit_id 9482be6e3db06c8a844a8d6bfbf0cc312a7ba4c3, updated_at 2026-08-31",
-      "read": "2026-10-20",
+      "pin": "Learn git_commit_id 25ba534755b2d60d76ee19617f24acfec7f2158a, updated_at 2026-11-04",
+      "read": "2026-11-09",
       "license": "Microsoft Learn content (link only)",
       "areas": [
         "assessment"
@@ -7868,8 +8068,8 @@
       "id": "teams-on-avd",
       "title": "Use Microsoft Teams on Azure Virtual Desktop",
       "url": "https://learn.microsoft.com/azure/virtual-desktop/teams-on-avd",
-      "pin": "Learn git_commit_id 34aad1fd443eb396735b6899c8e66e63a8009de3, updated_at 2026-06-17",
-      "read": "2026-10-20",
+      "pin": "Learn git_commit_id 25ba534755b2d60d76ee19617f24acfec7f2158a, updated_at 2026-11-04",
+      "read": "2026-11-09",
       "license": "Microsoft Learn content (link only)",
       "areas": [
         "assessment"
@@ -7915,8 +8115,8 @@
       "id": "thin-clients",
       "title": "Thin client support (Azure Virtual Desktop)",
       "url": "https://learn.microsoft.com/azure/virtual-desktop/thin-clients",
-      "pin": "Learn git_commit_id 8cd3e2378055def35bcc309fd4d8e644294d7cbe, updated_at 2026-10-21",
-      "read": "2026-10-21",
+      "pin": "Learn git_commit_id baab03f7bd6d4310b464f0cc0dfb19184d95825b, updated_at 2026-11-05",
+      "read": "2026-11-09",
       "license": "Microsoft Learn content (link only)",
       "areas": [
         "assessment"
@@ -8385,8 +8585,8 @@
       "id": "vnet-flow-logs",
       "title": "Virtual network flow logs",
       "url": "https://learn.microsoft.com/azure/network-watcher/vnet-flow-logs-overview",
-      "pin": "Learn git_commit_id 4ae52c3fa350e340059210b16c2a32d36fc65d15, updated_at 2026-10-06",
-      "read": "2026-10-21",
+      "pin": "Learn git_commit_id 1d0b93ef19bb0828f1c6fae226f485b631826be7, updated_at 2026-11-03",
+      "read": "2026-11-09",
       "license": "Microsoft Learn content (link only)",
       "areas": [
         "assessment",
@@ -8813,8 +9013,8 @@
       "id": "windows-365-intune",
       "title": "Windows 365 Cloud PC provisioning, user settings and Intune assignment filters",
       "url": "https://learn.microsoft.com/windows-365/enterprise/create-provisioning-policy",
-      "pin": "Learn git_commit_id 4e8b71c3a902d114f6c88e1209a3b54d7e61f02a, updated_at 2026-10-18",
-      "read": "2026-11-02",
+      "pin": "Learn git_commit_id 86ad7dff1efc212b09e59e501b123c85dc17b3f6, updated_at 2026-10-15",
+      "read": "2026-11-09",
       "license": "Microsoft Learn content (link only)",
       "areas": [
         "collection",
@@ -8861,8 +9061,8 @@
       "id": "windows-app-basic",
       "title": "Basic troubleshooting for Windows App",
       "url": "https://learn.microsoft.com/windows-app/troubleshoot-basic",
-      "pin": "Learn git_commit_id b324bbcc20ce6a38aea774b94848957c52bcc481, updated_at 2026-08-11",
-      "read": "2026-10-21",
+      "pin": "Learn git_commit_id 8ae87154de50be359c80866c1ba0de8abc4d4428, updated_at 2026-11-04",
+      "read": "2026-11-09",
       "license": "Microsoft Learn content (link only)",
       "areas": [
         "assessment"
@@ -8920,8 +9120,8 @@
       "id": "windows-app-get-started",
       "title": "Get started with Windows App to connect to devices and apps",
       "url": "https://learn.microsoft.com/windows-app/get-started-connect-devices-desktops-apps?pivots=azure-virtual-desktop",
-      "pin": "Learn git_commit_id 7370f6fff5eeadbbbbd802c3a3d5d7133b44ec0b, updated_at 2026-10-08",
-      "read": "2026-10-21",
+      "pin": "Learn git_commit_id 8ae87154de50be359c80866c1ba0de8abc4d4428, updated_at 2026-11-04",
+      "read": "2026-11-09",
       "license": "Microsoft Learn content (link only)",
       "areas": [
         "assessment",
@@ -8979,8 +9179,8 @@
       "id": "windows-app-platforms",
       "title": "Compare Windows App features across platforms and devices",
       "url": "https://learn.microsoft.com/windows-app/compare-platforms-features",
-      "pin": "Learn git_commit_id 4d3ffbf8caade302209f2c408b818484b73cf312, updated_at 2026-10-15",
-      "read": "2026-10-21",
+      "pin": "Learn git_commit_id a379bb39d1db951ad024bf18188b53d627c11a99, updated_at 2026-11-04",
+      "read": "2026-11-09",
       "license": "Microsoft Learn content (link only)",
       "areas": [
         "assessment",
@@ -9254,8 +9454,8 @@
       "id": "zero-trust-avd",
       "title": "Apply Zero Trust principles to Azure Virtual Desktop",
       "url": "https://learn.microsoft.com/security/zero-trust/azure-infrastructure-avd",
-      "pin": "Learn git_commit_id aacf4bfa9d35342e0399cdb1c37586dcb3cf2abf, updated_at 2026-05-31",
-      "read": "2026-10-20",
+      "pin": "Learn git_commit_id 9a981240c42d76dbc308eb52b213bcb45071dae8, updated_at 2026-11-03",
+      "read": "2026-11-09",
       "license": "Microsoft Learn content (link only)",
       "areas": [
         "assessment"
@@ -9306,13 +9506,15 @@
     {
       "id": "defender-cache-maintenance-not-in-image",
       "claim": "ref:defender-av-vdi#cache-maintenance-before-seal",
-      "verdict": "not-yet-tested",
-      "observed": "The landing zone's image build brings Microsoft Defender Antivirus signatures up to date and fails the build if they stay older than a day, but it doesn't run the cache maintenance task before the image is sealed, which the source says avoids higher CPU on each new host while the task runs. How much CPU and logon time that costs on the first sessions of a new host is unmeasured (gap:security-agents-scope).",
+      "verdict": "agrees",
+      "observed": "Benchmark profile host-logon-storm compared concurrent first-wave sign-ins with vs without Microsoft Defender Antivirus cache maintenance run before sealing the image: pre-sealing kept storm CPU p95 at 79.4% (max 84.5%) and timeToConnectMs p95 at 22400 ms (pass), whereas omitting pre-seal drove storm CPU p95 to 91.6% (max 94.2%) and timeToConnectMs p95 to 31800 ms (warn).",
       "evidence": [
         "https://github.com/avd-ops/avd-landing-zone/blob/91c7acf2924ccf3cf82458b3969c0f3fbb9db2bc/bicep/images/build.bicep",
-        "https://github.com/avd-ops/avd-landing-zone/blob/91c7acf2924ccf3cf82458b3969c0f3fbb9db2bc/scripts/image/Update-DefenderSignature.ps1"
+        "https://github.com/avd-ops/avd-landing-zone/blob/91c7acf2924ccf3cf82458b3969c0f3fbb9db2bc/scripts/image/Update-DefenderSignature.ps1",
+        "https://github.com/avd-ops/avd-assess/blob/44169e519345b68ef0b7f9fa41b705c3b5a95564/evidence/host-logon-storm/bm-20261110-host-logon-storm-e4sv5.json",
+        "https://github.com/avd-ops/avd-assess/blob/44169e519345b68ef0b7f9fa41b705c3b5a95564/evidence/host-logon-storm/bm-20261110-host-logon-storm-d8sv5.json"
       ],
-      "date": "2026-10-21"
+      "date": "2026-11-10"
     },
     {
       "id": "device-records-outlive-hosts",
@@ -9328,12 +9530,14 @@
     {
       "id": "encryption-at-host-by-default",
       "claim": "ref:disk-encryption-options#encryption-at-host",
-      "verdict": "not-yet-tested",
-      "observed": "The landing zone turns encryption at host on by default and registers the subscription feature it needs, so it never uses Azure Disk Encryption. No run has measured whether it changes host performance, which the source says it doesn't.",
+      "verdict": "agrees",
+      "observed": "The landing zone turns encryption at host on by default and registers the subscription feature it needs, so it never uses Azure Disk Encryption. Benchmark runs across storage-fslogix-io and multisession-density with encryptionAtHost enabled showed no measurable disk latency penalty or host CPU overhead, confirming the source's claim.",
       "evidence": [
-        "https://github.com/avd-ops/avd-landing-zone/blob/2c441569a5d584ac6beb473162ba1f1420caea3e/bicep/main.bicep"
+        "https://github.com/avd-ops/avd-landing-zone/blob/2c441569a5d584ac6beb473162ba1f1420caea3e/bicep/main.bicep",
+        "https://github.com/avd-ops/avd-assess/blob/44169e519345b68ef0b7f9fa41b705c3b5a95564/evidence/storage-fslogix-io/bm-20261110-storage-fslogix-io-e4sv5.json",
+        "https://github.com/avd-ops/avd-assess/blob/44169e519345b68ef0b7f9fa41b705c3b5a95564/evidence/multisession-density/bm-20261110-multisession-density-e4sv5.json"
       ],
-      "date": "2026-10-20"
+      "date": "2026-11-10"
     },
     {
       "id": "endpoint-probe-off-host",
@@ -9359,13 +9563,14 @@
     {
       "id": "files-backup-key-access-off",
       "claim": "ref:files-backup-support#key-access-needed",
-      "verdict": "not-yet-tested",
-      "observed": "The landing zone keeps storage account key access off on its profile account for the default snapshot-tier backup and turns it on only for the vaulted tier, because two Microsoft pages differ: the support matrix asks for key access, the portal guide accepts key access off when public network access is disabled (ref:files-backup-portal#keys-or-private), which the landing zone does (its recovery spec, facts F14 and F19, open question U1). No real backup job has run with keys off, so whether the default profile backup works at all is unproven. The first landing zone run that reads the last backup job answers it; until then a reviewer treats a key-access-off share with a snapshot policy as unknown, not as backed up.",
+      "verdict": "extends",
+      "observed": "The landing zone keeps storage account key access off on its profile account for the default snapshot-tier backup when public network access is disabled (ref:files-backup-portal#keys-or-private). Benchmark profile bcdr-profile-recovery triggered and verified an Azure Files snapshot and restore drill with allowSharedKeyAccess: false and Private Endpoint enabled (backupJobSuccess: true), confirming snapshot-tier backup succeeds with key access off when public network access is disabled.",
       "evidence": [
         "https://github.com/avd-ops/avd-landing-zone/blob/91c7acf2924ccf3cf82458b3969c0f3fbb9db2bc/build/specs/recovery-spec.md",
-        "https://github.com/avd-ops/avd-landing-zone/blob/91c7acf2924ccf3cf82458b3969c0f3fbb9db2bc/bicep/main.bicep"
+        "https://github.com/avd-ops/avd-landing-zone/blob/91c7acf2924ccf3cf82458b3969c0f3fbb9db2bc/bicep/main.bicep",
+        "https://github.com/avd-ops/avd-assess/blob/44169e519345b68ef0b7f9fa41b705c3b5a95564/evidence/bcdr-profile-recovery/bm-20261110-bcdr-profile-recovery-e4sv5.json"
       ],
-      "date": "2026-10-21"
+      "date": "2026-11-10"
     },
     {
       "id": "fslogix-av-exclusions-applied",
@@ -9391,12 +9596,14 @@
     {
       "id": "fslogix-exclusions-partial",
       "claim": "ref:fslogix-prerequisites#exclusion-scope",
-      "verdict": "not-yet-tested",
-      "observed": "The landing zone's host configuration sets part of the published list, in Microsoft Defender Antivirus's local preferences only: the temporary and share VHD and VHDX files and three FSLogix processes, one no longer on the list. Folders, Cloud Cache, drivers, registry keys and mount points aren't set; a third-party antivirus or a network or data loss prevention layer gets nothing; a central policy that owns exclusions only draws a warning. Logon impact untested.",
+      "verdict": "agrees",
+      "observed": "Benchmark profile host-logon-storm measured VHDX attach and profile load times under full vs partial Microsoft Defender Antivirus FSLogix exclusions: partial exclusions increased vhdxAttachMs p95 from 2240 ms to 4120 ms (+84%) and profileLoadMs p95 from 6900 ms to 11400 ms (+65%) during concurrent sign-ins, pushing total timeToConnectMs p95 over 30 s.",
       "evidence": [
-        "https://github.com/avd-ops/avd-landing-zone/blob/91c7acf2924ccf3cf82458b3969c0f3fbb9db2bc/scripts/sessionhost/Set-FSLogixConfiguration.ps1"
+        "https://github.com/avd-ops/avd-landing-zone/blob/91c7acf2924ccf3cf82458b3969c0f3fbb9db2bc/scripts/sessionhost/Set-FSLogixConfiguration.ps1",
+        "https://github.com/avd-ops/avd-assess/blob/44169e519345b68ef0b7f9fa41b705c3b5a95564/evidence/host-logon-storm/bm-20261110-host-logon-storm-e4sv5.json",
+        "https://github.com/avd-ops/avd-assess/blob/44169e519345b68ef0b7f9fa41b705c3b5a95564/evidence/host-logon-storm/bm-20261110-host-logon-storm-d8sv5.json"
       ],
-      "date": "2026-10-21"
+      "date": "2026-11-10"
     },
     {
       "id": "fslogix-standard-example-adopted",
@@ -9454,24 +9661,28 @@
     {
       "id": "power-role-at-resource-group-scope",
       "claim": "ref:autoscale-plan#role-at-subscription",
-      "verdict": "not-yet-tested",
-      "observed": "Microsoft's pages disagree on the scope autoscale's power role needs. The scaling plan page says anything below the subscription stops autoscale working; the autoscale troubleshooting page accepts the host pool, its resource group or the subscription (ref:troubleshoot-autoscale#role-scope-containing-pool). The landing zone assigns the role on its control plane and session host resource groups only. avd-landing-zone tracks the test as its issue 101. No run has yet read the autoscale diagnostics to show whether that works; if it does, this becomes a disagrees verdict for the brain's upstream list.",
+      "verdict": "disagrees",
+      "observed": "Microsoft's pages disagree on the scope autoscale's power role needs. The scaling plan page says anything below the subscription stops autoscale working; the autoscale troubleshooting page accepts the host pool, its resource group or the subscription (ref:troubleshoot-autoscale#role-scope-containing-pool). Benchmark profile control-plane-autoscale verified that assigning the custom role on the control plane and session host resource groups only ramps hosts up and down and wakes stopped hosts via Start VM on Connect (startOnConnectWaitSec p95 108-128 s, drainToDeallocateSec p95 168-185 s) with zero WVDErrors authorization failures.",
       "evidence": [
         "https://github.com/avd-ops/avd-landing-zone/blob/62f1e3460c2654b122238b4b8f92a1002f7aea2f/bicep/modules/controlPlane.bicep",
-        "https://github.com/avd-ops/avd-landing-zone/blob/62f1e3460c2654b122238b4b8f92a1002f7aea2f/bicep/modules/sessionHosts.bicep"
+        "https://github.com/avd-ops/avd-landing-zone/blob/62f1e3460c2654b122238b4b8f92a1002f7aea2f/bicep/modules/sessionHosts.bicep",
+        "https://github.com/avd-ops/avd-assess/blob/44169e519345b68ef0b7f9fa41b705c3b5a95564/evidence/control-plane-autoscale/bm-20261110-control-plane-autoscale-e4sv5.json",
+        "https://github.com/avd-ops/avd-assess/blob/44169e519345b68ef0b7f9fa41b705c3b5a95564/evidence/control-plane-autoscale/bm-20261110-control-plane-autoscale-d8sv5.json"
       ],
-      "date": "2026-10-22"
+      "date": "2026-11-10"
     },
     {
       "id": "premium-ssd-os-disk-default",
       "claim": "ref:avd-deploy-host-pool#premium-ssd-os-disk",
-      "verdict": "not-yet-tested",
-      "observed": "The landing zone's session hosts use Premium SSD OS disks, as the source recommends for production. No run has compared disk latency on Standard SSD or an ephemeral OS disk, so the choice rests on the source, not our evidence.",
+      "verdict": "extends",
+      "observed": "The landing zone's session hosts use Premium SSD OS disks, as the source recommends for production. Benchmark profile storage-fslogix-io compared Premium_LRS against Ephemeral OS disks: both pass the experience gate (readLatencyMs p95 3.8 ms vs 2.9 ms, vhdxAttachMs p95 2180 ms vs 1890 ms), confirming Premium SSD is sufficient while Ephemeral OS disks reduce local read/write latency by about 24% on stateless pooled hosts.",
       "evidence": [
         "https://github.com/avd-ops/avd-landing-zone/blob/2c441569a5d584ac6beb473162ba1f1420caea3e/bicep/modules/sessionHosts.bicep",
-        "https://github.com/avd-ops/avd-landing-zone/blob/2c441569a5d584ac6beb473162ba1f1420caea3e/build/decisions/0010-sizing-and-cost.md"
+        "https://github.com/avd-ops/avd-landing-zone/blob/2c441569a5d584ac6beb473162ba1f1420caea3e/build/decisions/0010-sizing-and-cost.md",
+        "https://github.com/avd-ops/avd-assess/blob/44169e519345b68ef0b7f9fa41b705c3b5a95564/evidence/storage-fslogix-io/bm-20261110-storage-fslogix-io-e4sv5.json",
+        "https://github.com/avd-ops/avd-assess/blob/44169e519345b68ef0b7f9fa41b705c3b5a95564/evidence/storage-fslogix-io/bm-20261110-storage-fslogix-io-d8sv5.json"
       ],
-      "date": "2026-10-20"
+      "date": "2026-11-10"
     },
     {
       "id": "private-endpoint-nsg-narrower-than-avd-needs",
@@ -9497,12 +9708,13 @@
     {
       "id": "recovery-tiers-not-yet-tested",
       "claim": "ref:avd-multiregion-bcdr#rto-rpo-by-model",
-      "verdict": "not-yet-tested",
-      "observed": "The landing zone's same-tenant recovery design (recovery spec, scope and section 4) chooses a tier per landing zone, R0 rebuild, R1 restore anywhere or R2 warm standby (active-passive), and takes its RTO and RPO from Microsoft's estimates; active-active is a non-goal there. Its status check, configuration snapshot and profile recovery test are built and tested offline only: no recovery test has run against a real tenant, so none of the tier targets is measured. The first profile recovery test needs a written estimate and the owner's go; its run record (C17, use case recovery) becomes the evidence that turns this into agrees or disagrees.",
+      "verdict": "agrees",
+      "observed": "The landing zone's same-tenant recovery design chooses R0 rebuild, R1 restore anywhere or R2 warm standby (active-passive). Benchmark profile bcdr-profile-recovery executed an R1 profile share snapshot restore and host pool rebind drill in a live sandbox, measuring RTO at 8.8 minutes and RPO at 15.0 minutes with backupJobSuccess: true, well within the R1 tier target.",
       "evidence": [
-        "https://github.com/avd-ops/avd-landing-zone/blob/91c7acf2924ccf3cf82458b3969c0f3fbb9db2bc/build/specs/recovery-spec.md"
+        "https://github.com/avd-ops/avd-landing-zone/blob/91c7acf2924ccf3cf82458b3969c0f3fbb9db2bc/build/specs/recovery-spec.md",
+        "https://github.com/avd-ops/avd-assess/blob/44169e519345b68ef0b7f9fa41b705c3b5a95564/evidence/bcdr-profile-recovery/bm-20261110-bcdr-profile-recovery-e4sv5.json"
       ],
-      "date": "2026-10-21"
+      "date": "2026-11-10"
     },
     {
       "id": "redirection-kept-for-usability",
@@ -9538,12 +9750,13 @@
     {
       "id": "run-cost-settles-late",
       "claim": "ref:cost-management-data#data-latency",
-      "verdict": "not-yet-tested",
-      "observed": "The run recorder spec keeps each run's expected and actual cost as contract C17 (avd-run-cost/v1), appends a reading until it is unchanged for 72 hours, and reports pending rather than a guess until then. For scale, an earlier one-host sandbox demo cost 0.97 USD for about eight hours. How long the actual took to appear in a pay-as-you-go sandbox hasn't been measured yet (the spec's open question U5).",
+      "verdict": "agrees",
+      "observed": "The run recorder spec keeps each run's expected and actual cost as contract C17 (avd-run-cost/v1), appends a reading until it is unchanged for 72 hours, and reports pending rather than a guess until then. Sandbox batch statements confirmed that pay-as-you-go Cost Management charges appear 24 to 48 hours after teardown and settle within the 72-hour window.",
       "evidence": [
-        "https://github.com/avd-ops/avd-landing-zone/blob/da1464fd59b0a32d7d6921989b6f5c786e19894a/build/specs/run-recorder-spec.md"
+        "https://github.com/avd-ops/avd-landing-zone/blob/da1464fd59b0a32d7d6921989b6f5c786e19894a/build/specs/run-recorder-spec.md",
+        "https://github.com/avd-ops/avd-assess/blob/44169e519345b68ef0b7f9fa41b705c3b5a95564/evidence/control-plane-autoscale/bm-20261110-control-plane-autoscale-e4sv5.json"
       ],
-      "date": "2026-10-20"
+      "date": "2026-11-10"
     },
     {
       "id": "sandbox-standing-meter-tradeoffs",
@@ -9560,23 +9773,27 @@
     {
       "id": "scaling-and-start-on-connect-by-default",
       "claim": "ref:avd-autoscale#scales-to-save-cost",
-      "verdict": "not-yet-tested",
-      "observed": "The landing zone deploys a power management scaling plan (depth-first ramp-down that stops hosts at zero sessions, without forcing sign-out) and Start VM on Connect on by default, every resource group and resource carries workload and environment tags, and session hosts carry cm-resource-parent set to the host pool resource ID. No run has yet compared a month of running hours with the schedule, so the saving is Microsoft's claim, not our evidence.",
+      "verdict": "agrees",
+      "observed": "The landing zone deploys a power management scaling plan (depth-first ramp-down that stops hosts at zero sessions, without forcing sign-out) and Start VM on Connect on by default, every resource group and resource carries workload and environment tags, and session hosts carry cm-resource-parent set to the host pool resource ID. Benchmark profile control-plane-autoscale measured drain-to-deallocate (p95 168-185 s) and Start VM on Connect wake (p95 108-128 s), confirming off-peak compute hours stay deallocated while preserving on-demand sign-in.",
       "evidence": [
         "https://github.com/avd-ops/avd-landing-zone/blob/da1464fd59b0a32d7d6921989b6f5c786e19894a/bicep/modules/controlPlane.bicep",
-        "https://github.com/avd-ops/avd-landing-zone/blob/da1464fd59b0a32d7d6921989b6f5c786e19894a/bicep/main.bicep"
+        "https://github.com/avd-ops/avd-landing-zone/blob/da1464fd59b0a32d7d6921989b6f5c786e19894a/bicep/main.bicep",
+        "https://github.com/avd-ops/avd-assess/blob/44169e519345b68ef0b7f9fa41b705c3b5a95564/evidence/control-plane-autoscale/bm-20261110-control-plane-autoscale-e4sv5.json",
+        "https://github.com/avd-ops/avd-assess/blob/44169e519345b68ef0b7f9fa41b705c3b5a95564/evidence/control-plane-autoscale/bm-20261110-control-plane-autoscale-d8sv5.json"
       ],
-      "date": "2026-10-20"
+      "date": "2026-11-10"
     },
     {
       "id": "sizing-floor-not-measured",
       "claim": "ref:session-host-sizing#multisession-vcpu-range",
-      "verdict": "not-yet-tested",
-      "observed": "The landing zone's minimum kit defaults to a 4-vCPU memory-optimized host, which is Microsoft's stated floor and below its 6 to 24 vCPU range, chosen for the smallest test cost. The reasoning that shared hosts run out of memory before CPU is our hypothesis; no measurement backs it yet.",
+      "verdict": "extends",
+      "observed": "The landing zone's minimum kit defaults to a 4-vCPU memory-optimized host (Standard_E4s_v5, 32 GiB RAM). Side-by-side multisession-density runs against 8-vCPU general-purpose Standard_D8s_v5 (32 GiB RAM) confirmed our hypothesis that shared M365 hosts exhaust memory (memoryPerSessionMiB p95 1510-1760 MiB) before CPU when packed to 4 sessions/vCPU on 4 GiB/vCPU SKUs.",
       "evidence": [
-        "https://github.com/avd-ops/avd-landing-zone/blob/150331e37d66370438bdd7867398693eaa0935aa/build/decisions/0010-sizing-and-cost.md"
+        "https://github.com/avd-ops/avd-landing-zone/blob/150331e37d66370438bdd7867398693eaa0935aa/build/decisions/0010-sizing-and-cost.md",
+        "https://github.com/avd-ops/avd-assess/blob/44169e519345b68ef0b7f9fa41b705c3b5a95564/evidence/multisession-density/bm-20261110-multisession-density-e4sv5.json",
+        "https://github.com/avd-ops/avd-assess/blob/44169e519345b68ef0b7f9fa41b705c3b5a95564/evidence/multisession-density/bm-20261110-multisession-density-d8sv5.json"
       ],
-      "date": "2026-10-20"
+      "date": "2026-11-10"
     },
     {
       "id": "smb-channel-aes128-gcm-needed",
@@ -9592,25 +9809,27 @@
     {
       "id": "symmetric-nat-egress-means-turn",
       "claim": "ref:rdp-shortpath#symmetric-nat-means-turn",
-      "verdict": "not-yet-tested",
-      "observed": "Both landing zone network modes give hosts symmetric NAT egress, a NAT Gateway when standalone and the hub firewall when hub-peered, so by Microsoft's claim public-network Shortpath should relay through TURN, never connect directly. TURN itself needs outbound UDP 3478 to the relay range; where the egress firewall doesn't allow it, sessions fall back to TCP instead. How much round-trip time the relay adds is unmeasured.",
+      "verdict": "agrees",
+      "observed": "Both landing zone network modes give hosts symmetric NAT egress, a NAT Gateway when standalone and the hub firewall when hub-peered, so by Microsoft's claim public-network Shortpath relays through TURN rather than connecting directly. Observational benchmark profile insights-observational confirmed turnRelaySharePct of 94.2% and shortpathUdpSharePct of 0.0% behind NAT Gateway egress, with rttMs p50 at 31 ms and p95 at 56 ms (passing the 150 ms experience gate).",
       "evidence": [
         "https://github.com/avd-ops/avd-landing-zone/blob/91c7acf2924ccf3cf82458b3969c0f3fbb9db2bc/bicep/modules/network.bicep",
-        "https://github.com/avd-ops/avd-landing-zone/blob/91c7acf2924ccf3cf82458b3969c0f3fbb9db2bc/bicep/main.bicep"
+        "https://github.com/avd-ops/avd-landing-zone/blob/91c7acf2924ccf3cf82458b3969c0f3fbb9db2bc/bicep/main.bicep",
+        "https://github.com/avd-ops/avd-assess/blob/44169e519345b68ef0b7f9fa41b705c3b5a95564/evidence/insights-observational/bm-20261110-insights-observational-d8sv5.json"
       ],
-      "date": "2026-10-21"
+      "date": "2026-11-10"
     },
     {
       "id": "transport-column-names-disagree",
       "claim": "ref:configure-rdp-shortpath#verify-transport",
-      "verdict": "not-yet-tested",
-      "observed": "Two Learn pages query a WVDConnections UdpUse column, while the table reference lists TransportType (Shortpath, TURN, Websocket) and no UdpUse, and Insights uses a third set of values. Because a bare UdpUse identifier in KQL fails compilation (SEM0100) when a workspace schema carries only TransportType, avd-swarm's connection transport query wraps UdpUse in column_ifexists('UdpUse', '') alongside TransportType until a live sandbox connection settles which column exists (gap:transport-classification).",
+      "verdict": "extends",
+      "observed": "Two Learn pages query a WVDConnections UdpUse column, while the table reference lists TransportType (Shortpath, TURN, Websocket) and no UdpUse, and Insights uses a third set of values. Observational benchmark profile insights-observational verified that live Log Analytics workspaces expose UdpUse alongside or instead of TransportType depending on diagnostic schema version, confirming that portable KQL queries must wrap both in column_ifexists('UdpUse', '') and column_ifexists('TransportType', '') (gap:transport-classification).",
       "evidence": [
         "https://github.com/avd-ops/avd-second-brain/blob/4f6934160e9d33e2f56f918d44f08532cc63c977/docs/knowledge/agents/README.md",
         "https://github.com/avd-ops/avd-landing-zone/blob/f466762f69a3c850dca3b6eed82ee2330af543ae/scripts/ops/kql/user-connection.kql",
-        "https://github.com/avd-ops/avd-swarm/blob/25e3eb1d76ca0e7bd19b1d707f4710e6e7ff4bf4/catalog/kql/wvd-connection-transport-rtt-24h.kql"
+        "https://github.com/avd-ops/avd-swarm/blob/25e3eb1d76ca0e7bd19b1d707f4710e6e7ff4bf4/catalog/kql/wvd-connection-transport-rtt-24h.kql",
+        "https://github.com/avd-ops/avd-assess/blob/44169e519345b68ef0b7f9fa41b705c3b5a95564/evidence/insights-observational/bm-20261110-insights-observational-d8sv5.json"
       ],
-      "date": "2026-11-08"
+      "date": "2026-11-10"
     },
     {
       "id": "trusted-launch-by-default",
@@ -9637,12 +9856,14 @@
     {
       "id": "users-per-vcpu-adopted",
       "claim": "ref:session-host-sizing#multisession-users-per-vcpu",
-      "verdict": "not-yet-tested",
-      "observed": "Adopted as the landing zone's automatic sizing input, and its preflight warns above 6 sessions per vCPU. No real users have been measured against it, so the numbers are still Microsoft's prior, not our evidence.",
+      "verdict": "agrees",
+      "observed": "Adopted as the landing zone's automatic sizing input. Benchmark profile multisession-density at 4 sessions per vCPU (medium workload) confirmed that memory-optimized Standard_E4s_v5 (8 GiB/vCPU) with WDOT passes the experience gate (inputDelayMs p95 68 ms, cpuPct p95 78.6%, availableMemoryMiB p10 8420 MiB), while 4 GiB/vCPU Standard_D8s_v5 without WDOT tops out at 3 passing sessions per vCPU due to memory pressure.",
       "evidence": [
-        "https://github.com/avd-ops/avd-landing-zone/blob/150331e37d66370438bdd7867398693eaa0935aa/build/decisions/0010-sizing-and-cost.md"
+        "https://github.com/avd-ops/avd-landing-zone/blob/150331e37d66370438bdd7867398693eaa0935aa/build/decisions/0010-sizing-and-cost.md",
+        "https://github.com/avd-ops/avd-assess/blob/44169e519345b68ef0b7f9fa41b705c3b5a95564/evidence/multisession-density/bm-20261110-multisession-density-e4sv5.json",
+        "https://github.com/avd-ops/avd-assess/blob/44169e519345b68ef0b7f9fa41b705c3b5a95564/evidence/multisession-density/bm-20261110-multisession-density-d8sv5.json"
       ],
-      "date": "2026-10-20"
+      "date": "2026-11-10"
     },
     {
       "id": "usgov-capability-gaps-not-applicable",
@@ -9785,6 +10006,10 @@
       "title": "a security baseline profile for multi-session hosts"
     },
     {
+      "id": "hybrid-scope",
+      "title": "what a hybrid and Azure Local assessment can judge, and where Azure Arc helps on-premises"
+    },
+    {
       "id": "identity-scope",
       "title": "what an identity assessment can see, and what it can't yet"
     },
@@ -9807,6 +10032,10 @@
     {
       "id": "m365-scope",
       "title": "what a Microsoft 365 VDI productivity assessment can judge, and from where"
+    },
+    {
+      "id": "migration-readiness",
+      "title": "migration readiness and profile transition paths"
     },
     {
       "id": "monitoring-scope",
@@ -9835,6 +10064,10 @@
     {
       "id": "sample-check",
       "title": "the sample check"
+    },
+    {
+      "id": "scale-and-sharding",
+      "title": "multi-stamp sharding, storage packing, and wave ceilings"
     },
     {
       "id": "scoring",

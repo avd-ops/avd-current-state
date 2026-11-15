@@ -1,13 +1,13 @@
 {
-  "description": "Byte-identical copies of avd-assess's method (contract C20: method.json and index.json) and its PowerShell bundle verifier, from release `release` (docs/distribution-spec.md there, section 9). The assess run (lib/AvdAssess.psm1) reads only these copies; nothing is fetched at run time, so the copies here are the only source and the run never needs the network or assess.avd-ops.dev. Each must match the file at commit; `manifest` is the SHA-256 of the release's datapackage.json, vendored beside them, which pins every file in the release (tests/Assess.Tests.ps1 checks the hashes and runs the verifier). Update the files, datapackage.json, commit, release, manifest and the hashes in one PR, after checking the release's attestation.",
-  "source": "https://github.com/avd-ops/avd-assess",
-  "commit": "ef8a99ed5d5cdef0dc663c8b22e2cac1b8006788",
-  "release": "v2.3.0",
-  "manifest": "4f55923e239ad9ab9b4e0789ed731a94ad2e13968e61bd95ccd531c79498a2fc",
-  "files": {
-    "AvdAssessBundle.psm1": "d266101e6a2d431bfa23961a84e58e6e59472b47750f2ccf585fa965bd23b3e6",
-    "endpoints.json": "dc9af13fa0155c2632cfc69930e54d36a15a268fb9de671d10e3fef9f5d40748",
-    "index.json": "9644708b2245b30375f96cfdb272d0406991138f89f545296c3b803ba6c01a76",
-    "method.json": "2f9960ac6e6824a2f49a3d13bd0b46d88702d453c44933a18e95ff23a53cd2b3"
-  }
+    "description":  "Byte-identical copies of avd-assess\u0027s method (contract C20: method.json and index.json) and its PowerShell bundle verifier, from release `release` (docs/distribution-spec.md there, section 9). The assess run (lib/AvdAssess.psm1) reads only these copies; nothing is fetched at run time, so the copies here are the only source and the run never needs the network or assess.avd-ops.dev. Each must match the file at commit; `manifest` is the SHA-256 of the release\u0027s datapackage.json, vendored beside them, which pins every file in the release (tests/Assess.Tests.ps1 checks the hashes and runs the verifier). Update the files, datapackage.json, commit, release, manifest and the hashes in one PR, after checking the release\u0027s attestation.",
+    "source":  "https://github.com/avd-ops/avd-assess",
+    "commit":  "c8ca035682e46c3327a10ae28bcb665dbb6abd45",
+    "release":  "v3.0.0",
+    "manifest":  "5a576e526993764dc893615d96f1cd6a4d7a0994cf5b8593ddf9affa34fbc8ff",
+    "files":  {
+                  "method.json":  "0b69e7f77fcfc15a8a37da88e22de66ea2fe86db076febc5b86b932abe11b197",
+                  "index.json":  "c29a0c20396af438b3071e12b9e101375885de25b8a413af0e9845c71715a4fa",
+                  "endpoints.json":  "c73e8a8ecb58082be651e0166e570ec2399b634e4e7b87834dffcab06d488fd9",
+                  "AvdAssessBundle.psm1":  "d266101e6a2d431bfa23961a84e58e6e59472b47750f2ccf585fa965bd23b3e6"
+              }
 }

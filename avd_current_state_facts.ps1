@@ -768,6 +768,7 @@ function Get-SubscriptionFact {
             $entry.sessionHosts.edrMissing = [int]@($hosts | Where-Object { $edrMissingVms.ContainsKey("$(Get-Prop $_ 'ResourceId' '')".ToLowerInvariant()) }).Count
             $entry.sessionHosts.vulnerabilityFindings = [int]@($hosts | Where-Object { $vulnFindingVms.ContainsKey("$(Get-Prop $_ 'ResourceId' '')".ToLowerInvariant()) }).Count
         }
+        $gpuExtByVm = @{}
         if ($extRows.Count -gt 0 -or $ds['vm-extensions'].Count -gt 0) {
             $hostVmNames = @{}
             foreach ($h in $hosts) {
@@ -782,6 +783,7 @@ function Get-SubscriptionFact {
                     $vmName = if ($parts.Count -gt 8) { $parts[8].ToLowerInvariant() } else { '' }
                     if (-not $hostVmNames.ContainsKey($vmName)) { continue }
                     $extType = "$(Get-PathValue $ext 'properties.type' '')"
+                    if ($extType -in @('NvidiaGpuDriverWindows', 'AmdGpuDriverWindows')) { $gpuExtByVm[$vmName] = $true }
                     if ($extType -eq 'AADLoginForWindows') {
                         $entraJoined++
                         if ("$(Get-PathValue $ext 'properties.settings.mdmId' '')" -ne '') { $intuneEnroll++ }
@@ -794,6 +796,7 @@ function Get-SubscriptionFact {
                     $vmName = "$(Get-Prop $ext 'VMName' '')".ToLowerInvariant()
                     if (-not $hostVmNames.ContainsKey($vmName)) { continue }
                     $extType = "$(Get-Prop $ext 'ExtensionType' '')"
+                    if ($extType -in @('NvidiaGpuDriverWindows', 'AmdGpuDriverWindows')) { $gpuExtByVm[$vmName] = $true }
                     if ($extType -eq 'AADLoginForWindows') { $entraJoined++ }
                     elseif ($extType -eq 'JsonADDomainExtension') { $domainJoined++ }
                 }
@@ -825,6 +828,28 @@ function Get-SubscriptionFact {
                 }).Count
         }
         $entry.vmSizes = Get-CountMap @($vms | ForEach-Object { Get-Prop $_ 'VMSize' }) '^Standard_[A-Za-z0-9_]{1,40}$'
+        if ($vms.Count -gt 0) {
+            $gpuHosts = 0; $gpuComputeSkus = 0; $gpuRetiredSkus = 0; $gpuDriverMissing = 0; $gpuMaxSessionOver25 = 0
+            $hasExtData = ($extRows.Count -gt 0 -or $ds['vm-extensions'].Count -gt 0)
+            foreach ($vm in $vms) {
+                $sz = "$(Get-Prop $vm 'VMSize' '')"
+                if ($sz -match '^Standard_(NV|NC|ND)') { $gpuHosts++ }
+                if ($sz -match '^Standard_(NC|ND)') { $gpuComputeSkus++ }
+                if ($sz -match '^Standard_NV[0-9]+(s_v3|as_v4)$') { $gpuRetiredSkus++ }
+                if ($sz -match '^Standard_NV') {
+                    $vmKey = ("$(Get-Prop $vm 'VMName' '')" -split '/')[-1].ToLowerInvariant()
+                    if ($hasExtData -and $vmKey -and -not $gpuExtByVm.ContainsKey($vmKey)) { $gpuDriverMissing++ }
+                    if ($entry.type -eq 'Pooled' -and $null -ne $entry.maxSessionLimit -and $entry.maxSessionLimit -gt 25 -and $sz -notmatch '(as_v4|V710)') {
+                        $gpuMaxSessionOver25++
+                    }
+                }
+            }
+            $entry.sessionHosts.gpuHosts = [int]$gpuHosts
+            $entry.sessionHosts.gpuComputeSkus = [int]$gpuComputeSkus
+            $entry.sessionHosts.gpuRetiredSkus = [int]$gpuRetiredSkus
+            $entry.sessionHosts.gpuMaxSessionOver25 = [int]$gpuMaxSessionOver25
+            if ($hasExtData) { $entry.sessionHosts.gpuDriverMissing = [int]$gpuDriverMissing }
+        }
         $images = @{}
         foreach ($vm in $vms) {
             $publisher = "$(Get-Prop $vm 'ImagePublisher' '')"
