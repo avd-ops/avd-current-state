@@ -183,6 +183,7 @@ Describe 'Runtime token and plane helpers' {
     $m365Partial.Reason | Should -Be 'teams-ps-unavailable'
     $m365Full = Get-AvdStateM365 -Invoker $okInvoker -TeamsInvoker { @([pscustomobject]@{ Identity = 'Global'; VdiMediaOptimization = 'Enabled' }) }
     $m365Full.Status | Should -Be 'collected'
+    @($m365Full.sharepointSettings).Count | Should -BeGreaterThan 0
     (Get-AvdStatePowerPlatform -Invoker $okInvoker).Status | Should -Be 'collected'
   }
 }

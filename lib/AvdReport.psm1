@@ -521,8 +521,12 @@ function ConvertTo-AvdcsStatusMarkdown {
             $total = [int](Get-AvdcsStatusProp $sh 'total' 0)
             $byStatus = Get-AvdcsStatusProp $sh 'byStatus'
             if ($null -eq $byStatus) { $byStatus = Get-AvdcsStatusProp $sh 'status' }
-            $avail = [int](Get-AvdcsStatusProp $byStatus 'Available' 0)
-            $unavail = [int](Get-AvdcsStatusProp $byStatus 'Unavailable' 0)
+            $availRaw = Get-AvdcsStatusProp $byStatus 'Available'
+            if ($null -eq $availRaw) { $availRaw = Get-AvdcsStatusProp $sh 'available' 0 }
+            $avail = [int]$availRaw
+            $unavailRaw = Get-AvdcsStatusProp $byStatus 'Unavailable'
+            if ($null -eq $unavailRaw) { $unavailRaw = Get-AvdcsStatusProp $sh 'unavailable' 0 }
+            $unavail = [int]$unavailRaw
             $hpPill = if ($unavail -gt 0) { 'FAIL' } elseif ($total -eq 0 -or $avail -lt $total) { 'WARN' } else { 'PASS' }
             $lines.Add("| ``$hpId`` | ``$($entry.SubId)`` | $hpType | $hpLb | $total | $avail | $hpPill |")
         }

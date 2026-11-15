@@ -79,7 +79,10 @@ test('the portal opens in the avd-ops shell bar, with the credit line', () => {
   assert.match(notice, /MIT License/);
   assert.match(notice, /Not affiliated with, endorsed by or supported by the author's employer/);
   assert.match(notice, /Not a certification, a compliance attestation or a security audit\./);
-  assert.match(bar, /<a href="https:\/\/deploy\.avd-ops\.dev\/portal\/">Deploy<\/a><a href="\.\/" aria-current="page">Assess<\/a>/);
+  assert.match(bar, /<a href="https:\/\/deploy\.avd-ops\.dev\/portal\/">Deploy<\/a><a href="\.\/" aria-current="page">Assess<\/a><a href="https:\/\/status\.avd-ops\.dev\/status\/">Status<\/a>/);
+  const rootHtml = read('site/index.html');
+  assert.match(rootHtml, /assess\.avd-ops\.dev/);
+  assert.match(rootHtml, /content="0; url=portal\/"/);
   assert.match(bar, /class="iconbtn dev"/);
   assert.match(bar, /class="iconbtn theme"/);
   assert.match(html, /Assessment Report \(<code>assessment\.json<\/code><span class="dev-id">, C21<\/span>\)/);

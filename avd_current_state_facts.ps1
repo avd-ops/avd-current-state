@@ -1171,6 +1171,7 @@ function Get-M365Fact {
     if (-not (Test-Path -LiteralPath $dir)) { return $null }
     $profiles = @(Read-Dataset -Directory $dir -Name 'configurationPolicies')
     $teams = @(Read-Dataset -Directory $dir -Name 'teamsVdiPolicies')
+    $spSettings = @(Read-Dataset -Directory $dir -Name 'sharepointSettings')
     foreach ($row in @($profiles + $teams)) {
         Add-KnownName (Get-Prop $row 'name')
         Add-KnownName (Get-Prop $row 'displayName')
@@ -1185,7 +1186,7 @@ function Get-M365Fact {
     $teamsOpt = if (@($profiles | Where-Object { "$(Get-Prop $_ 'teamsMediaOptimizationState' '')" -eq 'enabled' }).Count -gt 0 -or
         @($teams | Where-Object { "$(Get-Prop $_ 'VdiMediaOptimization' '')" -eq 'Enabled' }).Count -gt 0) { 'enabled' } else { 'disabled' }
     $mmr = @($profiles | Where-Object { Test-True (Get-Prop $_ 'mmrConfigured') }).Count -gt 0
-    return [ordered]@{
+    $fact = [ordered]@{
         oneDriveSilentConfigEnabled      = [bool]$silent
         oneDriveKfmState                 = $kfm
         oneDriveFilesOnDemandEnabled     = [bool]$fod
@@ -1194,6 +1195,15 @@ function Get-M365Fact {
         teamsMediaOptimizationState      = $teamsOpt
         mmrConfigured                    = [bool]$mmr
     }
+    if ($spSettings.Count -gt 0) {
+        $spRow = $spSettings[0]
+        $sharingCap = "$(Get-Prop $spRow 'sharingCapability' '')"
+        $idleObj = Get-Prop $spRow 'idleSessionSignOut'
+        $idleEnabled = if ($null -ne $idleObj) { Test-True (Get-Prop $idleObj 'isEnabled') } else { $false }
+        if ($sharingCap) { $fact['sharePointSharingCapability'] = $sharingCap }
+        $fact['sharePointIdleSessionSignOutEnabled'] = [bool]$idleEnabled
+    }
+    return $fact
 }
 
 function Get-PowerPlatformFact {
@@ -1452,6 +1462,13 @@ try {
     if ($tenants.Count -gt 1) { throw "The packages come from $($tenants.Count) tenants. Make one snapshot per tenant." }
     if ($tenants.Count -eq 0) { throw 'No package records a TenantId, so the estate has no pseudonym. Re-run the collector or validator.' }
 
+    $clouds = @($packages | ForEach-Object {
+            $mc = "$(Get-Prop $_.Manifest 'Cloud' (Get-Prop $_.Manifest 'cloud' (Get-PathValue $_.Manifest 'Inputs.Cloud' (Get-PathValue $_.Manifest 'Inputs.cloud' ''))))".Trim().ToLowerInvariant()
+            if ($mc) { $mc }
+        } | Where-Object { $_ } | Sort-Object -Unique)
+    if ($clouds.Count -gt 1) { throw "The packages come from different cloud environments ($($clouds -join ', ')). Make one snapshot per cloud environment." }
+    $snapshotCloud = if ($clouds.Count -eq 1 -and $clouds[0] -in @('commercial', 'usgov')) { $clouds[0] } else { 'commercial' }
+
     $script:KnownNames = New-Object 'System.Collections.Generic.HashSet[string]'
     Add-KnownName $tenants[0]
 
@@ -1519,6 +1536,9 @@ try {
     foreach ($v in $validations) {
         foreach ($c in $v.checks) {
             $lower = $c.check.ToLowerInvariant()
+            if ($lower -match '(?i)\b[a-z0-9-]+\.onmicrosoft\.(com|us)\b') {
+                $c.check = 'redacted'; $script:RedactedValues++; continue
+            }
             foreach ($name in $script:KnownNames) {
                 if ($lower.Contains($name)) { $c.check = 'redacted'; $script:RedactedValues++; break }
             }
@@ -1536,6 +1556,7 @@ try {
     $snapshot = [ordered]@{
         schema       = 'avd-current-state-facts/v1'
         estate       = Get-Pseudonym 'est' $tenants[0]
+        cloud        = $snapshotCloud
         generatedUtc = (Get-Date).ToUniversalTime().ToString("yyyy-MM-dd'T'HH:mm:ss'Z'")
     }
     if ($null -ne $latestCollectorPkg -and $null -ne (Get-Prop $latestCollectorPkg.Manifest 'PlanesCollected')) {

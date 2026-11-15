@@ -68,8 +68,11 @@ test('every block stands alone in Cloud Shell and only reads', () => {
   assert.match(collect, /avd_current_state_facts\.ps1 -PackagePath \$out -KeyPath \$key -NewKey:\(-not \(Test-Path \$key\)\)/);
   assert.match(core.collectCommand({}), /avd_current_state_collector\.ps1 -OutputPath \$out/);
   assert.match(core.collectCommand({ planes: ['azure', 'entra'] }), /avd_current_state_collector\.ps1 -Planes 'azure','entra' -OutputPath \$out/);
+  assert.match(core.collectCommand({ cloud: 'usgov' }), /Connect-AzAccount -Environment AzureUSGovernment -UseDeviceAuthentication/);
+  assert.match(core.collectCommand({ cloud: 'usgov' }), /avd_current_state_collector\.ps1 -Cloud 'usgov' -OutputPath \$out/);
   assert.match(core.analyzeCommand(settings), /-Mode PostDeployment -SubscriptionName 'Contoso Prod' -ResourceGroupName 'rg-avd' -OutputPath \$out/);
   assert.match(core.analyzeCommand({ ...settings, planes: ['azure', 'intune'] }), /-Planes 'azure','intune' -OutputPath \$out/);
+  assert.match(core.analyzeCommand({ ...settings, cloud: 'usgov' }), /-Cloud 'usgov' -OutputPath \$out/);
   assert.throws(() => core.collectCommand({ subscriptions: 'a\u0007b' }), /control character/);
 });
 
@@ -77,9 +80,11 @@ test('the answers become the C19 example, byte for byte', () => {
   const { intake, errors } = core.buildIntake(answers);
   assert.deepEqual(errors, []);
   assert.deepEqual(intake, JSON.parse(read('tests/portal/fixtures/intake.json')));
-  const scoped = core.buildIntake({ ...answers, m365PlaneScope: 'out-of-scope', powerPlatformPlaneScope: 'in-scope' });
+  const scoped = core.buildIntake({ ...answers, m365PlaneScope: 'out-of-scope', powerPlatformPlaneScope: 'in-scope', cloud: 'usgov', complianceProfile: 'cmmc-l2' });
   assert.equal(scoped.intake.m365PlaneScope, 'out-of-scope');
   assert.equal(scoped.intake.powerPlatformPlaneScope, 'in-scope');
+  assert.equal(scoped.intake.cloud, 'usgov');
+  assert.equal(scoped.intake.complianceProfile, 'cmmc-l2');
 });
 
 test('intake refuses what the contract refuses', () => {
@@ -222,7 +227,7 @@ test('the catalog is the pinned method: titles, planes, pillars, severities, cla
   for (const c of method.checks) want[c.id] = Object.assign({ title: c.title, plane: c.plane, pillar: c.pillar, severity: c.severity, claims: c.claims }, c.remediation ? { remediation: c.remediation } : {});
   assert.deepEqual(catalog.checks, want, 'site/portal/assess-catalog.js matches assess/method.json');
   const params = new Set(JSON.parse(read('rebuild/lz-parameters.json')).parameters.map((p) => p.name));
-  const fivePlaneAzureParams = new Set(['enableEntraSso', 'rdpMultimediaRedirection', 'enablePrivateEndpoints', 'fslogixStorageAuth']);
+  const fivePlaneAzureParams = new Set(['enableEntraSso', 'rdpMultimediaRedirection', 'enablePrivateEndpoints', 'fslogixStorageAuth', 'enableSubscriptionGuardrails', 'cloud', 'enableFips140', 'complianceProfile']);
   for (const [id, c] of Object.entries(catalog.checks)) {
     if (c.remediation && c.remediation.kind === 'lz-parameter' && (c.remediation.plane || c.plane) === 'azure') {
       assert.ok(params.has(c.remediation.name) || fivePlaneAzureParams.has(c.remediation.name), `${id}: ${c.remediation.name} is not a landing zone parameter`);
@@ -391,9 +396,13 @@ test('a report redacts what this repo\'s scripts print, the settings and the ope
   assert.doesNotMatch(again, /Fabrikam/, 'an edited report is redacted again with the same options');
 });
 
-test('supply chain & security review: SECURITY.md, docs/threat-model.md, secrets.yml, and 40-char SHA action pins', () => {
+test('supply chain & security review: SECURITY.md, docs/threat-model.md, .github/dependabot.yml, sbom.spdx.json, secrets.yml, and 40-char SHA action pins', () => {
   assert.match(read('SECURITY.md'), /# Security policy/);
   assert.match(read('docs/threat-model.md'), /# Threat model: avd-current-state/);
+  assert.match(read('.github/dependabot.yml'), /package-ecosystem:\s*"github-actions"/);
+  const sbom = JSON.parse(read('sbom.spdx.json'));
+  assert.equal(sbom.spdxVersion, 'SPDX-2.3');
+  assert.ok(Array.isArray(sbom.packages) && sbom.packages.length > 1);
   assert.match(read('.github/workflows/secrets.yml'), /zricethezav\/gitleaks/);
   const wfDir = join(root, '.github/workflows');
   for (const f of readdirSync(wfDir).filter((n) => n.endsWith('.yml') || n.endsWith('.yaml'))) {

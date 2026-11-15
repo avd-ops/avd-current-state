@@ -221,7 +221,7 @@ Describe 'ConvertTo-AvdcsStatusMarkdown' {
     { ConvertTo-AvdcsStatusMarkdown -Snapshot $script:sampleSnapshot -Assessment @{ schema = 'avd-assessment/v1'; estate = 'est-99999999' } } | Should -Throw "*another estate*"
   }
 
-  It 'accepts C11 loadBalancer and sessionHosts.status field names from live collector runs' {
+  It 'accepts C11 loadBalancer, sessionHosts.status and sessionHosts.available field names from live collector runs' {
     $c11Snap = @{
       schema        = 'avd-estate-facts/v1'
       estate        = 'est-0a1b2c3d'
@@ -235,6 +235,12 @@ Describe 'ConvertTo-AvdcsStatusMarkdown' {
               type         = 'Pooled'
               loadBalancer = 'DepthFirst'
               sessionHosts = @{ total = 2; status = @{ Available = 2; Unavailable = 0 } }
+            },
+            @{
+              id               = 'hp-11223344'
+              type             = 'Personal'
+              loadBalancerType = 'Persistent'
+              sessionHosts     = @{ total = 1; available = 1 }
             }
           )
         }
@@ -242,6 +248,7 @@ Describe 'ConvertTo-AvdcsStatusMarkdown' {
     }
     $md = ConvertTo-AvdcsStatusMarkdown -Snapshot $c11Snap
     ($md -join "`n") | Should -Match '\| `hp-aabbccdd` \| `sub-11223344` \| Pooled \| DepthFirst \| 2 \| 2 \| PASS \|'
+    ($md -join "`n") | Should -Match '\| `hp-11223344` \| `sub-11223344` \| Personal \| Persistent \| 1 \| 1 \| PASS \|'
   }
 }
 

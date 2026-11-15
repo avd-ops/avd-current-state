@@ -290,6 +290,7 @@
     for (const id of TEXT) a[id] = $(id).value.trim();
     a.residencyRequired = $('residencyRequired').checked;
     a.days = [...document.querySelectorAll('#days input:checked')].map((i) => i.value);
+    if (state.settings.cloud === 'usgov') a.cloud = 'usgov';
     const lc = core.summarizeLinecheckExports(linecheckEntries);
     if (lc) {
       if (lc.reportedSymptoms && lc.reportedSymptoms.length) a.reportedSymptoms = lc.reportedSymptoms;

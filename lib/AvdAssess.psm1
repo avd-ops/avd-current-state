@@ -248,7 +248,16 @@ function Invoke-AvdAssessCheck {
 
     $checkId = "$(Get-AssessProp $Check 'id')"
     $plane = "$(Get-AssessProp $Check 'plane')"
-    if (($plane -eq 'm365' -and "$(Get-AssessProp $Intake 'm365PlaneScope')" -eq 'not-used') -or
+    $targetCloud = if ($null -ne $Intake -and "$(Get-AssessProp $Intake 'cloud')") { "$(Get-AssessProp $Intake 'cloud')" } elseif ("$(Get-AssessProp $Snapshot 'cloud')") { "$(Get-AssessProp $Snapshot 'cloud')" } else { 'commercial' }
+    $targetProfile = if ($null -ne $Intake -and "$(Get-AssessProp $Intake 'complianceProfile')") { "$(Get-AssessProp $Intake 'complianceProfile')" } else { $null }
+    $checkClouds = @(Get-AssessProp $Check 'clouds' | Where-Object { $null -ne $_ })
+    $checkProfiles = @(Get-AssessProp $Check 'complianceProfiles' | Where-Object { $null -ne $_ })
+    $cloudInapplicable = ($checkClouds.Count -gt 0 -and $targetCloud -notin $checkClouds) -or
+        ($checkId -in @('asm-gov-allowed-locations', 'asm-gov-private-dns-zones') -and $targetCloud -ne 'usgov')
+    $profileInapplicable = ($checkProfiles.Count -gt 0 -and (-not $targetProfile -or $targetProfile -notin $checkProfiles)) -or
+        ($checkId -in @('asm-gov-itar-redirection-lockdown', 'asm-gov-fips-tls-baseline') -and $targetCloud -ne 'usgov' -and $targetProfile -notin @('itar-cui', 'itar_cui', 'cmmc-l2'))
+    if ($cloudInapplicable -or $profileInapplicable -or
+        ($plane -eq 'm365' -and "$(Get-AssessProp $Intake 'm365PlaneScope')" -eq 'not-used') -or
         ($plane -eq 'power-platform' -and "$(Get-AssessProp $Intake 'powerPlatformPlaneScope')" -eq 'not-used') -or
         ($checkId -like 'asm-win365-*' -and "$(Get-AssessProp $Intake 'win365Scope')" -eq 'not-used')) {
         $row = [ordered]@{ check = $checkId }

@@ -1,4 +1,4 @@
-/* avd-ops portal engine v1.1.0: runin.js. Personal project, not for production, as is; not affiliated with the author's employer or Microsoft. MIT.
+/* avd-ops portal engine v1.2.0: runin.js. Personal project, not for production, as is; not affiliated with the author's employer or Microsoft. MIT.
    Run in (avd-ops docs/design-system.md, "Run in"): where the operator runs a portal's blocks, Cloud Shell, Windows
    or macOS, in PowerShell or Bash. A portal writes its blocks for Cloud Shell PowerShell, the default; these
    primitives tell it how well a block works elsewhere and rewrite it. Pure. */
@@ -9,7 +9,9 @@
   'use strict';
 
   const PLACES = { cloudshell: 'Cloud Shell', windows: 'Windows', macos: 'macOS' };
+  const CLOUDS = { commercial: 'AzureCloud', usgov: 'AzureUSGovernment' };
   const has = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
+  function validCloud(c) { return c === 'usgov' ? 'usgov' : 'commercial'; }
 
   // Windows runs PowerShell 7 only; Bash there means WSL, which is its own Linux machine.
   function validRunIn(r) {
@@ -66,14 +68,20 @@
     azCliPwsh: 'az account show -o none 2>$null; if ($LASTEXITCODE -ne 0) { az login --use-device-code -o none }',
     azCliBash: 'az account show -o none 2>/dev/null || az login --use-device-code -o none'
   };
+  const SIGN_IN_USGOV = {
+    azPowerShell: "if (-not (Get-AzContext) -or (Get-AzContext).Environment.Name -ne 'AzureUSGovernment') { Connect-AzAccount -Environment AzureUSGovernment -UseDeviceAuthentication | Out-Null }",
+    azCliPwsh: 'az cloud set --name AzureUSGovernment -o none 2>$null; az account show -o none 2>$null; if ($LASTEXITCODE -ne 0) { az login --use-device-code -o none }',
+    azCliBash: 'az cloud set --name AzureUSGovernment -o none 2>/dev/null; az account show -o none 2>/dev/null || az login --use-device-code -o none'
+  };
   // In Bash only the az CLI line is returned: an Az PowerShell sign-in goes inside the pwsh file that needs it.
   function signInLines(where, shell, needs) {
     const r = validRunIn({ where, shell }), n = needs || {}, out = [];
+    const lines = validCloud(n.cloud) === 'usgov' ? SIGN_IN_USGOV : SIGN_IN;
     if (r.where === 'cloudshell') return out;
     if (r.shell === 'pwsh') {
-      if (n.azPowerShell) out.push(SIGN_IN.azPowerShell);
-      if (n.azCli) out.push(SIGN_IN.azCliPwsh);
-    } else if (n.azCli) out.push(SIGN_IN.azCliBash);
+      if (n.azPowerShell) out.push(lines.azPowerShell);
+      if (n.azCli) out.push(lines.azCliPwsh);
+    } else if (n.azCli) out.push(lines.azCliBash);
     return out;
   }
 
@@ -86,5 +94,5 @@
     return pwshFile(String(command).split('\n')).join('\n');
   }
 
-  return { PLACES, SIGN_IN, validRunIn, isDefaultRunIn, platformKey, scriptsIn, support, pwshFile, signInLines, forRunIn };
+  return { PLACES, CLOUDS, SIGN_IN, SIGN_IN_USGOV, validCloud, validRunIn, isDefaultRunIn, platformKey, scriptsIn, support, pwshFile, signInLines, forRunIn };
 });
