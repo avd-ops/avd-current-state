@@ -94,4 +94,18 @@ Describe 'Contract C27 Tier 2 Measured-Usage Exporter (Export-AvdInsightsUsage.p
         $raw | Should -Not -Match '11111111-2222-4333-8444-555555555555'
         $raw | Should -Not -Match 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee'
     }
+
+    It 'infers gpuRequired = true when VmSizes includes an NV-family GPU SKU' {
+        $outFile = Join-Path $TestDrive 'measured-usage-gpu.json'
+        & $script:exporter -SyntheticMode -OutputPath $outFile -EstateId 'est-0a1b2c3d' -SourcePoolId 'hp-2b3c4d5e' -VmSizes @('Standard_NV6ads_A10_v5') | Out-Null
+
+        $raw = Get-Content -LiteralPath $outFile -Raw
+        if (Get-Command Test-Json -ErrorAction SilentlyContinue) {
+            $errs = $null
+            Test-Json -Json $raw -SchemaFile $script:schema -ErrorVariable errs -ErrorAction SilentlyContinue | Should -BeTrue -Because "$errs"
+        }
+
+        $doc = $raw | ConvertFrom-Json
+        $doc.groups[0].gpuRequired | Should -BeTrue
+    }
 }

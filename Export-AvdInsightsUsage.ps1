@@ -54,6 +54,12 @@ param(
     [switch]$SyntheticMode,
 
     [Parameter(Mandatory = $false)]
+    [switch]$GpuRequired,
+
+    [Parameter(Mandatory = $false)]
+    [string[]]$VmSizes = @(),
+
+    [Parameter(Mandatory = $false)]
     [switch]$PassThru
 )
 
@@ -191,7 +197,7 @@ $payload = [ordered]@{
             profileSizeGiB           = [ordered]@{ p50 = 6.6; p95 = 12.0 }
             dailyProfileChurnPercent = 8.0
             logonDurationSeconds     = [ordered]@{ p50 = $logonP50; p95 = $logonP95 }
-            gpuRequired              = $false
+            gpuRequired              = ($GpuRequired.IsPresent -or (@($VmSizes | Where-Object { $_ -match '^Standard_(NV|NC|ND)' }).Count -gt 0))
             needsLocalAdmin          = $false
             rttMsByRegion            = $rttMap
             sharedBackendIds         = @('dep-01')
