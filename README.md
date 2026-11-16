@@ -15,6 +15,18 @@ living knowledge base of the estate.
 > - It is provided **"as is", without warranty of any kind**, under the [MIT License](LICENSE). You use it at your own risk. You are responsible for where you run it and for what you do with its output.
 > - **Contributions and forks are welcome and encouraged.** See [Contributing](#contributing).
 
+## How it connects
+
+| Direction | Repo | Relationship |
+|---|---|---|
+| Front door | [avd-ops](https://github.com/avd-ops/avd-ops#readme) | Overview, [repo page](https://avd-ops.dev/docs/repos/avd-current-state.html), and [portal](https://avd-ops.app/assess/) |
+| Standards | [avd-assess](https://github.com/avd-ops/avd-assess#readme) | Supplies `method.json` and `endpoints.json` at a pinned commit |
+| Downstream | [avd-migrate](https://github.com/avd-ops/avd-migrate#readme) | Consumes `C11` facts to design `C14` single-pool target baselines |
+| Downstream | [avd-remediate](https://github.com/avd-ops/avd-remediate#readme) | Consumes `C11` and `C21` outputs for root-cause triage |
+| Downstream | [avd-second-brain](https://github.com/avd-ops/avd-second-brain#readme) | Ingests evidence packages and `C11` facts into the estate vault |
+| Drift target | [avd-landing-zone](https://github.com/avd-ops/avd-landing-zone#readme) | Drift check compares live state against what the landing zone deployed |
+| Network | [avd-linecheck](https://github.com/avd-ops/avd-linecheck#readme) | Companion browser network check (`avd-ops.app/linecheck/`) |
+
 | Script | When to run | What it answers |
 |---|---|---|
 | [`avd_current_state_collector.ps1`](#current-state-collector) | Any time | *What is in this environment today?* Produces a portable evidence package. |
