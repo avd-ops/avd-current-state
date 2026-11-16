@@ -8,7 +8,7 @@ nothing. Their evidence packages feed [avd-second-brain](https://github.com/avd-
 living knowledge base of the estate.
 
 > [!WARNING]
-> **Personal project. Research and learning only. Not for production. No warranty.**
+> **Community research project. Use at your own risk. No warranty.**
 >
 > - This is my own personal project, built on my own time **for research and learning**. It is **not affiliated with, endorsed by or supported by my employer**, and it does not represent my employer's views, products or guidance. It is not an official Microsoft product, and it is not a certified or supported tool.
 > - The scripts only read, but review the code and try them on a lab subscription first, before pointing them at subscriptions that matter. Their output is not a production-readiness certification, a compliance attestation or a security audit.
@@ -70,13 +70,13 @@ recorded in every output package.
 |---|---|---|---|
 | Az.Accounts | Required | Required | Authentication, subscription and context management; the collector's Resource Graph and REST reads (`Invoke-AzRestMethod`) |
 | Az.Resources | Required | Required | Policy and role assignments (collector); resource groups, ARM resources, locks, providers (validator) |
-| Az.Compute | — | Required | Virtual machines and extensions; VM SKU catalog and gallery images |
-| Az.Network | — | Required | VNets, subnets, NSGs, route tables, public IPs, private endpoints |
-| Az.Storage | — | Required | Storage accounts; Azure Files shares |
-| Az.DesktopVirtualization | — | Required | Host pools, workspaces, application groups, session hosts |
-| Az.OperationalInsights | — | Optional | Log Analytics workspaces |
-| Az.RecoveryServices | — | Optional | Recovery Services vaults; backup coverage |
-| Az.Monitor | — | Optional | Diagnostic settings |
+| Az.Compute | â€” | Required | Virtual machines and extensions; VM SKU catalog and gallery images |
+| Az.Network | â€” | Required | VNets, subnets, NSGs, route tables, public IPs, private endpoints |
+| Az.Storage | â€” | Required | Storage accounts; Azure Files shares |
+| Az.DesktopVirtualization | â€” | Required | Host pools, workspaces, application groups, session hosts |
+| Az.OperationalInsights | â€” | Optional | Log Analytics workspaces |
+| Az.RecoveryServices | â€” | Optional | Recovery Services vaults; backup coverage |
+| Az.Monitor | â€” | Optional | Diagnostic settings |
 
 If one of the validator's **optional** modules is unavailable, only its own checks report
 `SKIP` and the run continues.
@@ -86,8 +86,8 @@ If one of the validator's **optional** modules is unavailable, only its own chec
 Both scripts detect Cloud Shell automatically:
 
 - **Output defaults to `~/clouddrive/`** so the package survives the session. Override with `-OutputPath`.
-- **Authentication is pre-established** — the existing context is detected and the login prompt skipped.
-- **Az modules are pre-installed** — already-available modules are not reinstalled.
+- **Authentication is pre-established** â€” the existing context is detected and the login prompt skipped.
+- **Az modules are pre-installed** â€” already-available modules are not reinstalled.
 
 ```powershell
 # Upload the script via Cloud Shell's file upload, then:
@@ -124,7 +124,7 @@ recommendation engine.
 
 ### Usage
 
-#### Default — all subscriptions
+#### Default â€” all subscriptions
 
 ```powershell
 .\avd_current_state_collector.ps1
@@ -170,7 +170,7 @@ tenant IDs are omitted by default unless `-IncludeIds` is passed.
 ### Run Sequence
 
 1. Detects Azure Cloud Shell and defaults output to `~/clouddrive/` for persistence
-2. Authenticates to Azure Commercial (`AzureCloud`) — prompts for login only if no active context exists
+2. Authenticates to Azure Commercial (`AzureCloud`) â€” prompts for login only if no active context exists
 3. Discovers all enabled subscriptions visible to the identity
 4. Validates lightweight read access per subscription before full collection
 5. Skips inaccessible subscriptions with a warning, without halting the run
@@ -181,36 +181,36 @@ tenant IDs are omitted by default unless `-IncludeIds` is passed.
 
 ```
 avd-current-state-20260617T143022/
-├── az-module-versions.csv
-├── az-module-versions.json
-├── summary.md
-├── summary.html
-├── manifest.json
-├── Subscription_A/
-│   ├── resource-groups.csv / .json
-│   ├── arm-resources.csv / .json
-│   ├── virtual-networks.csv / .json
-│   ├── subnets.csv / .json
-│   ├── nsgs.csv / .json
-│   ├── nsg-rules.csv / .json
-│   ├── route-tables.csv / .json
-│   ├── public-ips.csv / .json
-│   ├── virtual-machines.csv / .json
-│   ├── vm-extensions.csv / .json
-│   ├── storage-accounts.csv / .json
-│   ├── key-vaults.csv / .json
-│   ├── log-analytics-workspaces.csv / .json
-│   ├── recovery-services-vaults.csv / .json
-│   ├── private-endpoints.csv / .json
-│   ├── policy-assignments.csv / .json
-│   ├── role-assignments.csv / .json
-│   ├── avd-host-pools.csv / .json
-│   ├── avd-workspaces.csv / .json
-│   ├── avd-application-groups.csv / .json
-│   └── avd-session-hosts.csv / .json
-├── Subscription_B/
-│   └── (same structure)
-└── avd-current-state-20260617T143022.zip
+â”œâ”€â”€ az-module-versions.csv
+â”œâ”€â”€ az-module-versions.json
+â”œâ”€â”€ summary.md
+â”œâ”€â”€ summary.html
+â”œâ”€â”€ manifest.json
+â”œâ”€â”€ Subscription_A/
+â”‚   â”œâ”€â”€ resource-groups.csv / .json
+â”‚   â”œâ”€â”€ arm-resources.csv / .json
+â”‚   â”œâ”€â”€ virtual-networks.csv / .json
+â”‚   â”œâ”€â”€ subnets.csv / .json
+â”‚   â”œâ”€â”€ nsgs.csv / .json
+â”‚   â”œâ”€â”€ nsg-rules.csv / .json
+â”‚   â”œâ”€â”€ route-tables.csv / .json
+â”‚   â”œâ”€â”€ public-ips.csv / .json
+â”‚   â”œâ”€â”€ virtual-machines.csv / .json
+â”‚   â”œâ”€â”€ vm-extensions.csv / .json
+â”‚   â”œâ”€â”€ storage-accounts.csv / .json
+â”‚   â”œâ”€â”€ key-vaults.csv / .json
+â”‚   â”œâ”€â”€ log-analytics-workspaces.csv / .json
+â”‚   â”œâ”€â”€ recovery-services-vaults.csv / .json
+â”‚   â”œâ”€â”€ private-endpoints.csv / .json
+â”‚   â”œâ”€â”€ policy-assignments.csv / .json
+â”‚   â”œâ”€â”€ role-assignments.csv / .json
+â”‚   â”œâ”€â”€ avd-host-pools.csv / .json
+â”‚   â”œâ”€â”€ avd-workspaces.csv / .json
+â”‚   â”œâ”€â”€ avd-application-groups.csv / .json
+â”‚   â””â”€â”€ avd-session-hosts.csv / .json
+â”œâ”€â”€ Subscription_B/
+â”‚   â””â”€â”€ (same structure)
+â””â”€â”€ avd-current-state-20260617T143022.zip
 ```
 
 ### Collected Datasets
@@ -252,9 +252,9 @@ avd-current-state-20260617T143022/
 
 `avd_deployment_validator.ps1` answers two questions with a structured pass/fail report:
 
-- **Preflight** — is this subscription, region, network, storage, image and policy posture
+- **Preflight** â€” is this subscription, region, network, storage, image and policy posture
   ready to *receive* an AVD deployment? Run it **before** you deploy.
-- **PostDeployment** — did the deployment actually land correctly? Run it **after** you deploy.
+- **PostDeployment** â€” did the deployment actually land correctly? Run it **after** you deploy.
 
 Both modes live in one script so they share the same check framework, report format and
 evidence package. Use `-Mode Both` to run them back to back.
@@ -269,7 +269,7 @@ tells you what it could not evaluate.
 
 ### Usage
 
-#### Preflight — before deploying
+#### Preflight â€” before deploying
 
 ```powershell
 .\avd_deployment_validator.ps1 -Mode Preflight `
@@ -282,7 +282,7 @@ tells you what it could not evaluate.
     -DomainName contoso.com
 ```
 
-#### Post-deployment — after deploying
+#### Post-deployment â€” after deploying
 
 ```powershell
 .\avd_deployment_validator.ps1 -Mode PostDeployment `
@@ -302,7 +302,7 @@ Omit `-HostPoolName` to validate **every** host pool in the subscription.
 ```
 
 Copy [`avd-validation.config.example.json`](avd-validation.config.example.json) as a
-starting point. Any config key can be overridden on the command line — explicit parameters
+starting point. Any config key can be overridden on the command line â€” explicit parameters
 always win. Keys beginning with `_` are treated as comments.
 
 ### Parameters
@@ -339,10 +339,10 @@ always win. Keys beginning with `_` are treated as comments.
 | `WARN` | Works, but carries operational or resilience risk |
 | `PASS` | Validated as expected |
 | `INFO` | Recorded for context; no action implied |
-| `SKIP` | Not evaluated — a required input or optional module is missing |
+| `SKIP` | Not evaluated â€” a required input or optional module is missing |
 
-**Exit codes:** `0` = no failures · `1` = one or more `FAIL` (or `WARN` with `-FailOnWarning`)
-· `2` = the validator could not run (authentication or subscription resolution failed).
+**Exit codes:** `0` = no failures Â· `1` = one or more `FAIL` (or `WARN` with `-FailOnWarning`)
+Â· `2` = the validator could not run (authentication or subscription resolution failed).
 
 ### Preflight Checks
 
@@ -381,13 +381,13 @@ always win. Keys beginning with `_` are treated as comments.
 
 ```
 avd-validation-20260919T141120/
-├── validation-report.md      # Executive report: summary, failures, warnings, all checks
-├── validation-report.html    # The same report as one page in the avd-ops look
-├── validation-results.csv    # One row per check
-├── validation-results.json   # Same data, structured
-├── manifest.json             # Run inputs, verdict and counts, for reproducibility
-├── az-module-versions.csv    # Tooling provenance
-└── run-log.txt               # Full run log
+â”œâ”€â”€ validation-report.md      # Executive report: summary, failures, warnings, all checks
+â”œâ”€â”€ validation-report.html    # The same report as one page in the avd-ops look
+â”œâ”€â”€ validation-results.csv    # One row per check
+â”œâ”€â”€ validation-results.json   # Same data, structured
+â”œâ”€â”€ manifest.json             # Run inputs, verdict and counts, for reproducibility
+â”œâ”€â”€ az-module-versions.csv    # Tooling provenance
+â””â”€â”€ run-log.txt               # Full run log
 avd-validation-20260919T141120.zip
 ```
 
