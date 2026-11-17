@@ -9493,6 +9493,16 @@
       "date": "2026-10-21"
     },
     {
+      "id": "az-rest-bap-unknown-audience",
+      "claim": "ref:troubleshoot-overview#insights-or-kql",
+      "verdict": "extends",
+      "observed": "In GitHub Actions using azure/login@v2 with enable-AzPSSession: true, Get-AzContext().Account.Type is AccessToken rather than ServicePrincipal. Additionally, Invoke-AzRestMethod throws a terminating unknown-audience error on api.bap.microsoft.com because that endpoint is not in Az environment metadata.",
+      "evidence": [
+        "https://github.com/avd-ops/avd-current-state/blob/cb53adb1b64dc242dac55c63a1d96f83bb107903/docs/reader-identity.md"
+      ],
+      "date": "2026-11-09"
+    },
+    {
       "id": "budget-alert-needs-a-lock",
       "claim": "ref:cost-management-budgets#alerts-dont-stop",
       "verdict": "extends",
@@ -9615,6 +9625,27 @@
         "https://github.com/avd-ops/avd-landing-zone/blob/91c7acf2924ccf3cf82458b3969c0f3fbb9db2bc/scripts/ops/host/Test-SessionHostReadiness.ps1"
       ],
       "date": "2026-10-21"
+    },
+    {
+      "id": "gcp-hybrid-mig-and-registration-token",
+      "claim": "ref:troubleshoot-agent#event-3277-token",
+      "verdict": "extends",
+      "observed": "Live AVD hybrid deployments on GCP require a paid Cloud Billing account for Windows Compute Engine images, regional MIG max_unavailable_fixed >= zone count (or 0 with max_surge_fixed >= zone count), no resource_policies on instance templates, and CloudDeviceExtension protected settings using registrationToken (not registrationInfoToken) passed via @file in PowerShell 5.1.",
+      "evidence": [
+        "https://github.com/avd-ops/avd-gcp/tree/53bcfdcdde145a4fabe61f4080a5fdaa61af560f/environments/example/01-hybrid"
+      ],
+      "date": "2026-11-14"
+    },
+    {
+      "id": "hub-firewall-entra-join-fqdns",
+      "claim": "ref:arch-hub-spoke#hub-shared-services",
+      "verdict": "extends",
+      "observed": "When spoke default-route egress routes through a hub Azure Firewall, Entra ID Join on session hosts (AADLoginForWindows) fails unless the firewall allows enterpriseregistration.windows.net, login.microsoftonline.com, device.login.microsoftonline.com, pas.windows.net, autologon.microsoftazuread-sso.com, *.msauth.net, and *.msftauth.net. Additionally, large Bicep templates can exceed ARM's 4 MB RequestContentTooLarge limit unless minified with jq -c before deployment.",
+      "evidence": [
+        "https://github.com/avd-ops/avd-azure/blob/fa0f48ece5068ba34fcd0beed2f62b48a3cebe42/README.md",
+        "https://github.com/avd-ops/avd-networking/blob/f8c3146f04fed423f46b845932703a4ad6f6163c/README.md"
+      ],
+      "date": "2026-11-15"
     },
     {
       "id": "hub-route-without-avd-bypass",
@@ -9916,6 +9947,16 @@
         "https://github.com/avd-ops/avd-landing-zone/blob/150331e37d66370438bdd7867398693eaa0935aa/scripts/image/Test-GoldenImage.ps1"
       ],
       "date": "2026-10-20"
+    },
+    {
+      "id": "win11-patchmode-automatic-by-os",
+      "claim": "ref:autopatch-avd#exclude-multisession",
+      "verdict": "extends",
+      "observed": "Azure VM Guest Patching (patchMode: AutomaticByPlatform) is rejected on Windows 11 client images (MicrosoftWindowsDesktop), which require AutomaticByOS. Separately, Azure Network RP rejects service tags (such as VirtualNetwork) inside plural sourceAddressPrefixes and requires singular sourceAddressPrefix.",
+      "evidence": [
+        "https://github.com/avd-ops/avd-assess/blob/94196ad84a1fd0886323ea891cc3c9c34ec5d498/gaps/host-baseline-profile.md"
+      ],
+      "date": "2026-11-03"
     },
     {
       "id": "zones-by-default",
