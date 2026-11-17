@@ -3067,6 +3067,17 @@
       "evidences": []
     },
     {
+      "id": "c11.intune.isolatedFilterPresent",
+      "tier": "azure",
+      "contract": "C11",
+      "path": "/intune/isolatedFilterPresent",
+      "grain": "estate",
+      "unit": "bool",
+      "privacy": "boolean",
+      "status": "built",
+      "evidences": []
+    },
+    {
       "id": "c11.intune.unfilteredAllDevicesPolicies",
       "tier": "azure",
       "contract": "C11",

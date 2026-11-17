@@ -388,6 +388,7 @@
         "assignmentFiltersCount": { "$ref": "#/$defs/count" },
         "multiSessionFilterPresent": { "type": "boolean" },
         "cloudPcFilterPresent": { "type": "boolean" },
+        "isolatedFilterPresent": { "type": "boolean" },
         "unfilteredAllDevicesPolicies": { "$ref": "#/$defs/count" },
         "cloudPcManagedCompliant": { "$ref": "#/$defs/count" },
         "cloudPcManagedNoncompliant": { "$ref": "#/$defs/count" },

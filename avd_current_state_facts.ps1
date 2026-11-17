@@ -1133,6 +1133,7 @@ function Get-IntuneFact {
     $updateRing = @($profiles | Where-Object { Test-True (Get-Prop $_ 'multiSessionUpdateRingAssigned') -or "$(Get-Prop $_ 'category' '')" -eq 'updateRing' }).Count -gt 0
     $msFilter = @($filters | Where-Object { "$(Get-Prop $_ 'rule' '')" -match 'ServerRdsh' }).Count -gt 0
     $cpcFilter = @($filters | Where-Object { "$(Get-Prop $_ 'rule' '')" -match 'Cloud PC' }).Count -gt 0
+    $isoFilter = @($filters | Where-Object { "$(Get-Prop $_ 'rule' '')" -match 'avd-iso-' }).Count -gt 0
     $unfilteredAll = @($profiles | Where-Object { Test-True (Get-Prop $_ 'unfilteredAllDevices') }).Count
     $cpcCompliant = @($devices | Where-Object { "$(Get-Prop $_ 'model' '')" -like 'Cloud PC*' -and "$(Get-Prop $_ 'complianceState' '')" -eq 'compliant' }).Count
     $cpcNoncompliant = @($devices | Where-Object { "$(Get-Prop $_ 'model' '')" -like 'Cloud PC*' -and "$(Get-Prop $_ 'complianceState' '')" -eq 'noncompliant' }).Count
@@ -1148,6 +1149,7 @@ function Get-IntuneFact {
         assignmentFiltersCount         = [int]$filters.Count
         multiSessionFilterPresent      = [bool]$msFilter
         cloudPcFilterPresent           = [bool]$cpcFilter
+        isolatedFilterPresent          = [bool]$isoFilter
         unfilteredAllDevicesPolicies   = [int]$unfilteredAll
         cloudPcManagedCompliant        = [int]$cpcCompliant
         cloudPcManagedNoncompliant     = [int]$cpcNoncompliant
