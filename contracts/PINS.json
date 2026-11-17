@@ -1,4 +1,4 @@
-﻿{
+{
     "description":  "Byte-identical copies of avd-assess\u0027s foundation contract files (contracts/README.md there), from release `release`. Each must match the file at commit; `manifest` is the SHA-256 of the release\u0027s datapackage.json, vendored at assess/datapackage.json (tests/Facts.Tests.ps1 checks the hashes, tests/Assess.Tests.ps1 runs the verifier). Update the files, commit, release, manifest and the hashes in one PR.",
     "source":  "https://github.com/avd-ops/avd-assess",
     "commit":  "1520836d7dd9d18c84c2fd87f040810f84932741",
