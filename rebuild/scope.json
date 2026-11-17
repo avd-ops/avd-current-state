@@ -60,7 +60,12 @@
     { "table": "resources", "type": "microsoft.powerplatform/enterprisepolicies", "serves": ["enableVnetEnterprisePolicy", "inventory:powerPlatform"] },
     { "table": "advisorresources", "type": "microsoft.advisor/recommendations", "serves": ["estate:advisorCost"] },
     { "table": "recoveryservicesresources", "type": "microsoft.recoveryservices/vaults/replicationfabrics/replicationprotectioncontainers/replicationprotecteditems", "serves": ["estate:replication"] },
-    { "table": "securityresources", "type": "microsoft.security/assessments", "serves": ["estate:securityAssessments"] }
+    { "table": "securityresources", "type": "microsoft.security/assessments", "serves": ["estate:securityAssessments"] },
+    { "table": "resources", "type": "microsoft.azurestackhci/clusters", "serves": ["inventory:azureLocal"] },
+    { "table": "resources", "type": "microsoft.extendedlocation/customlocations", "serves": ["inventory:azureLocal"] },
+    { "table": "resources", "type": "microsoft.azurestackhci/virtualmachineinstances", "serves": ["inventory:azureLocal"] },
+    { "table": "resources", "type": "microsoft.hybridcompute/machines", "serves": ["inventory:azureLocal"] },
+    { "table": "resources", "type": "microsoft.hybridcompute/machines/extensions", "serves": ["inventory:azureLocal"] }
   ],
   "rest": [
     { "name": "diagnostic-settings", "parentTypes": ["microsoft.desktopvirtualization/hostpools", "microsoft.desktopvirtualization/applicationgroups", "microsoft.desktopvirtualization/workspaces", "microsoft.desktopvirtualization/scalingplans", "microsoft.keyvault/vaults", "microsoft.recoveryservices/vaults", "microsoft.network/networksecuritygroups", "microsoft.automation/automationaccounts"], "path": "{id}/providers/Microsoft.Insights/diagnosticSettings", "apiVersion": "2021-05-01-preview", "serves": ["module:diagnostics"] },
