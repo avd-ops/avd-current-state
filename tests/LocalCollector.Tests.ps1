@@ -403,4 +403,29 @@ Describe 'Synthetic profile tree, junction/reparse guard and bundle zip generati
         Remove-Item -Force -ErrorAction SilentlyContinue
     }
   }
+
+  It 'supports -CertThumbprint for AD CS / enterprise PKI code-signing certs and fails closed when missing' {
+    if (-not ($IsWindows -or ($PSVersionTable.PSVersion.Major -le 5))) {
+      Set-ItResult -Skipped -Because 'Authenticode signing requires Windows'
+      return
+    }
+    $buildScript = Join-Path $script:root 'scripts/Build-AvdLocalRelease.ps1'
+    $signedPs1 = Join-Path $TestDrive 'avd_current_state_local_adcs.ps1'
+    $subj = 'CN=avd-ops-adcs-test'
+    $cert = $null
+    try {
+      $cert = New-SelfSignedCertificate -Type CodeSigningCert -Subject $subj -CertStoreLocation 'Cert:\CurrentUser\My'
+      $built = & $buildScript -OutputPath $signedPs1 -CertThumbprint $cert.Thumbprint
+      $built.SelfSigned | Should -BeFalse
+      $built.CertThumbprint | Should -Be $cert.Thumbprint
+      $sig = Get-AuthenticodeSignature -FilePath $signedPs1
+      $sig.SignerCertificate.Thumbprint | Should -Be $cert.Thumbprint
+
+      { & $buildScript -OutputPath $signedPs1 -CertThumbprint '0000000000000000000000000000000000000000' } | Should -Throw '*not found*'
+    } finally {
+      if ($cert) {
+        Remove-Item -LiteralPath ("Cert:\CurrentUser\My\" + $cert.Thumbprint) -Force -ErrorAction SilentlyContinue
+      }
+    }
+  }
 }

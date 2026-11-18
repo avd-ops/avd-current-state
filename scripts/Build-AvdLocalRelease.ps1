@@ -11,7 +11,11 @@
 param(
     [string]$OutputPath = '',
     [switch]$SelfSign,
-    [string]$CertSubject = 'CN=avd-ops-local-test'
+    [string]$CertSubject = 'CN=avd-ops-local-test',
+    [string]$CertThumbprint = '',
+    [ValidateSet('CurrentUser\My', 'LocalMachine\My')]
+    [string]$CertStore = 'CurrentUser\My',
+    [string]$TimestampServer = ''
 )
 
 Set-StrictMode -Version Latest
@@ -89,14 +93,35 @@ $assembled = $header + "`n" + $body.Trim() + "`n" + $footer.TrimStart()
 $assembled | Set-Content -LiteralPath $OutputPath -Encoding UTF8
 
 $signatureStatus = 'NotSigned'
-if ($SelfSign) {
-    $cert = Get-ChildItem -LiteralPath 'Cert:\CurrentUser\My' -CodeSigningCert -ErrorAction SilentlyContinue |
+$signingCert = $null
+if ("$CertThumbprint" -ne '') {
+    $cleanThumb = ($CertThumbprint -replace '[^0-9a-fA-F]', '').ToUpperInvariant()
+    $signingCert = @(
+        Get-ChildItem -LiteralPath "Cert:\$CertStore" -CodeSigningCert -ErrorAction SilentlyContinue
+        Get-ChildItem -LiteralPath 'Cert:\CurrentUser\My' -CodeSigningCert -ErrorAction SilentlyContinue
+        Get-ChildItem -LiteralPath 'Cert:\LocalMachine\My' -CodeSigningCert -ErrorAction SilentlyContinue
+    ) | Where-Object { $_.Thumbprint -eq $cleanThumb } | Select-Object -First 1
+    if (-not $signingCert) {
+        throw "Code-signing certificate with thumbprint '$cleanThumb' not found in Cert:\$CertStore (or CurrentUser\My / LocalMachine\My)."
+    }
+} elseif ($SelfSign) {
+    $signingCert = Get-ChildItem -LiteralPath "Cert:\$CertStore" -CodeSigningCert -ErrorAction SilentlyContinue |
         Where-Object { $_.Subject -eq $CertSubject } |
         Select-Object -First 1
-    if (-not $cert) {
-        $cert = New-SelfSignedCertificate -Type CodeSigningCert -Subject $CertSubject -CertStoreLocation 'Cert:\CurrentUser\My'
+    if (-not $signingCert) {
+        $signingCert = New-SelfSignedCertificate -Type CodeSigningCert -Subject $CertSubject -CertStoreLocation "Cert:\$CertStore"
     }
-    $sig = Set-AuthenticodeSignature -FilePath $OutputPath -Certificate $cert
+}
+
+if ($signingCert) {
+    $sigParams = @{
+        FilePath    = $OutputPath
+        Certificate = $signingCert
+    }
+    if ("$TimestampServer" -ne '') {
+        $sigParams['TimestampServer'] = $TimestampServer
+    }
+    $sig = Set-AuthenticodeSignature @sigParams
     $signatureStatus = "$($sig.Status)"
 }
 
@@ -109,5 +134,6 @@ return @{
     Sha256Path      = "$OutputPath.sha256"
     Sha256          = $hash
     SelfSigned      = [bool]$SelfSign
+    CertThumbprint  = if ($signingCert) { $signingCert.Thumbprint } else { '' }
     SignatureStatus = $signatureStatus
 }
