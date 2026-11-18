@@ -353,4 +353,29 @@ Describe 'Synthetic profile tree, junction/reparse guard and bundle zip generati
     $res = Invoke-AvdLocalSourceCollection -Sources @($fakeSrc) -StageDir $stageEvt -UserProfile $TestDrive -Hours 24
     @($res.Skipped | Where-Object { $_.Path -eq 'Avd-NonExistent-Channel/Operational' -and $_.Reason -eq 'not-present' }).Count | Should -Be 1
   }
+
+  It 'assembles standalone avd_current_state_local.ps1 that passes CLM AST guards and runs without external files' {
+    $buildScript = Join-Path $script:root 'scripts/Build-AvdLocalRelease.ps1'
+    $outPs1 = Join-Path $TestDrive 'avd_current_state_local.ps1'
+    $built = & $buildScript -OutputPath $outPs1
+
+    Test-Path -LiteralPath $built.OutputPath -PathType Leaf | Should -BeTrue
+    Test-Path -LiteralPath $built.Sha256Path -PathType Leaf | Should -BeTrue
+
+    $parseErrs = $null
+    $tokens = $null
+    $ast = [System.Management.Automation.Language.Parser]::ParseFile($outPs1, [ref]$tokens, [ref]$parseErrs)
+    @($parseErrs).Count | Should -Be 0
+    @($ast.FindAll({ param($n) $n -is [System.Management.Automation.Language.InvokeMemberExpressionAst] }, $true)).Count | Should -Be 0
+
+    $listed = & $outPs1 -Mode Device -ListSources
+    $listed.Mode | Should -Be 'Device'
+    $listed.Sources.Count | Should -BeGreaterThan 5
+
+    $isoProfile = Join-Path $TestDrive 'iso-dev'
+    $isoDl = Join-Path $isoProfile 'Downloads'
+    $null = New-Item -Path $isoDl -ItemType Directory -Force
+    $isoOut = & $outPs1 -Mode Device -OutputPath $isoDl -WhoamiGroups @('Medium Mandatory Level', 'S-1-16-8192') -RunUtc '2026-11-18T16:00:00Z' -UserProfile $isoProfile
+    Test-Path -LiteralPath $isoOut.zipPath -PathType Leaf | Should -BeTrue
+  }
 }

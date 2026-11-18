@@ -9,6 +9,8 @@
 Set-StrictMode -Version Latest
 
 $script:LocalCollectorVersion = '1.0.0'
+$script:EmbeddedLocalSourcesJson = $null
+$script:EmbeddedEndpointsJson = $null
 
 function Get-AvdLocalSource {
     <#
@@ -19,12 +21,17 @@ function Get-AvdLocalSource {
     param(
         [ValidateSet('Preflight', 'Host', 'Session', 'Device', 'All')]
         [string]$Mode = 'All',
-        [string]$SourcesPath = (Join-Path (Split-Path $PSScriptRoot -Parent) 'local/sources.json')
+        [string]$SourcesPath = ''
     )
-    if (-not (Test-Path -LiteralPath $SourcesPath -PathType Leaf)) {
-        throw "Local sources catalog not found at $SourcesPath"
+    $doc = if (("$SourcesPath" -eq '') -and ($null -ne $script:EmbeddedLocalSourcesJson)) {
+        $script:EmbeddedLocalSourcesJson | ConvertFrom-Json -ErrorAction Stop
+    } else {
+        $resolvedPath = if ("$SourcesPath" -ne '') { $SourcesPath } else { Join-Path (Split-Path $PSScriptRoot -Parent) 'local/sources.json' }
+        if (-not (Test-Path -LiteralPath $resolvedPath -PathType Leaf)) {
+            throw "Local sources catalog not found at $resolvedPath"
+        }
+        Get-Content -LiteralPath $resolvedPath -Raw | ConvertFrom-Json -ErrorAction Stop
     }
-    $doc = Get-Content -LiteralPath $SourcesPath -Raw | ConvertFrom-Json -ErrorAction Stop
     $all = @($doc.sources)
     if ($Mode -eq 'All') {
         return $all
@@ -41,12 +48,17 @@ function Get-AvdEndpointProbe {
     param(
         [ValidateSet('host', 'device', 'browser')]
         [string]$View = 'host',
-        [string]$EndpointsPath = (Join-Path (Split-Path $PSScriptRoot -Parent) 'assess/endpoints.json')
+        [string]$EndpointsPath = ''
     )
-    if (-not (Test-Path -LiteralPath $EndpointsPath -PathType Leaf)) {
-        throw "Pinned endpoint map not found at $EndpointsPath"
+    $doc = if (("$EndpointsPath" -eq '') -and ($null -ne $script:EmbeddedEndpointsJson)) {
+        $script:EmbeddedEndpointsJson | ConvertFrom-Json -ErrorAction Stop
+    } else {
+        $resolvedEp = if ("$EndpointsPath" -ne '') { $EndpointsPath } else { Join-Path (Split-Path $PSScriptRoot -Parent) 'assess/endpoints.json' }
+        if (-not (Test-Path -LiteralPath $resolvedEp -PathType Leaf)) {
+            throw "Pinned endpoint map not found at $resolvedEp"
+        }
+        Get-Content -LiteralPath $resolvedEp -Raw | ConvertFrom-Json -ErrorAction Stop
     }
-    $doc = Get-Content -LiteralPath $EndpointsPath -Raw | ConvertFrom-Json -ErrorAction Stop
     $byId = @{}
     foreach ($ep in @($doc.endpoints)) {
         $byId["$($ep.id)"] = $ep

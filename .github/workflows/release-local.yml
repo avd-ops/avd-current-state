@@ -1,0 +1,73 @@
+name: Release local collector
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  id-token: write
+  attestations: write
+
+jobs:
+  build-and-release:
+    runs-on: windows-latest
+    environment: release
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Assemble standalone avd_current_state_local.ps1
+        shell: pwsh
+        run: |
+          $res = & ./scripts/Build-AvdLocalRelease.ps1 -OutputPath dist/avd_current_state_local.ps1
+          Write-Host "Built $($res.OutputPath) ($($res.Sha256))"
+
+      - name: Run local collector and assembly tests
+        shell: pwsh
+        run: |
+          Invoke-Pester -Path ./tests/LocalCollector.Tests.ps1 -CI
+
+      - name: Sign with Azure Artifact Signing (when enabled)
+        if: ${{ vars.ARTIFACT_SIGNING_ENABLED == 'true' }}
+        uses: azure/artifact-signing-action@v1
+        with:
+          command: sign
+          azure-tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          azure-client-id: ${{ vars.AZURE_CLIENT_ID }}
+          endpoint: ${{ vars.ARTIFACT_SIGNING_ENDPOINT }}
+          trusted-signing-account-name: ${{ vars.ARTIFACT_SIGNING_ACCOUNT }}
+          certificate-profile-name: ${{ vars.ARTIFACT_SIGNING_PROFILE }}
+          files-folder: dist
+          files-folder-filter: avd_current_state_local.ps1
+          file-digest: SHA256
+          timestamp-rfc3161: http://timestamp.acs.microsoft.com
+          timestamp-digest: SHA256
+
+      - name: Refresh SHA-256 after signing
+        if: ${{ vars.ARTIFACT_SIGNING_ENABLED == 'true' }}
+        shell: pwsh
+        run: |
+          $hash = (Get-FileHash -LiteralPath dist/avd_current_state_local.ps1 -Algorithm SHA256).Hash.ToLowerInvariant()
+          "$hash  avd_current_state_local.ps1" | Set-Content -LiteralPath dist/avd_current_state_local.ps1.sha256 -Encoding ASCII
+
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: dist/avd_current_state_local.ps1
+
+      - name: Upload release artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: avd-current-state-local
+          path: |
+            dist/avd_current_state_local.ps1
+            dist/avd_current_state_local.ps1.sha256
+
+      - name: Publish GitHub Release on tag
+        if: ${{ startsWith(github.ref, 'refs/tags/v') }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${{ github.ref_name }}" dist/avd_current_state_local.ps1 dist/avd_current_state_local.ps1.sha256 --title "${{ github.ref_name }}" --generate-notes
