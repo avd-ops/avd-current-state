@@ -516,6 +516,23 @@
       "privacyClass": "facts",
       "learnClaim": "ref:teams-vdi-2#endpoint-msix",
       "learnUrl": "https://learn.microsoft.com/microsoftteams/vdi-2-troubleshooting"
+    },
+    {
+      "id": "device.appx-deployment-events",
+      "mode": "device",
+      "category": "events",
+      "kind": "event-log",
+      "source": "Microsoft-Windows-AppXDeploymentServer/Operational",
+      "propertyAllowlist": [
+        "Id",
+        "LevelDisplayName",
+        "ProviderName",
+        "TimeCreated"
+      ],
+      "requiresAdmin": "no",
+      "privacyClass": "personal",
+      "learnClaim": "ref:teams-vdi-2#endpoint-msix",
+      "learnUrl": "https://learn.microsoft.com/microsoftteams/vdi-2-troubleshooting"
     }
   ]
 }

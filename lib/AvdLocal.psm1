@@ -460,13 +460,16 @@ function Invoke-AvdLocalSourceCollection {
         [Parameter(Mandatory = $true)][object[]]$Sources,
         [Parameter(Mandatory = $true)][string]$StageDir,
         [string]$UserProfile = $env:USERPROFILE,
+        [int]$Hours = 24,
         [long]$MaxTotalBytes = 209715200
     )
     $copied = @()
     $skipped = @()
     $registryData = @{}
+    $eventData = @{}
     $totalBytes = [long]0
     $trimmedProfile = $UserProfile -replace '[\\/]+$', ''
+    $sinceTime = (Get-Date) - (New-TimeSpan -Hours $Hours)
 
     foreach ($src in $Sources) {
         if ($src.kind -eq 'file-glob') {
@@ -521,6 +524,29 @@ function Invoke-AvdLocalSourceCollection {
             } catch {
                 $skipped += @{ Path = $regPath; Reason = 'access-denied' }
             }
+        } elseif ($src.kind -eq 'event-log') {
+            $channels = @("$($src.source)" -split ';')
+            $channelRows = @()
+            foreach ($ch in $channels) {
+                if ("$ch" -eq '') { continue }
+                try {
+                    if (-not (Get-Command -Name 'Get-WinEvent' -ErrorAction SilentlyContinue)) {
+                        $skipped += @{ Path = $ch; Reason = 'not-present' }
+                        continue
+                    }
+                    $evts = @(Get-WinEvent -FilterHashtable @{ LogName = $ch; StartTime = $sinceTime } -MaxEvents 100 -ErrorAction Stop)
+                    foreach ($evt in $evts) {
+                        $channelRows += Select-AvdAllowedProperty -InputObject $evt -Allowlist @($src.propertyAllowlist)
+                    }
+                } catch {
+                    $msg = "$($_.Exception.Message)"
+                    $why = if ($msg -match '(?i)unauthorized|access|denied|privilege') { 'access-denied' } else { 'not-present' }
+                    $skipped += @{ Path = $ch; Reason = $why }
+                }
+            }
+            if ($channelRows.Count -gt 0) {
+                $eventData[$src.id] = $channelRows
+            }
         }
     }
 
@@ -534,6 +560,19 @@ function Invoke-AvdLocalSourceCollection {
             StagedPath = $regOutPath
             SizeBytes  = [long]$regItem.Length
             Sha256     = "$($regHash.Hash)" -replace '.*', '$0'
+        }
+    }
+
+    if ($eventData.Count -gt 0) {
+        $evtOutPath = Join-Path $StageDir 'events.json'
+        $eventData | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $evtOutPath -Encoding UTF8
+        $evtHash = Get-FileHash -LiteralPath $evtOutPath -Algorithm SHA256
+        $evtItem = Get-Item -LiteralPath $evtOutPath -Force
+        $copied += @{
+            SourcePath = $evtOutPath
+            StagedPath = $evtOutPath
+            SizeBytes  = [long]$evtItem.Length
+            Sha256     = "$($evtHash.Hash)" -replace '.*', '$0'
         }
     }
 
@@ -612,7 +651,7 @@ function Invoke-AvdLocalCollector {
     }
 
     if (($Mode -in @('Session', 'Device')) -or [bool]$Bundle) {
-        $collectRes = Invoke-AvdLocalSourceCollection -Sources $sources -StageDir $stageDir -UserProfile $UserProfile
+        $collectRes = Invoke-AvdLocalSourceCollection -Sources $sources -StageDir $stageDir -UserProfile $UserProfile -Hours $Hours
         $copiedFiles += @($collectRes.Copied)
         $skippedSources += @($collectRes.Skipped)
     }
