@@ -16,7 +16,7 @@ jobs:
     runs-on: windows-latest
     environment: release
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Assemble standalone avd_current_state_local.ps1
         shell: pwsh
@@ -31,7 +31,7 @@ jobs:
 
       - name: Sign with Azure Artifact Signing (when enabled)
         if: ${{ vars.ARTIFACT_SIGNING_ENABLED == 'true' }}
-        uses: azure/artifact-signing-action@v1
+        uses: azure/artifact-signing-action@b443cf8ea4124818d2ea9f043cba29fc3ec47b16 # v1
         with:
           command: sign
           azure-tenant-id: ${{ vars.AZURE_TENANT_ID }}
@@ -53,12 +53,12 @@ jobs:
           "$hash  avd_current_state_local.ps1" | Set-Content -LiteralPath dist/avd_current_state_local.ps1.sha256 -Encoding ASCII
 
       - name: Attest build provenance
-        uses: actions/attest-build-provenance@v2
+        uses: actions/attest-build-provenance@96b4a1ef7235a096b17240c259729fdd70c83d45 # v2
         with:
           subject-path: dist/avd_current_state_local.ps1
 
       - name: Upload release artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: avd-current-state-local
           path: |
