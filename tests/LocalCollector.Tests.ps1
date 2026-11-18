@@ -335,4 +335,22 @@ Describe 'Synthetic profile tree, junction/reparse guard and bundle zip generati
     @($devMan.files | Where-Object { $_.sourcePath -match 'slimcore\.log$' }).Count | Should -Be 1
     @($devMan.skipped | Where-Object { $_.Reason -eq 'not-present' }).Count | Should -BeGreaterThan 0
   }
+
+  It 'declares device.appx-deployment-events and handles missing event-log channels gracefully' {
+    $devSources = @(Get-AvdLocalSource -Mode Device)
+    $appxEvt = @($devSources | Where-Object { $_.id -eq 'device.appx-deployment-events' })
+    $appxEvt.Count | Should -Be 1
+    $appxEvt[0].kind | Should -Be 'event-log'
+
+    $stageEvt = Join-Path $TestDrive 'evt-stage'
+    $null = New-Item -Path $stageEvt -ItemType Directory -Force
+    $fakeSrc = [pscustomobject]@{
+      id                = 'test.missing-channel'
+      kind              = 'event-log'
+      source            = 'Avd-NonExistent-Channel/Operational'
+      propertyAllowlist = @('Id', 'LevelDisplayName', 'ProviderName', 'TimeCreated')
+    }
+    $res = Invoke-AvdLocalSourceCollection -Sources @($fakeSrc) -StageDir $stageEvt -UserProfile $TestDrive -Hours 24
+    @($res.Skipped | Where-Object { $_.Path -eq 'Avd-NonExistent-Channel/Operational' -and $_.Reason -eq 'not-present' }).Count | Should -Be 1
+  }
 }
