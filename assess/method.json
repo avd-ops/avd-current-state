@@ -3862,6 +3862,180 @@
         "plane": "azure",
         "name": "storage-smb-channel-encryption-gcm"
       }
+    },
+    {
+      "id": "asm-gpu-no-compute-skus",
+      "plane": "azure",
+      "title": "GPU session hosts use NV-family graphics SKUs rather than NC/ND compute SKUs",
+      "pillar": "performance",
+      "severity": "high",
+      "claims": [
+        "ref:avd-gpu-acceleration#no-compute-gpus",
+        "ref:avd-gpu-acceleration#supported-sizes"
+      ],
+      "facts": [
+        "c11.hostPool.sessionHosts.gpuComputeSkus"
+      ],
+      "rule": {
+        "each": "/subscriptions/*/hostPools/*",
+        "expect": {
+          "sessionHosts/gpuComputeSkus": {
+            "max": 0
+          }
+        },
+        "onFail": "gap"
+      },
+      "informs": [
+        "hostPool.vmSize"
+      ],
+      "remediation": {
+        "kind": "lz-parameter",
+        "plane": "azure",
+        "name": "sessionHostVmSize",
+        "to": "Standard_NV6ads_A10_v5"
+      }
+    },
+    {
+      "id": "asm-gpu-no-retired-skus",
+      "plane": "azure",
+      "title": "GPU session hosts do not run retired NVv3 or NVv4 VM sizes",
+      "pillar": "performance",
+      "severity": "medium",
+      "claims": [
+        "ref:avd-gpu-acceleration#supported-sizes"
+      ],
+      "facts": [
+        "c11.hostPool.sessionHosts.gpuRetiredSkus"
+      ],
+      "rule": {
+        "each": "/subscriptions/*/hostPools/*",
+        "expect": {
+          "sessionHosts/gpuRetiredSkus": {
+            "max": 0
+          }
+        },
+        "onFail": "warn"
+      },
+      "informs": [
+        "hostPool.vmSize"
+      ],
+      "remediation": {
+        "kind": "lz-parameter",
+        "plane": "azure",
+        "name": "sessionHostVmSize",
+        "to": "Standard_NV6ads_A10_v5"
+      }
+    },
+    {
+      "id": "asm-gpu-driver-extension",
+      "plane": "azure",
+      "title": "GPU session hosts have an Azure-distributed NVIDIA or AMD GPU driver extension",
+      "pillar": "performance",
+      "severity": "medium",
+      "claims": [
+        "ref:avd-gpu-acceleration#grid-driver-only"
+      ],
+      "facts": [
+        "c11.hostPool.sessionHosts.gpuHosts",
+        "c11.hostPool.sessionHosts.gpuDriverMissing"
+      ],
+      "rule": {
+        "each": "/subscriptions/*/hostPools/*",
+        "where": {
+          "sessionHosts/gpuHosts": {
+            "min": 1
+          }
+        },
+        "expect": {
+          "sessionHosts/gpuDriverMissing": {
+            "max": 0
+          }
+        },
+        "onFail": "warn"
+      },
+      "informs": [
+        "hostPool.vmSize"
+      ],
+      "remediation": {
+        "kind": "lz-setting",
+        "plane": "azure",
+        "name": "gpu-driver-extension"
+      }
+    },
+    {
+      "id": "asm-gpu-grid-session-cap",
+      "plane": "azure",
+      "title": "Pooled NVIDIA GPU host pools cap maxSessionLimit at 25 concurrent users per GRID license",
+      "pillar": "performance",
+      "severity": "high",
+      "claims": [
+        "ref:avd-gpu-acceleration#grid-license-25",
+        "ref:avd-gpu-acceleration#density-tradeoff"
+      ],
+      "facts": [
+        "c11.hostPool.sessionHosts.gpuHosts",
+        "c11.hostPool.sessionHosts.gpuMaxSessionOver25"
+      ],
+      "rule": {
+        "each": "/subscriptions/*/hostPools/*",
+        "where": {
+          "sessionHosts/gpuHosts": {
+            "min": 1
+          },
+          "type": {
+            "eq": "Pooled"
+          }
+        },
+        "expect": {
+          "sessionHosts/gpuMaxSessionOver25": {
+            "max": 0
+          }
+        },
+        "onFail": "gap"
+      },
+      "informs": [
+        "hostPool.maxSessions"
+      ],
+      "remediation": {
+        "kind": "lz-parameter",
+        "plane": "azure",
+        "name": "maxSessionLimit",
+        "to": 25
+      }
+    },
+    {
+      "id": "asm-gpu-graphics-diagnostics",
+      "plane": "azure",
+      "title": "GPU host pools send ConnectionGraphics diagnostics to Log Analytics",
+      "pillar": "operations",
+      "severity": "medium",
+      "claims": [
+        "ref:wvdconnectiongraphicsdata-table#frame-drops-by-cause"
+      ],
+      "facts": [
+        "c11.hostPool.sessionHosts.gpuHosts",
+        "c11.hostPool.graphicsDiagnosticsEnabled"
+      ],
+      "rule": {
+        "each": "/subscriptions/*/hostPools/*",
+        "where": {
+          "sessionHosts/gpuHosts": {
+            "min": 1
+          }
+        },
+        "expect": {
+          "graphicsDiagnosticsEnabled": {
+            "eq": true
+          }
+        },
+        "onFail": "warn"
+      },
+      "informs": [],
+      "remediation": {
+        "kind": "lz-setting",
+        "plane": "azure",
+        "name": "hostpool-diagnostics"
+      }
     }
   ],
   "readiness": [

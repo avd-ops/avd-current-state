@@ -60,7 +60,12 @@
     { "table": "resources", "type": "microsoft.powerplatform/enterprisepolicies", "serves": ["enableVnetEnterprisePolicy", "inventory:powerPlatform"] },
     { "table": "advisorresources", "type": "microsoft.advisor/recommendations", "serves": ["estate:advisorCost"] },
     { "table": "recoveryservicesresources", "type": "microsoft.recoveryservices/vaults/replicationfabrics/replicationprotectioncontainers/replicationprotecteditems", "serves": ["estate:replication"] },
-    { "table": "securityresources", "type": "microsoft.security/assessments", "serves": ["estate:securityAssessments"] }
+    { "table": "securityresources", "type": "microsoft.security/assessments", "serves": ["estate:securityAssessments"] },
+    { "table": "resources", "type": "microsoft.azurestackhci/clusters", "serves": ["inventory:azureLocal"] },
+    { "table": "resources", "type": "microsoft.extendedlocation/customlocations", "serves": ["inventory:azureLocal"] },
+    { "table": "resources", "type": "microsoft.azurestackhci/virtualmachineinstances", "serves": ["inventory:azureLocal"] },
+    { "table": "resources", "type": "microsoft.hybridcompute/machines", "serves": ["inventory:azureLocal"] },
+    { "table": "resources", "type": "microsoft.hybridcompute/machines/extensions", "serves": ["inventory:azureLocal"] }
   ],
   "rest": [
     { "name": "diagnostic-settings", "parentTypes": ["microsoft.desktopvirtualization/hostpools", "microsoft.desktopvirtualization/applicationgroups", "microsoft.desktopvirtualization/workspaces", "microsoft.desktopvirtualization/scalingplans", "microsoft.keyvault/vaults", "microsoft.recoveryservices/vaults", "microsoft.network/networksecuritygroups", "microsoft.automation/automationaccounts"], "path": "{id}/providers/Microsoft.Insights/diagnosticSettings", "apiVersion": "2021-05-01-preview", "serves": ["module:diagnostics"] },
@@ -107,7 +112,7 @@
         { "plane": "intune", "transport": "graph-rest", "method": "GET", "uriPattern": "https://{graphHost}/v1.0/deviceManagement/settings", "facts": ["c11.intune.noPolicyMeansNoncompliant"] },
         { "plane": "intune", "transport": "graph-rest", "method": "GET", "uriPattern": "https://{graphHost}/v1.0/policies/mobileDeviceManagementPolicies", "facts": ["c11.intune.mdmAutoEnrollmentScope"] },
         { "plane": "intune", "transport": "graph-rest", "method": "GET", "uriPattern": "https://{graphHost}/beta/deviceManagement/configurationPolicies", "facts": ["c11.intune.multiSessionCatalogProfiles", "c11.intune.fslogixProfileConfigured", "c11.intune.rdpShortpathConfigured", "c11.intune.sessionTimeLimitsConfigured", "c11.intune.multiSessionUpdateRingAssigned", "c11.intune.unfilteredAllDevicesPolicies"] },
-        { "plane": "intune", "transport": "graph-rest", "method": "GET", "uriPattern": "https://{graphHost}/beta/deviceManagement/assignmentFilters", "facts": ["c11.intune.assignmentFiltersCount", "c11.intune.multiSessionFilterPresent", "c11.intune.cloudPcFilterPresent"] },
+        { "plane": "intune", "transport": "graph-rest", "method": "GET", "uriPattern": "https://{graphHost}/beta/deviceManagement/assignmentFilters", "facts": ["c11.intune.assignmentFiltersCount", "c11.intune.multiSessionFilterPresent", "c11.intune.cloudPcFilterPresent", "c11.intune.isolatedFilterPresent"] },
         { "plane": "intune", "transport": "graph-rest", "method": "GET", "uriPattern": "https://{graphHost}/v1.0/deviceManagement/managedDevices", "facts": ["c11.hostPool.sessionHosts.intuneManaged", "c11.hostPool.sessionHosts.intuneCompliant", "c11.hostPool.sessionHosts.intuneNoncompliant", "c11.hostPool.sessionHosts.intuneSyncStale", "c11.hostPool.sessionHosts.intuneConfigErrors", "c11.hostPool.sessionHosts.intuneBaselineApplied", "c11.hostPool.intuneOrphans", "c11.intune.cloudPcManagedCompliant", "c11.intune.cloudPcManagedNoncompliant"] },
         { "plane": "intune", "transport": "graph-rest", "method": "GET", "uriPattern": "https://{graphHost}/v1.0/deviceManagement/virtualEndpoint/cloudPCs", "facts": ["c11.intune.win365.cloudPcCountByStatus"] },
         { "plane": "intune", "transport": "graph-rest", "method": "GET", "uriPattern": "https://{graphHost}/v1.0/deviceManagement/virtualEndpoint/provisioningPolicies", "facts": ["c11.intune.win365.provisioningPoliciesCount", "c11.intune.win365.ssoEnabledOnAllPolicies", "c11.intune.win365.networkMode"] },
@@ -119,6 +124,7 @@
       "permissions": ["DeviceManagementConfiguration.Read.All", "Organization.Read.All", "SharePointTenantSettings.Read.All"],
       "calls": [
         { "plane": "m365", "transport": "graph-rest", "method": "GET", "uriPattern": "https://{graphHost}/beta/deviceManagement/configurationPolicies", "facts": ["c11.m365.oneDriveSilentConfigEnabled", "c11.m365.oneDriveKfmState", "c11.m365.oneDriveFilesOnDemandEnabled", "c11.m365.m365AppsSharedComputerActivation", "c11.m365.outlookCachedModeConfigured", "c11.m365.teamsMediaOptimizationState", "c11.m365.mmrConfigured"] },
+        { "plane": "m365", "transport": "graph-rest", "method": "GET", "uriPattern": "https://{graphHost}/v1.0/admin/sharepoint/settings", "facts": ["c11.m365.sharePointSharingCapability", "c11.m365.sharePointIdleSessionSignOutEnabled"] },
         { "plane": "m365", "transport": "teams-ps", "method": "Get-*", "command": "Get-CsTeamsVdiPolicy", "facts": ["c11.m365.teamsMediaOptimizationState"] }
       ]
     },

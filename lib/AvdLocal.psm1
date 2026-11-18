@@ -431,6 +431,157 @@ function New-AvdLocalManifest {
     }
 }
 
+function Resolve-AvdLocalSourcePath {
+    <#
+    .SYNOPSIS
+        Expands %USERPROFILE%, %LOCALAPPDATA%, and %TEMP% tokens against the target UserProfile root.
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)][string]$Pattern,
+        [string]$UserProfile = $env:USERPROFILE
+    )
+    $trimmed = $UserProfile -replace '[\\/]+$', ''
+    $localApp = Join-Path $trimmed 'AppData\Local'
+    $tempDir = Join-Path $localApp 'Temp'
+    $expanded = $Pattern -replace '(?i)%USERPROFILE%', $trimmed
+    $expanded = $expanded -replace '(?i)%LOCALAPPDATA%', $localApp
+    $expanded = $expanded -replace '(?i)%TEMP%', $tempDir
+    return $expanded
+}
+
+function Invoke-AvdLocalSourceCollection {
+    <#
+    .SYNOPSIS
+        Collects allowlisted file-glob and registry sources from local/sources.json into StageDir (CLM-safe, bounded).
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)][object[]]$Sources,
+        [Parameter(Mandatory = $true)][string]$StageDir,
+        [string]$UserProfile = $env:USERPROFILE,
+        [int]$Hours = 24,
+        [long]$MaxTotalBytes = 209715200
+    )
+    $copied = @()
+    $skipped = @()
+    $registryData = @{}
+    $eventData = @{}
+    $totalBytes = [long]0
+    $trimmedProfile = $UserProfile -replace '[\\/]+$', ''
+    $sinceTime = (Get-Date) - (New-TimeSpan -Hours $Hours)
+
+    foreach ($src in $Sources) {
+        if ($src.kind -eq 'file-glob') {
+            $patterns = @("$($src.source)" -split ';')
+            $destRoot = Join-Path $StageDir ("sources\" + $src.id)
+            foreach ($rawPattern in $patterns) {
+                if ("$rawPattern" -eq '') { continue }
+                $expanded = Resolve-AvdLocalSourcePath -Pattern $rawPattern -UserProfile $trimmedProfile
+                if ($totalBytes -ge $MaxTotalBytes) {
+                    $skipped += @{ Path = $expanded; Reason = 'budget-exceeded' }
+                    continue
+                }
+                if ($expanded -match '[\*\?]') {
+                    $parentDir = Split-Path -Path $expanded -Parent
+                    $leafFilter = Split-Path -Path $expanded -Leaf
+                    if ((-not $parentDir) -or (-not (Test-Path -LiteralPath $parentDir -PathType Container))) {
+                        $skipped += @{ Path = $expanded; Reason = 'not-present' }
+                        continue
+                    }
+                    $matches = @(Get-ChildItem -LiteralPath $parentDir -Filter $leafFilter -Force -ErrorAction SilentlyContinue)
+                    if ($matches.Count -eq 0) {
+                        $skipped += @{ Path = $expanded; Reason = 'not-present' }
+                        continue
+                    }
+                    foreach ($m in $matches) {
+                        $res = Copy-AvdSafeLocalItem -LiteralPath $m.FullName -Destination $destRoot -RootPath $trimmedProfile
+                        foreach ($c in @($res.Copied)) { $totalBytes += [long]$c.SizeBytes }
+                        $copied += @($res.Copied)
+                        $skipped += @($res.Skipped)
+                    }
+                } else {
+                    if (-not (Test-Path -LiteralPath $expanded)) {
+                        $skipped += @{ Path = $expanded; Reason = 'not-present' }
+                        continue
+                    }
+                    $res = Copy-AvdSafeLocalItem -LiteralPath $expanded -Destination $destRoot -RootPath $trimmedProfile
+                    foreach ($c in @($res.Copied)) { $totalBytes += [long]$c.SizeBytes }
+                    $copied += @($res.Copied)
+                    $skipped += @($res.Skipped)
+                }
+            }
+        } elseif ($src.kind -eq 'registry') {
+            $regPath = "$($src.source)"
+            try {
+                if (-not (Test-Path -LiteralPath $regPath)) {
+                    $skipped += @{ Path = $regPath; Reason = 'not-present' }
+                    continue
+                }
+                $props = Get-ItemProperty -LiteralPath $regPath -ErrorAction Stop
+                $filtered = Select-AvdAllowedProperty -InputObject $props -Allowlist @($src.propertyAllowlist)
+                $registryData[$src.id] = $filtered
+            } catch {
+                $skipped += @{ Path = $regPath; Reason = 'access-denied' }
+            }
+        } elseif ($src.kind -eq 'event-log') {
+            $channels = @("$($src.source)" -split ';')
+            $channelRows = @()
+            foreach ($ch in $channels) {
+                if ("$ch" -eq '') { continue }
+                try {
+                    if (-not (Get-Command -Name 'Get-WinEvent' -ErrorAction SilentlyContinue)) {
+                        $skipped += @{ Path = $ch; Reason = 'not-present' }
+                        continue
+                    }
+                    $evts = @(Get-WinEvent -FilterHashtable @{ LogName = $ch; StartTime = $sinceTime } -MaxEvents 100 -ErrorAction Stop)
+                    foreach ($evt in $evts) {
+                        $channelRows += Select-AvdAllowedProperty -InputObject $evt -Allowlist @($src.propertyAllowlist)
+                    }
+                } catch {
+                    $msg = "$($_.Exception.Message)"
+                    $why = if ($msg -match '(?i)unauthorized|access|denied|privilege') { 'access-denied' } else { 'not-present' }
+                    $skipped += @{ Path = $ch; Reason = $why }
+                }
+            }
+            if ($channelRows.Count -gt 0) {
+                $eventData[$src.id] = $channelRows
+            }
+        }
+    }
+
+    if ($registryData.Count -gt 0) {
+        $regOutPath = Join-Path $StageDir 'registry.json'
+        $registryData | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $regOutPath -Encoding UTF8
+        $regHash = Get-FileHash -LiteralPath $regOutPath -Algorithm SHA256
+        $regItem = Get-Item -LiteralPath $regOutPath -Force
+        $copied += @{
+            SourcePath = $regOutPath
+            StagedPath = $regOutPath
+            SizeBytes  = [long]$regItem.Length
+            Sha256     = "$($regHash.Hash)" -replace '.*', '$0'
+        }
+    }
+
+    if ($eventData.Count -gt 0) {
+        $evtOutPath = Join-Path $StageDir 'events.json'
+        $eventData | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $evtOutPath -Encoding UTF8
+        $evtHash = Get-FileHash -LiteralPath $evtOutPath -Algorithm SHA256
+        $evtItem = Get-Item -LiteralPath $evtOutPath -Force
+        $copied += @{
+            SourcePath = $evtOutPath
+            StagedPath = $evtOutPath
+            SizeBytes  = [long]$evtItem.Length
+            Sha256     = "$($evtHash.Hash)" -replace '.*', '$0'
+        }
+    }
+
+    return @{
+        Copied  = @($copied)
+        Skipped = @($skipped)
+    }
+}
+
 function Invoke-AvdLocalCollector {
     <#
     .SYNOPSIS
@@ -497,6 +648,12 @@ function Invoke-AvdLocalCollector {
         $stageRes = Copy-AvdSafeLocalItem -LiteralPath $addPath -Destination $stageDir -RootPath $parentRoot
         $copiedFiles += @($stageRes.Copied)
         $skippedSources += @($stageRes.Skipped)
+    }
+
+    if (($Mode -in @('Session', 'Device')) -or [bool]$Bundle) {
+        $collectRes = Invoke-AvdLocalSourceCollection -Sources $sources -StageDir $stageDir -UserProfile $UserProfile -Hours $Hours
+        $copiedFiles += @($collectRes.Copied)
+        $skippedSources += @($collectRes.Skipped)
     }
 
     $factsPath = $null
@@ -577,5 +734,7 @@ Export-ModuleMember -Function @(
     'New-AvdLocalFactDocument',
     'New-AvdLocalHealthSummary',
     'New-AvdLocalManifest',
+    'Resolve-AvdLocalSourcePath',
+    'Invoke-AvdLocalSourceCollection',
     'Invoke-AvdLocalCollector'
 )

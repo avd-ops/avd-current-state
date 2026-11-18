@@ -306,7 +306,7 @@
       "mode": "device",
       "category": "logs",
       "kind": "file-glob",
-      "source": "%LOCALAPPDATA%\\Packages\\Microsoft.Windows365_8wekyb3d8bbwe\\LocalCache\\Local\\Microsoft\\TeamsMediaPlugin\\Logs",
+      "source": "%LOCALAPPDATA%\\Packages\\Microsoft.Windows365_8wekyb3d8bbwe\\LocalCache\\Local\\Microsoft\\TeamsMediaPlugin\\Logs;%LOCALAPPDATA%\\Microsoft\\TeamsMediaPlugin\\Logs",
       "propertyAllowlist": [
         "Name",
         "Length",
@@ -485,6 +485,54 @@
       "privacyClass": "personal",
       "learnClaim": "ref:windows-snipping-tool#capture",
       "learnUrl": "https://learn.microsoft.com/windows/whats-new/deprecated-features"
+    },
+    {
+      "id": "session.teams-media-flag",
+      "mode": "session",
+      "category": "protocol",
+      "kind": "registry",
+      "source": "HKLM:\\SOFTWARE\\Microsoft\\Teams",
+      "propertyAllowlist": [
+        "IsWVDEnvironment",
+        "DisableAutoUpdate"
+      ],
+      "requiresAdmin": "no",
+      "privacyClass": "facts",
+      "learnClaim": "ref:teams-vdi-2#registry",
+      "learnUrl": "https://learn.microsoft.com/microsoftteams/vdi-2-troubleshooting"
+    },
+    {
+      "id": "device.appx-nonadmin-policy",
+      "mode": "device",
+      "category": "policy",
+      "kind": "registry",
+      "source": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\Appx",
+      "propertyAllowlist": [
+        "BlockNonAdminUserInstall",
+        "AllowAllTrustedApps",
+        "AllowDevelopmentWithoutDevLicense"
+      ],
+      "requiresAdmin": "no",
+      "privacyClass": "facts",
+      "learnClaim": "ref:teams-vdi-2#endpoint-msix",
+      "learnUrl": "https://learn.microsoft.com/microsoftteams/vdi-2-troubleshooting"
+    },
+    {
+      "id": "device.appx-deployment-events",
+      "mode": "device",
+      "category": "events",
+      "kind": "event-log",
+      "source": "Microsoft-Windows-AppXDeploymentServer/Operational",
+      "propertyAllowlist": [
+        "Id",
+        "LevelDisplayName",
+        "ProviderName",
+        "TimeCreated"
+      ],
+      "requiresAdmin": "no",
+      "privacyClass": "personal",
+      "learnClaim": "ref:teams-vdi-2#endpoint-msix",
+      "learnUrl": "https://learn.microsoft.com/microsoftteams/vdi-2-troubleshooting"
     }
   ]
 }

@@ -43,11 +43,28 @@ param(
 
     [Parameter(Mandatory = $false)]
     [ValidateSet('commercial', 'usgov')]
-    [string]$Cloud
+    [string]$Cloud,
+
+    [Parameter(Mandatory = $false)]
+    [ValidateSet('Full', 'Summary')]
+    [string]$Mode = 'Full',
+
+    [Parameter(Mandatory = $false)]
+    [switch]$Light,
+
+    [Parameter(Mandatory = $false)]
+    [string]$Stamp = '',
+
+    [Parameter(Mandatory = $false)]
+    [switch]$IncludeIds
 )
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
+
+if ($Light) { $Mode = 'Summary' }
+$script:IsSummaryMode = ($Mode -eq 'Summary')
+if ([string]::IsNullOrWhiteSpace($Stamp)) { $Stamp = Get-Date -Format 'yyyy-MM-dd' }
 
 # ---------------------------------------------
 # region Cloud Shell Detection
@@ -319,38 +336,50 @@ Write-Log '==================================================='
 Write-Log ' AVD Current State Collector'
 Write-Log '==================================================='
 Write-Log "Run timestamp : $script:Timestamp"
-Write-Log "Output target : $script:RootDir"
+Write-Log "Mode          : $Mode"
+Write-Log "Output target : $(if ($script:IsSummaryMode) { $OutputPath } else { $script:RootDir })"
 if ($script:IsCloudShell) {
     Write-Log "Environment   : Azure Cloud Shell detected -- output defaults to ~/clouddrive for persistence."
 }
 
-# Resource Graph and REST go through Invoke-AzRestMethod (Az.Accounts). Az.Resources keeps the
-# policy and role assignment datasets and the access check.
-$requiredModules = @(
-    'Az.Accounts',
-    'Az.Resources'
-)
-
-foreach ($mod in $requiredModules) {
-    Ensure-Module -ModuleName $mod
+$script:UseAzCli = $false
+if ($script:IsSummaryMode) {
+    $azAccountsAvail = Get-Module -ListAvailable -Name 'Az.Accounts'
+    if ($azAccountsAvail) {
+        Import-Module 'Az.Accounts' -ErrorAction Stop
+    } elseif (Get-Command 'az' -ErrorAction SilentlyContinue) {
+        $script:UseAzCli = $true
+    } else {
+        Ensure-Module -ModuleName 'Az.Accounts'
+    }
+} else {
+    # Resource Graph and REST go through Invoke-AzRestMethod (Az.Accounts). Az.Resources keeps the
+    # policy and role assignment datasets and the access check.
+    foreach ($mod in @('Az.Accounts', 'Az.Resources')) {
+        Ensure-Module -ModuleName $mod
+    }
 }
 
-Write-Log "Az modules loaded."
+Write-Log "Azure client ready (mode: $Mode)."
 
 # Rebuild-fidelity reads (docs/rebuild-fidelity-spec.md): pure helpers and the scope of what is read.
 Import-Module (Join-Path $PSScriptRoot 'lib/AvdRebuild.psm1') -Force
-Import-Module (Join-Path $PSScriptRoot 'lib/AvdRebuildMap.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot 'lib/AvdPortalState.psm1') -Force
-$script:RebuildScope    = Get-RebuildScope -Path (Join-Path $PSScriptRoot 'rebuild/scope.json')
-$script:RebuildReads    = [System.Collections.Generic.List[psobject]]::new()
-$script:RebuildWithheld = [System.Collections.Generic.List[psobject]]::new()
-$script:RebuildCoverage = [System.Collections.Generic.List[psobject]]::new()
-$script:RebuildRest     = @{}
-$script:LzParameters    = Get-Content -Raw -Path (Join-Path $PSScriptRoot 'rebuild/lz-parameters.json') | ConvertFrom-Json
-$script:SelectedPlanes  = Resolve-AvdPlanes -Planes $Planes
-$script:PlanesCollected = [ordered]@{}
-Write-Log "Planes target : $($script:SelectedPlanes -join ', ')"
-Write-Log "Rebuild scope : $(@($script:RebuildScope.resourceGraph).Count) Resource Graph types, $(@($script:RebuildScope.rest).Count) REST reads (landing zone $($script:RebuildScope.landingZoneCommit.Substring(0, 7)))."
+if ($script:IsSummaryMode) {
+    Import-Module (Join-Path $PSScriptRoot 'lib/AvdSummary.psm1') -Force
+} else {
+    Import-Module (Join-Path $PSScriptRoot 'lib/AvdRebuildMap.psm1') -Force
+    $script:RebuildScope    = Get-RebuildScope -Path (Join-Path $PSScriptRoot 'rebuild/scope.json')
+    $script:RebuildReads    = [System.Collections.Generic.List[psobject]]::new()
+    $script:RebuildWithheld = [System.Collections.Generic.List[psobject]]::new()
+    $script:RebuildCoverage = [System.Collections.Generic.List[psobject]]::new()
+    $script:RebuildRest     = @{}
+    $script:LzParameters    = Get-Content -Raw -Path (Join-Path $PSScriptRoot 'rebuild/lz-parameters.json') | ConvertFrom-Json
+    $script:SelectedPlanes  = Resolve-AvdPlanes -Planes $Planes
+    $script:PlanesCollected = [ordered]@{}
+    Write-Log "Planes target : $($script:SelectedPlanes -join ', ')"
+    Write-Log "Rebuild scope : $(@($script:RebuildScope.resourceGraph).Count) Resource Graph types, $(@($script:RebuildScope.rest).Count) REST reads (landing zone $($script:RebuildScope.landingZoneCommit.Substring(0, 7)))."
+}
 
 # endregion
 
@@ -358,18 +387,42 @@ Write-Log "Rebuild scope : $(@($script:RebuildScope.resourceGraph).Count) Resour
 # region Authentication
 # ---------------------------------------------
 
-$context = Get-AzContext -ErrorAction SilentlyContinue
-if (-not $context) {
-    $targetAzEnv = if ($Cloud -eq 'usgov') { 'AzureUSGovernment' } else { 'AzureCloud' }
-    Write-Log "No active Azure context -- launching interactive login ($targetAzEnv) ..."
-    try {
-        Connect-AzAccount -Environment $targetAzEnv -ErrorAction Stop | Out-Null
-        $context = Get-AzContext
-    } catch {
-        Write-Log "Authentication failed: $($_.Exception.Message)" -Level ERROR
-        throw "Unable to authenticate to $targetAzEnv. Exiting."
+$context = $null
+if (-not $script:UseAzCli) {
+    $context = Get-AzContext -ErrorAction SilentlyContinue
+    if (-not $context -and $script:IsSummaryMode -and (Get-Command 'az' -ErrorAction SilentlyContinue)) {
+        $azCheck = & az account show --output json 2>$null
+        if ($LASTEXITCODE -eq 0 -and $azCheck) {
+            $script:UseAzCli = $true
+        }
     }
 }
+
+if ($script:UseAzCli) {
+    $azAccountRaw = & az account show --output json 2>$null
+    if ($LASTEXITCODE -ne 0 -or -not $azAccountRaw) {
+        throw 'No active Azure CLI session. Run az login or Connect-AzAccount.'
+    }
+    $azAcct = $azAccountRaw | ConvertFrom-Json
+    $context = [pscustomobject]@{
+        Account     = [pscustomobject]@{ Id = "$(Get-PropValue $azAcct @('user.name') 'az-cli')" }
+        Tenant      = [pscustomobject]@{ Id = "$(Get-PropValue $azAcct @('tenantId') '')" }
+        Environment = [pscustomobject]@{ Name = "$(Get-PropValue $azAcct @('environmentName') 'AzureCloud')" }
+    }
+} else {
+    if (-not $context) {
+        $targetAzEnv = if ($Cloud -eq 'usgov') { 'AzureUSGovernment' } else { 'AzureCloud' }
+        Write-Log "No active Azure context -- launching interactive login ($targetAzEnv) ..."
+        try {
+            Connect-AzAccount -Environment $targetAzEnv -ErrorAction Stop | Out-Null
+            $context = Get-AzContext
+        } catch {
+            Write-Log "Authentication failed: $($_.Exception.Message)" -Level ERROR
+            throw "Unable to authenticate to $targetAzEnv. Exiting."
+        }
+    }
+}
+
 $activeAzEnv = "$(Get-PropValue $context @('Environment.Name') 'AzureCloud')"
 if ([string]::IsNullOrWhiteSpace($Cloud)) {
     if ($activeAzEnv -eq 'AzureUSGovernment') {
@@ -385,7 +438,7 @@ $expectedAzEnv = "$(Get-RebuildValue $cloudConfig 'azPowerShellEnvironment' 'Azu
 if ($activeAzEnv -ne $expectedAzEnv) {
     throw "Cloud environment mismatch: -Cloud is '$Cloud' (expects Az environment '$expectedAzEnv') but active AzContext is '$activeAzEnv'."
 }
-if ($script:SelectedPlanes | Where-Object { $_ -in @('entra', 'intune', 'm365') }) {
+if (-not $script:IsSummaryMode -and ($script:SelectedPlanes | Where-Object { $_ -in @('entra', 'intune', 'm365') })) {
     if (Get-Command Get-MgContext -ErrorAction SilentlyContinue) {
         $mgCtx = Get-MgContext -ErrorAction SilentlyContinue
         if ($null -ne $mgCtx -and $null -ne $mgCtx.PSObject.Properties['Environment'] -and -not [string]::IsNullOrWhiteSpace("$($mgCtx.Environment)")) {
@@ -396,7 +449,7 @@ if ($script:SelectedPlanes | Where-Object { $_ -in @('entra', 'intune', 'm365') 
         }
     }
 }
-Write-Log "Authenticated as $($context.Account.Id) in tenant $($context.Tenant.Id) (cloud: $Cloud / $activeAzEnv)."
+Write-Log "Authenticated to cloud: $Cloud / $activeAzEnv."
 
 # endregion
 
@@ -405,10 +458,21 @@ Write-Log "Authenticated as $($context.Account.Id) in tenant $($context.Tenant.I
 # ---------------------------------------------
 
 Write-Log 'Discovering subscriptions ...'
-# @() because one typed subscription object has no .Count under Set-StrictMode (first real run, 2026-10-21).
-$allSubs = @(Get-AzSubscription -ErrorAction Stop |
-    Where-Object { $_.State -eq 'Enabled' } |
-    Sort-Object Name)
+if ($script:UseAzCli) {
+    $azSubsRaw = & az account list --output json 2>$null
+    if ($LASTEXITCODE -ne 0 -or -not $azSubsRaw) {
+        throw 'Failed to list subscriptions via Azure CLI.'
+    }
+    $allSubs = @($azSubsRaw | ConvertFrom-Json |
+        Where-Object { $_.state -eq 'Enabled' } |
+        ForEach-Object { [pscustomobject]@{ Id = $_.id; Name = $_.name; State = $_.state } } |
+        Sort-Object Name)
+} else {
+    # @() because one typed subscription object has no .Count under Set-StrictMode (first real run, 2026-10-21).
+    $allSubs = @(Get-AzSubscription -ErrorAction Stop |
+        Where-Object { $_.State -eq 'Enabled' } |
+        Sort-Object Name)
+}
 
 if ($allSubs.Count -eq 0) {
     Write-Log 'No enabled subscriptions visible to this identity.' -Level ERROR
@@ -437,6 +501,99 @@ if ($SubscriptionNames -and $SubscriptionNames.Count -gt 0) {
 }
 
 # endregion
+
+if ($script:IsSummaryMode) {
+    $armBase = "$(Get-RebuildValue $cloudConfig 'armEndpoint' 'https://management.azure.com')".TrimEnd('/')
+    if ($script:UseAzCli) {
+        $summaryGraph = {
+            param($body)
+            $payload = $body | ConvertTo-Json -Depth 5 -Compress
+            $tmpFile = [System.IO.Path]::GetTempFileName()
+            try {
+                [System.IO.File]::WriteAllText($tmpFile, $payload, (New-Object System.Text.UTF8Encoding($false)))
+                $out = & az rest --method post --url "$armBase/providers/Microsoft.ResourceGraph/resources?api-version=2022-10-01" --body "@$tmpFile" --headers 'Content-Type=application/json' --output json 2>&1
+                $code = if ($LASTEXITCODE -eq 0) { 200 } else { 500 }
+                return @{ StatusCode = $code; Content = ($out | Out-String) }
+            } finally {
+                if (Test-Path $tmpFile) { Remove-Item -LiteralPath $tmpFile -Force -ErrorAction SilentlyContinue }
+            }
+        }
+        $summaryRest = {
+            param($path)
+            $url = if ("$path" -match '^https?://') { "$path" } else { "$armBase$path" }
+            $out = & az rest --method get --url $url --output json 2>&1
+            $code = if ($LASTEXITCODE -eq 0) { 200 } else { 500 }
+            return @{ StatusCode = $code; Content = ($out | Out-String) }
+        }
+    } else {
+        $summaryGraph = {
+            param($body)
+            $r = Invoke-AzRestMethod -Method POST -Path '/providers/Microsoft.ResourceGraph/resources?api-version=2022-10-01' -Payload ($body | ConvertTo-Json -Depth 5 -Compress)
+            @{ StatusCode = $r.StatusCode; Content = $r.Content }
+        }
+        $summaryRest = {
+            param($path)
+            $r = Invoke-AzRestMethod -Method GET -Path $path
+            @{ StatusCode = $r.StatusCode; Content = $r.Content }
+        }
+    }
+
+    $summaryLog = { param($Message, $Level) Write-Log $Message -Level $Level }
+    $subSummaries = [System.Collections.Generic.List[psobject]]::new()
+    $skippedSummarySubs = [System.Collections.Generic.List[psobject]]::new()
+
+    foreach ($sub in $targetSubs) {
+        $subName = $sub.Name
+        $subId   = $sub.Id
+        Write-Log "Summarizing subscription: $subName"
+        if (-not $script:UseAzCli) {
+            try {
+                Set-AzContext -SubscriptionId $subId -ErrorAction Stop | Out-Null
+            } catch {
+                Write-Log "Cannot set context for '$subName': $($_.Exception.Message)" -Level WARN
+                $skippedSummarySubs.Add([pscustomobject]@{
+                    SubscriptionName = $subName; SubscriptionId = $subId
+                    Status = 'ContextFailed'; Reason = $_.Exception.Message
+                })
+                continue
+            }
+        }
+        $res = Invoke-AvdSummarySubscription -SubscriptionId $subId -SubscriptionName $subName `
+            -GraphInvoker $summaryGraph -RestInvoker $summaryRest -Log $summaryLog -IncludeIds:$IncludeIds
+        $subSummaries.Add($res)
+    }
+
+    $inventory = New-AvdSummaryInventory `
+        -SubscriptionSummaries $subSummaries.ToArray() `
+        -SkippedSubscriptions $skippedSummarySubs.ToArray() `
+        -Stamp $Stamp `
+        -TenantId "$($context.Tenant.Id)" `
+        -Warnings $script:Warnings.ToArray() `
+        -IncludeIds:$IncludeIds
+
+    $written = Write-AvdSummaryInventory -Inventory $inventory -OutputPath $OutputPath -IncludeIds:$IncludeIds
+
+    Write-Log '==================================================='
+    Write-Log ' Summary Collection Complete'
+    Write-Log '==================================================='
+    Write-Log "Summary         : $($written.Summary)"
+    Write-Log "Markdown        : $($written.MdPath)"
+    Write-Log "JSON            : $($written.JsonPath)"
+    Write-Log '==================================================='
+
+    $stateStatus = if ($inventory.totals.subscriptionsCollected -eq 0) { 'failed' } elseif ($inventory.totals.subscriptionsSkipped -gt 0) { 'partial' } else { 'done' }
+    $stateCounts = @{
+        subscriptions = [int]$inventory.totals.subscriptionsCollected
+        skipped       = [int]$inventory.totals.subscriptionsSkipped
+        datasets      = 7
+        rows          = [int]$inventory.totals.armResources
+        hostPools     = [int]$inventory.totals.hostPools
+        sessionHosts  = [int]$inventory.totals.sessionHosts
+        warnings      = [int]@($inventory.warnings).Count
+    }
+    Write-Host (Get-AvdcsStateLine -Stage 'collect' -Status $stateStatus -Context @{ package = $Stamp } -Counts $stateCounts)
+    return
+}
 
 # ---------------------------------------------
 # region Create Output Structure
