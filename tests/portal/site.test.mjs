@@ -79,9 +79,11 @@ test('the portal opens in the avd-ops shell bar, with the credit line', () => {
   assert.match(notice, /MIT License/);
   assert.match(notice, /Not affiliated with, endorsed by or supported by the author's employer/);
   assert.match(notice, /Not a certification, a compliance attestation or a security audit\./);
-  assert.match(bar, /<a href="https:\/\/deploy\.avd-ops\.dev\/portal\/">Deploy<\/a><a href="\.\/" aria-current="page">Assess<\/a><a href="https:\/\/status\.avd-ops\.dev\/status\/">Status<\/a>/);
+  assert.match(bar, /<a href="https:\/\/avd-ops\.app\/deploy\/">Deploy<\/a><a href="\.\/" aria-current="page">Assess<\/a><a href="https:\/\/avd-ops\.app\/migrate\/">Migrate<\/a><a href="https:\/\/avd-ops\.app\/status\/">Status<\/a>/);
+  const statusBar = (read('site/status/index.html').match(/<header class="bar">([\s\S]*?)<\/header>/) || [])[1] || '';
+  assert.match(statusBar, /<a href="https:\/\/avd-ops\.app\/deploy\/">Deploy<\/a><a href="https:\/\/avd-ops\.app\/assess\/">Assess<\/a><a href="https:\/\/avd-ops\.app\/migrate\/">Migrate<\/a><a href="\.\/" aria-current="page">Status<\/a>/);
   const rootHtml = read('site/index.html');
-  assert.match(rootHtml, /assess\.avd-ops\.dev/);
+  assert.match(rootHtml, /avd-ops\.app\/assess\//);
   assert.match(rootHtml, /content="0; url=portal\/"/);
   assert.match(bar, /class="iconbtn dev"/);
   assert.match(bar, /class="iconbtn theme"/);
