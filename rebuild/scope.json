@@ -52,6 +52,8 @@
     { "table": "resources", "type": "microsoft.network/virtualhubs", "serves": ["inventory:diagram"] },
     { "table": "resources", "type": "microsoft.network/vpnsites", "serves": ["inventory:diagram"] },
     { "table": "resources", "type": "microsoft.network/azurefirewalls", "serves": ["hubFirewallPrivateIp", "inventory:diagram"] },
+    { "table": "resources", "type": "microsoft.network/firewallpolicies", "serves": ["inventory:diagram"] },
+    { "table": "resources", "type": "microsoft.network/dnsresolvers", "serves": ["dnsServers", "inventory:diagram"] },
     { "table": "resources", "type": "microsoft.network/bastionhosts", "serves": ["inventory:diagram"] },
     { "table": "resources", "type": "microsoft.network/loadbalancers", "serves": ["inventory:diagram"] },
     { "table": "resources", "type": "microsoft.network/applicationgateways", "serves": ["inventory:diagram"] },
