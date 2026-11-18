@@ -378,4 +378,29 @@ Describe 'Synthetic profile tree, junction/reparse guard and bundle zip generati
     $isoOut = & $outPs1 -Mode Device -OutputPath $isoDl -WhoamiGroups @('Medium Mandatory Level', 'S-1-16-8192') -RunUtc '2026-11-18T16:00:00Z' -UserProfile $isoProfile
     Test-Path -LiteralPath $isoOut.zipPath -PathType Leaf | Should -BeTrue
   }
+
+  It 'supports -SelfSign on Windows for lab testing and refreshes SHA-256' {
+    if (-not ($IsWindows -or ($PSVersionTable.PSVersion.Major -le 5))) {
+      Set-ItResult -Skipped -Because 'Authenticode self-signing requires Windows'
+      return
+    }
+    $buildScript = Join-Path $script:root 'scripts/Build-AvdLocalRelease.ps1'
+    $signedPs1 = Join-Path $TestDrive 'avd_current_state_local_signed.ps1'
+    $subj = 'CN=avd-ops-pester-test'
+    try {
+      $built = & $buildScript -OutputPath $signedPs1 -SelfSign -CertSubject $subj
+      $built.SelfSigned | Should -BeTrue
+      $sig = Get-AuthenticodeSignature -FilePath $signedPs1
+      $sig.SignerCertificate | Should -Not -BeNullOrEmpty
+      $sig.SignerCertificate.Subject | Should -Be $subj
+      $sig.Status | Should -Not -Be 'NotSigned'
+      $sig.Status | Should -Not -Be 'HashMismatch'
+      $expectedHash = (Get-FileHash -LiteralPath $signedPs1 -Algorithm SHA256).Hash.ToLowerInvariant()
+      (Get-Content -LiteralPath $built.Sha256Path -Raw).Trim() | Should -Match "^$expectedHash\s+"
+    } finally {
+      Get-ChildItem -LiteralPath 'Cert:\CurrentUser\My' -CodeSigningCert -ErrorAction SilentlyContinue |
+        Where-Object { $_.Subject -eq $subj } |
+        Remove-Item -Force -ErrorAction SilentlyContinue
+    }
+  }
 }

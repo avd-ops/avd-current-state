@@ -9,7 +9,9 @@
 #>
 [CmdletBinding()]
 param(
-    [string]$OutputPath = ''
+    [string]$OutputPath = '',
+    [switch]$SelfSign,
+    [string]$CertSubject = 'CN=avd-ops-local-test'
 )
 
 Set-StrictMode -Version Latest
@@ -86,12 +88,26 @@ if ($outDir -and (-not (Test-Path -LiteralPath $outDir -PathType Container))) {
 $assembled = $header + "`n" + $body.Trim() + "`n" + $footer.TrimStart()
 $assembled | Set-Content -LiteralPath $OutputPath -Encoding UTF8
 
+$signatureStatus = 'NotSigned'
+if ($SelfSign) {
+    $cert = Get-ChildItem -LiteralPath 'Cert:\CurrentUser\My' -CodeSigningCert -ErrorAction SilentlyContinue |
+        Where-Object { $_.Subject -eq $CertSubject } |
+        Select-Object -First 1
+    if (-not $cert) {
+        $cert = New-SelfSignedCertificate -Type CodeSigningCert -Subject $CertSubject -CertStoreLocation 'Cert:\CurrentUser\My'
+    }
+    $sig = Set-AuthenticodeSignature -FilePath $OutputPath -Certificate $cert
+    $signatureStatus = "$($sig.Status)"
+}
+
 $hash = (Get-FileHash -LiteralPath $OutputPath -Algorithm SHA256).Hash.ToLowerInvariant()
 $leaf = Split-Path -Path $OutputPath -Leaf
 "$hash  $leaf" | Set-Content -LiteralPath "$OutputPath.sha256" -Encoding ASCII
 
 return @{
-    OutputPath = $OutputPath
-    Sha256Path = "$OutputPath.sha256"
-    Sha256     = $hash
+    OutputPath      = $OutputPath
+    Sha256Path      = "$OutputPath.sha256"
+    Sha256          = $hash
+    SelfSigned      = [bool]$SelfSign
+    SignatureStatus = $signatureStatus
 }
