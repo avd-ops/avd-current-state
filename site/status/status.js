@@ -513,15 +513,41 @@
     });
   });
 
-  document.querySelectorAll('input[name="view-tab"]').forEach(function (radio) {
-    radio.addEventListener('change', function (e) {
-      var v = e.target.value;
-      document.getElementById('tab-estate').classList.toggle('hidden', v !== 'estate');
-      document.getElementById('tab-buddy').classList.toggle('hidden', v !== 'buddy');
-      document.getElementById('tab-automation').classList.toggle('hidden', v !== 'automation');
-      document.getElementById('preset-group').classList.toggle('hidden', v !== 'estate');
+  function setActiveView(v) {
+    document.getElementById('tab-estate').classList.toggle('hidden', v !== 'estate');
+    document.getElementById('tab-buddy').classList.toggle('hidden', v !== 'buddy');
+    document.getElementById('tab-automation').classList.toggle('hidden', v !== 'automation');
+    document.querySelectorAll('.wz-list button.step').forEach(function (btn) {
+      if (btn.getAttribute('data-view') === v) {
+        btn.setAttribute('aria-current', 'step');
+      } else {
+        btn.removeAttribute('aria-current');
+      }
+    });
+    document.querySelectorAll('.wz-progress button.seg').forEach(function (seg) {
+      seg.classList.toggle('current', seg.getAttribute('data-view') === v);
+    });
+  }
+
+  document.querySelectorAll('.wz-list button.step, .wz-progress button.seg').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var v = btn.getAttribute('data-view');
+      if (v) setActiveView(v);
     });
   });
+
+  var copyAutoBtn = document.getElementById('copy-automation-btn');
+  if (copyAutoBtn) {
+    copyAutoBtn.addEventListener('click', function () {
+      var cmd = document.getElementById('automation-cmd');
+      if (!cmd || !navigator.clipboard) return;
+      navigator.clipboard.writeText(cmd.textContent || '').then(function () {
+        var orig = copyAutoBtn.textContent;
+        copyAutoBtn.textContent = 'Copied';
+        setTimeout(function () { copyAutoBtn.textContent = orig; }, 1500);
+      });
+    });
+  }
 
   document.querySelectorAll('input[name="buddy-ver"]').forEach(function (radio) {
     radio.addEventListener('change', function (e) {
