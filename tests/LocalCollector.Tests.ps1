@@ -300,4 +300,57 @@ Describe 'Synthetic profile tree, junction/reparse guard and bundle zip generati
     $factsDoc.identity.idSource | Should -Be 'imds'
     $factsDoc.facts.'c11.hostPool.sessionHosts.localFslogixEnabled' | Should -BeTrue
   }
+
+  It 'collects Teams VDI and SlimCore log sources in Session and Device modes and skips missing paths cleanly' {
+    $sessProfile = Join-Path $TestDrive 'teams-sess'
+    $sessLogs = Join-Path $sessProfile 'AppData\Local\Packages\MSTeams_8wekyb3d8bbwe\LocalCache\Microsoft\MSTeams\Logs'
+    $sessDl = Join-Path $sessProfile 'Downloads'
+    $null = New-Item -Path $sessLogs -ItemType Directory -Force
+    $null = New-Item -Path $sessDl -ItemType Directory -Force
+    'loadErrc=16389' | Set-Content -LiteralPath (Join-Path $sessLogs 'vdi_debug.txt') -Encoding UTF8
+    'fake-zip' | Set-Content -LiteralPath (Join-Path $sessDl 'PROD-WebLogs-20261118.zip') -Encoding UTF8
+
+    $sessOut = Invoke-AvdLocalCollector -Mode Session -OutputPath $sessDl `
+      -WhoamiGroups @('Medium Mandatory Level', 'S-1-16-8192') `
+      -RunUtc '2026-11-18T12:30:00Z' -UserProfile $sessProfile
+
+    Test-Path -LiteralPath $sessOut.zipPath -PathType Leaf | Should -BeTrue
+    $sessMan = Get-Content -LiteralPath $sessOut.manifestPath -Raw | ConvertFrom-Json
+    @($sessMan.files | Where-Object { $_.sourcePath -match 'vdi_debug\.txt$' }).Count | Should -Be 1
+    @($sessMan.files | Where-Object { $_.sourcePath -match 'PROD-WebLogs-20261118\.zip$' }).Count | Should -Be 1
+
+    $devProfile = Join-Path $TestDrive 'teams-dev'
+    $slimLogs = Join-Path $devProfile 'AppData\Local\Microsoft\TeamsMediaPlugin\Logs'
+    $devDl = Join-Path $devProfile 'Downloads'
+    $null = New-Item -Path $slimLogs -ItemType Directory -Force
+    $null = New-Item -Path $devDl -ItemType Directory -Force
+    'SlimCore host plugin failed to register' | Set-Content -LiteralPath (Join-Path $slimLogs 'slimcore.log') -Encoding UTF8
+
+    $devOut = Invoke-AvdLocalCollector -Mode Device -OutputPath $devDl `
+      -WhoamiGroups @('Medium Mandatory Level', 'S-1-16-8192') `
+      -RunUtc '2026-11-18T12:31:00Z' -UserProfile $devProfile
+
+    Test-Path -LiteralPath $devOut.zipPath -PathType Leaf | Should -BeTrue
+    $devMan = Get-Content -LiteralPath $devOut.manifestPath -Raw | ConvertFrom-Json
+    @($devMan.files | Where-Object { $_.sourcePath -match 'slimcore\.log$' }).Count | Should -Be 1
+    @($devMan.skipped | Where-Object { $_.Reason -eq 'not-present' }).Count | Should -BeGreaterThan 0
+  }
+
+  It 'declares device.appx-deployment-events and handles missing event-log channels gracefully' {
+    $devSources = @(Get-AvdLocalSource -Mode Device)
+    $appxEvt = @($devSources | Where-Object { $_.id -eq 'device.appx-deployment-events' })
+    $appxEvt.Count | Should -Be 1
+    $appxEvt[0].kind | Should -Be 'event-log'
+
+    $stageEvt = Join-Path $TestDrive 'evt-stage'
+    $null = New-Item -Path $stageEvt -ItemType Directory -Force
+    $fakeSrc = [pscustomobject]@{
+      id                = 'test.missing-channel'
+      kind              = 'event-log'
+      source            = 'Avd-NonExistent-Channel/Operational'
+      propertyAllowlist = @('Id', 'LevelDisplayName', 'ProviderName', 'TimeCreated')
+    }
+    $res = Invoke-AvdLocalSourceCollection -Sources @($fakeSrc) -StageDir $stageEvt -UserProfile $TestDrive -Hours 24
+    @($res.Skipped | Where-Object { $_.Path -eq 'Avd-NonExistent-Channel/Operational' -and $_.Reason -eq 'not-present' }).Count | Should -Be 1
+  }
 }

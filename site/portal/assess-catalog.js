@@ -10,7 +10,7 @@
   'use strict';
   return {
     "method": 10,
-    "assessCommit": "ef8a99ed5d5cdef0dc663c8b22e2cac1b8006788",
+    "assessCommit": "1520836d7dd9d18c84c2fd87f040810f84932741",
     "landingZoneCommit": "ae6e80b574cccde570d0053d4c62b519d31052a8",
     "checks": {
       "asm-personal-start-vm-on-connect": {
@@ -1013,6 +1013,81 @@
           "kind": "lz-setting",
           "plane": "azure",
           "name": "storage-smb-channel-encryption-gcm"
+        }
+      },
+      "asm-gpu-no-compute-skus": {
+        "title": "GPU session hosts use NV-family graphics SKUs rather than NC/ND compute SKUs",
+        "plane": "azure",
+        "pillar": "performance",
+        "severity": "high",
+        "claims": [
+          "ref:avd-gpu-acceleration#no-compute-gpus",
+          "ref:avd-gpu-acceleration#supported-sizes"
+        ],
+        "remediation": {
+          "kind": "lz-parameter",
+          "plane": "azure",
+          "name": "sessionHostVmSize",
+          "to": "Standard_NV6ads_A10_v5"
+        }
+      },
+      "asm-gpu-no-retired-skus": {
+        "title": "GPU session hosts do not run retired NVv3 or NVv4 VM sizes",
+        "plane": "azure",
+        "pillar": "performance",
+        "severity": "medium",
+        "claims": [
+          "ref:avd-gpu-acceleration#supported-sizes"
+        ],
+        "remediation": {
+          "kind": "lz-parameter",
+          "plane": "azure",
+          "name": "sessionHostVmSize",
+          "to": "Standard_NV6ads_A10_v5"
+        }
+      },
+      "asm-gpu-driver-extension": {
+        "title": "GPU session hosts have an Azure-distributed NVIDIA or AMD GPU driver extension",
+        "plane": "azure",
+        "pillar": "performance",
+        "severity": "medium",
+        "claims": [
+          "ref:avd-gpu-acceleration#grid-driver-only"
+        ],
+        "remediation": {
+          "kind": "lz-setting",
+          "plane": "azure",
+          "name": "gpu-driver-extension"
+        }
+      },
+      "asm-gpu-grid-session-cap": {
+        "title": "Pooled NVIDIA GPU host pools cap maxSessionLimit at 25 concurrent users per GRID license",
+        "plane": "azure",
+        "pillar": "performance",
+        "severity": "high",
+        "claims": [
+          "ref:avd-gpu-acceleration#grid-license-25",
+          "ref:avd-gpu-acceleration#density-tradeoff"
+        ],
+        "remediation": {
+          "kind": "lz-parameter",
+          "plane": "azure",
+          "name": "maxSessionLimit",
+          "to": 25
+        }
+      },
+      "asm-gpu-graphics-diagnostics": {
+        "title": "GPU host pools send ConnectionGraphics diagnostics to Log Analytics",
+        "plane": "azure",
+        "pillar": "operations",
+        "severity": "medium",
+        "claims": [
+          "ref:wvdconnectiongraphicsdata-table#frame-drops-by-cause"
+        ],
+        "remediation": {
+          "kind": "lz-setting",
+          "plane": "azure",
+          "name": "hostpool-diagnostics"
         }
       }
     }

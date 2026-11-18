@@ -510,4 +510,38 @@ Describe 'avd_current_state_facts.ps1' {
     $outcome['asm-hosts-vulnerability-assessment'] | Should -Be 'warn'
     $outcome['asm-hosts-no-public-rdp'] | Should -Be 'pass'
   }
+
+  It 'collects graphicsDiagnosticsEnabled from host pool diagnostic settings and evaluates asm-gpu-graphics-diagnostics' {
+    $dir = Join-Path $TestDrive 'gpu-diag'
+    $pkg = New-TestCollector $dir -Stamp '20261011T090001'
+    $subDir = Join-Path $pkg 'Contoso_Production'
+    $laId = "/subscriptions/$($script:subId)/resourceGroups/rg-contoso-avd/providers/Microsoft.OperationalInsights/workspaces/la-contoso"
+    Write-TestJson "$subDir/virtual-machines.json" @(0..2 | ForEach-Object {
+      @{ Name = "avdhost-$_"; ResourceGroupName = 'rg-contoso-avd'; Location = 'eastus2'; VMSize = 'Standard_NV6ads_A10_v5'; OsType = 'Windows'
+        Id = "/subscriptions/$($script:subId)/resourceGroups/rg-contoso-avd/providers/Microsoft.Compute/virtualMachines/avdhost-$_" } })
+    Write-TestJson "$subDir/rebuild/rest/diagnostic-settings.json" @(
+      @{ parentId = $script:hpId; status = 'ok'; error = ''; items = @(
+        @{ properties = @{ workspaceId = $laId; logs = @(@{ category = 'ConnectionGraphics'; enabled = $true }) } }
+      ) })
+
+    $outPass = Join-Path $TestDrive 'out-gpu-diag-pass'
+    & $script:facts -PackagePath $pkg -KeyPath $script:key -OutputPath $outPass -Assess 6>$null | Out-Null
+    $snapText = Get-Content (Get-ChildItem $outPass -Filter 'avd-current-state-facts-*').FullName -Raw
+    Test-Json -Json $snapText -SchemaFile $script:schema -ErrorVariable errs -ErrorAction SilentlyContinue | Should -BeTrue -Because "$errs"
+    $snap = $snapText | ConvertFrom-Json
+    $snap.subscriptions[0].hostPools[0].graphicsDiagnosticsEnabled | Should -BeTrue
+    $rep = (Get-Content (Get-ChildItem $outPass -Filter 'avd-assessment-*').FullName -Raw) | ConvertFrom-Json
+    ($rep.results | Where-Object check -eq 'asm-gpu-graphics-diagnostics').outcome | Should -Be 'pass'
+
+    Write-TestJson "$subDir/rebuild/rest/diagnostic-settings.json" @(
+      @{ parentId = $script:hpId; status = 'ok'; error = ''; items = @(
+        @{ properties = @{ workspaceId = $laId; logs = @(@{ category = 'Connection'; enabled = $true }) } }
+      ) })
+    $outWarn = Join-Path $TestDrive 'out-gpu-diag-warn'
+    & $script:facts -PackagePath $pkg -KeyPath $script:key -OutputPath $outWarn -Assess 6>$null | Out-Null
+    $snapWarn = (Get-Content (Get-ChildItem $outWarn -Filter 'avd-current-state-facts-*').FullName -Raw) | ConvertFrom-Json
+    $snapWarn.subscriptions[0].hostPools[0].graphicsDiagnosticsEnabled | Should -BeFalse
+    $repWarn = (Get-Content (Get-ChildItem $outWarn -Filter 'avd-assessment-*').FullName -Raw) | ConvertFrom-Json
+    ($repWarn.results | Where-Object check -eq 'asm-gpu-graphics-diagnostics').outcome | Should -Be 'warn'
+  }
 }

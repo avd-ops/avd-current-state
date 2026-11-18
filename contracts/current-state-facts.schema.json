@@ -116,6 +116,7 @@
                 "validationEnvironment": { "$ref": "#/$defs/flag" },
                 "startVmOnConnect": { "$ref": "#/$defs/flag" },
                 "diagnosticsSetting": { "enum": ["all", "required", "partial", "none"] },
+                "graphicsDiagnosticsEnabled": { "$ref": "#/$defs/flag", "description": "Whether the host pool's diagnostic settings send ConnectionGraphics (or allLogs) to Log Analytics" },
                 "agentUpdate": {
                   "type": "object",
                   "additionalProperties": false,
@@ -207,7 +208,12 @@
                     "intuneConfigErrors": { "$ref": "#/$defs/count" },
                     "intuneBaselineApplied": { "$ref": "#/$defs/count" },
                     "hibernation": { "$ref": "#/$defs/count", "description": "Hosts whose VM has hibernationEnabled on in additionalCapabilities" },
-                    "untaggedForCost": { "$ref": "#/$defs/count", "description": "Hosts whose VM was read and carries neither cm-resource-parent nor a cost allocation tag" }
+                    "untaggedForCost": { "$ref": "#/$defs/count", "description": "Hosts whose VM was read and carries neither cm-resource-parent nor a cost allocation tag" },
+                    "gpuHosts": { "$ref": "#/$defs/count", "description": "Hosts running a GPU VM size (NV, NC, or ND family)" },
+                    "gpuComputeSkus": { "$ref": "#/$defs/count", "description": "Hosts running NC or ND compute GPU VM sizes" },
+                    "gpuRetiredSkus": { "$ref": "#/$defs/count", "description": "Hosts running retired NVv3 or NVv4 GPU VM sizes" },
+                    "gpuDriverMissing": { "$ref": "#/$defs/count", "description": "NV-family GPU hosts missing the Azure-distributed NVIDIA or AMD GPU driver VM extension" },
+                    "gpuMaxSessionOver25": { "$ref": "#/$defs/count", "description": "NVIDIA GPU hosts in a pooled host pool whose maxSessionLimit exceeds 25 concurrent users" }
                   }
                 },
                 "vmSizes": { "$ref": "#/$defs/countMap" },
@@ -382,6 +388,7 @@
         "assignmentFiltersCount": { "$ref": "#/$defs/count" },
         "multiSessionFilterPresent": { "type": "boolean" },
         "cloudPcFilterPresent": { "type": "boolean" },
+        "isolatedFilterPresent": { "type": "boolean" },
         "unfilteredAllDevicesPolicies": { "$ref": "#/$defs/count" },
         "cloudPcManagedCompliant": { "$ref": "#/$defs/count" },
         "cloudPcManagedNoncompliant": { "$ref": "#/$defs/count" },

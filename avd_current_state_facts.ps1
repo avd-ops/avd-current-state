@@ -501,6 +501,29 @@ function Get-SubscriptionFact {
         $item = @(Get-Prop $read 'items' @()) | Select-Object -First 1
         if ($null -ne $item) { $fileServices["$(Get-Prop $read 'parentId' '')".ToLowerInvariant()] = $item }
     }
+    $hpGraphicsDiag = @{}
+    foreach ($read in @(Read-JsonFile -Path (Join-Path $rebuild 'rest/diagnostic-settings.json'))) {
+        if ("$(Get-Prop $read 'status' '')" -ne 'ok') { continue }
+        $parentId = "$(Get-Prop $read 'parentId' '')".ToLowerInvariant()
+        if (-not $parentId) { continue }
+        $hasGfxDiag = $false
+        foreach ($dsItem in @(Get-Prop $read 'items' @())) {
+            $wsId = "$(Get-PathValue $dsItem 'properties.workspaceId' '')".Trim()
+            if (-not $wsId) { continue }
+            foreach ($logCfg in @(Get-PathValue $dsItem 'properties.logs' @())) {
+                $isEnabled = (Get-Prop $logCfg 'enabled')
+                if ($null -eq $isEnabled -or "$isEnabled".ToLowerInvariant() -ne 'true') { continue }
+                $cat = "$(Get-Prop $logCfg 'category' '')"
+                $grp = "$(Get-Prop $logCfg 'categoryGroup' '')"
+                if ($cat -eq 'ConnectionGraphics' -or $grp -eq 'allLogs') {
+                    $hasGfxDiag = $true
+                    break
+                }
+            }
+            if ($hasGfxDiag) { break }
+        }
+        $hpGraphicsDiag[$parentId] = $hasGfxDiag
+    }
     $pricingFile = Join-Path $rebuild 'resources/microsoft.security-pricings.json'
     $defenderPlans = $null
     if (Test-Path -LiteralPath $pricingFile) {
@@ -602,6 +625,63 @@ function Get-SubscriptionFact {
     $collected = $null
     if ($CollectedUtc) { $collected = [datetime]::Parse($CollectedUtc, [Globalization.CultureInfo]::InvariantCulture, [Globalization.DateTimeStyles]::RoundtripKind).ToUniversalTime() }
 
+    # Azure Local and Arc-enabled server inventory (optional rebuild datasets)
+    $hciClustersFile = Join-Path $rebuild 'resources/microsoft.azurestackhci-clusters.json'
+    $customLocFile = Join-Path $rebuild 'resources/microsoft.extendedlocation-customlocations.json'
+    $hciVmInstFile = Join-Path $rebuild 'resources/microsoft.azurestackhci-virtualmachineinstances.json'
+    $arcMachinesFile = Join-Path $rebuild 'resources/microsoft.hybridcompute-machines.json'
+    $arcExtFile = Join-Path $rebuild 'resources/microsoft.hybridcompute-machines-extensions.json'
+    $hasAzureLocalData = (Test-Path -LiteralPath $hciClustersFile) -or (Test-Path -LiteralPath $customLocFile) -or (Test-Path -LiteralPath $hciVmInstFile) -or (Test-Path -LiteralPath $arcMachinesFile)
+    $hciClusters = if (Test-Path -LiteralPath $hciClustersFile) { @(Read-JsonFile -Path $hciClustersFile | Where-Object { $null -ne $_ }) } else { @() }
+    $hciClusters23h2Plus = 0
+    foreach ($cl in $hciClusters) {
+        Add-KnownName (Get-Prop $cl 'name')
+        Add-KnownName (Get-Prop $cl 'id')
+        $status = "$(Get-PathValue $cl 'properties.status' '')".ToLowerInvariant()
+        $osVer = "$(Get-PathValue $cl 'properties.reportedProperties.clusterVersion' (Get-PathValue $cl 'properties.softwareAssuranceProperties.softwareAssuranceStatus' ''))"
+        $is23h2Plus = ($osVer -match '(^|[^0-9])(2[3-9]|[3-9][0-9])H[12]' -or $osVer -match '^10\.0\.(25398|26[0-9]{3})')
+        if ($status -in @('connected', 'connectedrecently', 'succeeded') -and ($is23h2Plus -or $osVer -eq '')) {
+            $hciClusters23h2Plus++
+        }
+    }
+    $customLocations = if (Test-Path -LiteralPath $customLocFile) { @(Read-JsonFile -Path $customLocFile | Where-Object { $null -ne $_ }) } else { @() }
+    foreach ($loc in $customLocations) {
+        Add-KnownName (Get-Prop $loc 'name')
+        Add-KnownName (Get-Prop $loc 'id')
+    }
+    $hciVmInstances = if (Test-Path -LiteralPath $hciVmInstFile) { @(Read-JsonFile -Path $hciVmInstFile | Where-Object { $null -ne $_ }) } else { @() }
+    $hciVmInstanceIds = @{}
+    foreach ($vmi in $hciVmInstances) {
+        Add-KnownName (Get-Prop $vmi 'name')
+        Add-KnownName (Get-Prop $vmi 'id')
+        $vmiId = "$(Get-Prop $vmi 'id' '')".ToLowerInvariant()
+        if ($vmiId) { $hciVmInstanceIds[$vmiId] = $true }
+    }
+    $arcMachines = if (Test-Path -LiteralPath $arcMachinesFile) { @(Read-JsonFile -Path $arcMachinesFile | Where-Object { $null -ne $_ }) } else { @() }
+    $arcMachineById = @{}
+    $arcConnectedMachines = 0
+    foreach ($am in $arcMachines) {
+        Add-KnownName (Get-Prop $am 'name')
+        Add-KnownName (Get-Prop $am 'id')
+        $amId = "$(Get-Prop $am 'id' '')".ToLowerInvariant()
+        $amStatus = "$(Get-PathValue $am 'properties.status' '')".ToLowerInvariant()
+        if ($amStatus -eq 'connected') { $arcConnectedMachines++ }
+        if ($amId) { $arcMachineById[$amId] = $amStatus }
+    }
+    $arcCloudDevExtFailedByMachine = @{}
+    if (Test-Path -LiteralPath $arcExtFile) {
+        foreach ($aext in @(Read-JsonFile -Path $arcExtFile)) {
+            Add-KnownName (Get-Prop $aext 'name')
+            Add-KnownName (Get-Prop $aext 'id')
+            $aextId = "$(Get-Prop $aext 'id' '')".ToLowerInvariant()
+            $aextType = "$(Get-PathValue $aext 'properties.type' (Get-Prop $aext 'name' ''))"
+            $aextState = "$(Get-PathValue $aext 'properties.provisioningState' '')"
+            if ($aextType -match 'CloudDeviceExtension' -and $aextState -ne 'Succeeded' -and $aextId -match '^(.+/providers/microsoft\.hybridcompute/machines/[^/]+)/extensions/') {
+                $arcCloudDevExtFailedByMachine[$Matches[1]] = $true
+            }
+        }
+    }
+
     # Host pools, keyed by name for the session hosts and by ID for the application groups
     $hostPools = @()
     $hpByName = @{}
@@ -644,6 +724,9 @@ function Get-SubscriptionFact {
         if ($null -ne $scaledPools -and $id) {
             $spMethod = if ($scaledPools.ContainsKey($id.ToLowerInvariant())) { 'power-management' } else { 'none' }
             $entry.scalingPlan = [ordered]@{ method = $spMethod }
+        }
+        if ($id -and $hpGraphicsDiag.ContainsKey($id.ToLowerInvariant())) {
+            $entry.graphicsDiagnosticsEnabled = [bool]$hpGraphicsDiag[$id.ToLowerInvariant()]
         }
         $hostPools += $entry
         $poolKey = "$(Get-Prop $hp 'Name' '')".ToLowerInvariant()
@@ -756,6 +839,41 @@ function Get-SubscriptionFact {
                 $entry.sessionHosts.untaggedForCost = [int]$untagged
             }
         }
+        $azureVmHosts = 0; $azureLocalHostCount = 0; $arcHostCount = 0; $arcAgentDisconnected = 0; $cloudDevExtFailed = 0
+        foreach ($h in $hosts) {
+            $resId = "$(Get-Prop $h 'ResourceId' '')".ToLowerInvariant()
+            if (-not $resId) { continue }
+            $isHci = ($resId -match '/providers/microsoft\.azurestackhci/virtualmachineinstances/' -or $hciVmInstanceIds.ContainsKey($resId))
+            $isArc = ($resId -match '/providers/microsoft\.hybridcompute/machines/' -or $arcMachineById.ContainsKey($resId))
+            if ($isHci) {
+                $azureLocalHostCount++
+                $arcHostCount++
+                $arcMachineId = if ($resId -match '^(.+/providers/microsoft\.hybridcompute/machines/[^/]+)') { $Matches[1] } else { '' }
+                if ($arcMachineId -and $arcMachineById.ContainsKey($arcMachineId)) {
+                    if ($arcMachineById[$arcMachineId] -ne 'connected') { $arcAgentDisconnected++ }
+                    if ($arcCloudDevExtFailedByMachine.ContainsKey($arcMachineId)) { $cloudDevExtFailed++ }
+                }
+            } elseif ($isArc) {
+                $arcHostCount++
+                if ($arcMachineById.ContainsKey($resId) -and $arcMachineById[$resId] -ne 'connected') { $arcAgentDisconnected++ }
+                if ($arcCloudDevExtFailedByMachine.ContainsKey($resId)) { $cloudDevExtFailed++ }
+            } elseif ($resId -match '/providers/microsoft\.compute/virtualmachines/') {
+                $azureVmHosts++
+            }
+        }
+        if ($hasAzureLocalData -or $azureLocalHostCount -gt 0 -or $arcHostCount -gt 0) {
+            if ($azureLocalHostCount -gt 0 -and $azureVmHosts -gt 0) {
+                $entry.hostPlacement = 'mixed'
+            } elseif ($azureLocalHostCount -gt 0) {
+                $entry.hostPlacement = 'azure-local'
+            } elseif ($azureVmHosts -gt 0) {
+                $entry.hostPlacement = 'azure'
+            }
+            $entry.sessionHosts.azureLocalHosts = [int]$azureLocalHostCount
+            $entry.sessionHosts.arcConnected = [int]$arcHostCount
+            $entry.sessionHosts.arcAgentDisconnected = [int]$arcAgentDisconnected
+            $entry.sessionHosts.cloudDeviceExtensionFailed = [int]$cloudDevExtFailed
+        }
         if ($hasBackupItems) {
             $entry.sessionHosts.backupProtected = [int]@($hosts | Where-Object { $backupVmIds.ContainsKey("$(Get-Prop $_ 'ResourceId' '')".ToLowerInvariant()) }).Count
         }
@@ -768,6 +886,7 @@ function Get-SubscriptionFact {
             $entry.sessionHosts.edrMissing = [int]@($hosts | Where-Object { $edrMissingVms.ContainsKey("$(Get-Prop $_ 'ResourceId' '')".ToLowerInvariant()) }).Count
             $entry.sessionHosts.vulnerabilityFindings = [int]@($hosts | Where-Object { $vulnFindingVms.ContainsKey("$(Get-Prop $_ 'ResourceId' '')".ToLowerInvariant()) }).Count
         }
+        $gpuExtByVm = @{}
         if ($extRows.Count -gt 0 -or $ds['vm-extensions'].Count -gt 0) {
             $hostVmNames = @{}
             foreach ($h in $hosts) {
@@ -782,6 +901,7 @@ function Get-SubscriptionFact {
                     $vmName = if ($parts.Count -gt 8) { $parts[8].ToLowerInvariant() } else { '' }
                     if (-not $hostVmNames.ContainsKey($vmName)) { continue }
                     $extType = "$(Get-PathValue $ext 'properties.type' '')"
+                    if ($extType -in @('NvidiaGpuDriverWindows', 'AmdGpuDriverWindows')) { $gpuExtByVm[$vmName] = $true }
                     if ($extType -eq 'AADLoginForWindows') {
                         $entraJoined++
                         if ("$(Get-PathValue $ext 'properties.settings.mdmId' '')" -ne '') { $intuneEnroll++ }
@@ -794,6 +914,7 @@ function Get-SubscriptionFact {
                     $vmName = "$(Get-Prop $ext 'VMName' '')".ToLowerInvariant()
                     if (-not $hostVmNames.ContainsKey($vmName)) { continue }
                     $extType = "$(Get-Prop $ext 'ExtensionType' '')"
+                    if ($extType -in @('NvidiaGpuDriverWindows', 'AmdGpuDriverWindows')) { $gpuExtByVm[$vmName] = $true }
                     if ($extType -eq 'AADLoginForWindows') { $entraJoined++ }
                     elseif ($extType -eq 'JsonADDomainExtension') { $domainJoined++ }
                 }
@@ -825,6 +946,28 @@ function Get-SubscriptionFact {
                 }).Count
         }
         $entry.vmSizes = Get-CountMap @($vms | ForEach-Object { Get-Prop $_ 'VMSize' }) '^Standard_[A-Za-z0-9_]{1,40}$'
+        if ($vms.Count -gt 0) {
+            $gpuHosts = 0; $gpuComputeSkus = 0; $gpuRetiredSkus = 0; $gpuDriverMissing = 0; $gpuMaxSessionOver25 = 0
+            $hasExtData = ($extRows.Count -gt 0 -or $ds['vm-extensions'].Count -gt 0)
+            foreach ($vm in $vms) {
+                $sz = "$(Get-Prop $vm 'VMSize' '')"
+                if ($sz -match '^Standard_(NV|NC|ND)') { $gpuHosts++ }
+                if ($sz -match '^Standard_(NC|ND)') { $gpuComputeSkus++ }
+                if ($sz -match '^Standard_NV[0-9]+(s_v3|as_v4)$') { $gpuRetiredSkus++ }
+                if ($sz -match '^Standard_NV') {
+                    $vmKey = ("$(Get-Prop $vm 'VMName' '')" -split '/')[-1].ToLowerInvariant()
+                    if ($hasExtData -and $vmKey -and -not $gpuExtByVm.ContainsKey($vmKey)) { $gpuDriverMissing++ }
+                    if ($entry.type -eq 'Pooled' -and $null -ne $entry.maxSessionLimit -and $entry.maxSessionLimit -gt 25 -and $sz -notmatch '(as_v4|V710)') {
+                        $gpuMaxSessionOver25++
+                    }
+                }
+            }
+            $entry.sessionHosts.gpuHosts = [int]$gpuHosts
+            $entry.sessionHosts.gpuComputeSkus = [int]$gpuComputeSkus
+            $entry.sessionHosts.gpuRetiredSkus = [int]$gpuRetiredSkus
+            $entry.sessionHosts.gpuMaxSessionOver25 = [int]$gpuMaxSessionOver25
+            if ($hasExtData) { $entry.sessionHosts.gpuDriverMissing = [int]$gpuDriverMissing }
+        }
         $images = @{}
         foreach ($vm in $vms) {
             $publisher = "$(Get-Prop $vm 'ImagePublisher' '')"
@@ -948,6 +1091,15 @@ function Get-SubscriptionFact {
         roleAssignments = [ordered]@{
             roles       = Get-CountMap $roles '^[A-Za-z][A-Za-z ]{1,63}$'
             objectTypes = Get-CountMap @($ds['role-assignments'] | ForEach-Object { Get-Prop $_ 'ObjectType' }) '^[A-Za-z]{2,40}$'
+        }
+    }
+    if ($hasAzureLocalData) {
+        $result.azureLocal = [ordered]@{
+            clusters                       = [int]@($hciClusters).Count
+            clustersRegistered23h2Plus     = [int]$hciClusters23h2Plus
+            customLocations                = [int]@($customLocations).Count
+            vmInstances                    = [int]@($hciVmInstances).Count
+            connectedMachineAgentConnected = [int]$arcConnectedMachines
         }
     }
     $nsgRebuildFile = Join-Path $rebuild 'resources/microsoft.network-networksecuritygroups.json'
@@ -1082,6 +1234,7 @@ function Get-IntuneFact {
     $updateRing = @($profiles | Where-Object { Test-True (Get-Prop $_ 'multiSessionUpdateRingAssigned') -or "$(Get-Prop $_ 'category' '')" -eq 'updateRing' }).Count -gt 0
     $msFilter = @($filters | Where-Object { "$(Get-Prop $_ 'rule' '')" -match 'ServerRdsh' }).Count -gt 0
     $cpcFilter = @($filters | Where-Object { "$(Get-Prop $_ 'rule' '')" -match 'Cloud PC' }).Count -gt 0
+    $isoFilter = @($filters | Where-Object { "$(Get-Prop $_ 'rule' '')" -match 'avd-iso-' }).Count -gt 0
     $unfilteredAll = @($profiles | Where-Object { Test-True (Get-Prop $_ 'unfilteredAllDevices') }).Count
     $cpcCompliant = @($devices | Where-Object { "$(Get-Prop $_ 'model' '')" -like 'Cloud PC*' -and "$(Get-Prop $_ 'complianceState' '')" -eq 'compliant' }).Count
     $cpcNoncompliant = @($devices | Where-Object { "$(Get-Prop $_ 'model' '')" -like 'Cloud PC*' -and "$(Get-Prop $_ 'complianceState' '')" -eq 'noncompliant' }).Count
@@ -1097,6 +1250,7 @@ function Get-IntuneFact {
         assignmentFiltersCount         = [int]$filters.Count
         multiSessionFilterPresent      = [bool]$msFilter
         cloudPcFilterPresent           = [bool]$cpcFilter
+        isolatedFilterPresent          = [bool]$isoFilter
         unfilteredAllDevicesPolicies   = [int]$unfilteredAll
         cloudPcManagedCompliant        = [int]$cpcCompliant
         cloudPcManagedNoncompliant     = [int]$cpcNoncompliant
