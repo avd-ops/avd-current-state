@@ -2,8 +2,8 @@
   "$schema": "https://datapackage.org/profiles/2.0/datapackage.json",
   "name": "avd-assess",
   "title": "avd-assess: the AVD assessment map",
-  "version": "3.1.0",
-  "created": "2026-11-16T17:06:29-06:00",
+  "version": "4.0.0",
+  "created": "2026-11-18T16:05:13-06:00",
   "homepage": "https://github.com/avd-ops/avd-assess",
   "description": "Personal project, not for production, as is; not affiliated with the author's employer, Liquidware or Microsoft.",
   "licenses": [
@@ -19,8 +19,8 @@
     }
   ],
   "avdAssess": {
-    "commit": "1520836d7dd9d18c84c2fd87f040810f84932741",
-    "tag": "v3.1.0",
+    "commit": "bb35da95f283b26a4c47677a51cc3c0253414524",
+    "tag": "v4.0.0",
     "profile": "avd-assess-bundle/v1"
   },
   "resources": [
@@ -263,8 +263,8 @@
       "path": "contracts/fact-register.json",
       "format": "json",
       "mediatype": "application/json",
-      "bytes": 88001,
-      "hash": "sha256:350d8d0fe1d38c1caf61ff81ad3edca0253174c22342892e48549b98513b6c19",
+      "bytes": 90892,
+      "hash": "sha256:19bb33fa2b1288971b8b38166bd0a9adf3f7c826cb1cc2ac783d2e4da63af65c",
       "schemaString": "avd-fact-register/v1",
       "jsonSchema": "contracts/schemas/fact-register.schema.json",
       "idPaths": [
@@ -345,16 +345,16 @@
       "path": "contracts/schemas/assessment.schema.json",
       "format": "json",
       "mediatype": "application/json",
-      "bytes": 7259,
-      "hash": "sha256:6597b9a08e0db64c79e091713194af7a27bbd79015071507fa1df8b8bea736e3"
+      "bytes": 7279,
+      "hash": "sha256:c4ebca42b1eddb442cf54e774009d8ad9a0192ad5051b2f75c3a1a44b51058bb"
     },
     {
       "name": "schema-benchmark-result",
       "path": "contracts/schemas/benchmark-result.schema.json",
       "format": "json",
       "mediatype": "application/json",
-      "bytes": 9349,
-      "hash": "sha256:1d7967b2c4dac6306acc250e45dc3be3ed4e9ae6df9387aa591fef59e84fe8ed"
+      "bytes": 10975,
+      "hash": "sha256:3a5b48ea94982caa31f6de1b6fbe3ddf55fdadd3790bf29f6a702ddc431925e2"
     },
     {
       "name": "schema-check-catalog",
@@ -377,8 +377,8 @@
       "path": "contracts/schemas/current-state-facts.schema.json",
       "format": "json",
       "mediatype": "application/json",
-      "bytes": 27712,
-      "hash": "sha256:40b50deed090bbca59302c3b9770fad99785d4dc46ead50c792855aa4d99f6e9"
+      "bytes": 29136,
+      "hash": "sha256:dbc15c3c3a78970e52cc08744a1c3bd68dee21d117815a98aa2c32c3558dd4c9"
     },
     {
       "name": "schema-fact-register",
@@ -409,8 +409,8 @@
       "path": "contracts/schemas/intake.schema.json",
       "format": "json",
       "mediatype": "application/json",
-      "bytes": 13990,
-      "hash": "sha256:d686a4bc4c4207878bc1470a06e707d4346f2601ac01d6eaa086a66a411a9132"
+      "bytes": 14811,
+      "hash": "sha256:0b3adb6a7db0c014295d3412d119efc1aa5c8819d2605adc37c1aa9c943126aa"
     },
     {
       "name": "schema-measured-usage",
@@ -671,8 +671,8 @@
       "path": "gaps/hybrid-scope.md",
       "format": "md",
       "mediatype": "text/markdown",
-      "bytes": 8650,
-      "hash": "sha256:fb84f6bb00600f48a71c1c73b98d6874214293fc83fa2462cc77c13ea3ad2369"
+      "bytes": 9015,
+      "hash": "sha256:249f5c40a8064f6e2b46345b8ac1c15f04f9aa011f62f3010a09c6e7b5104844"
     },
     {
       "name": "gap-identity-scope",
@@ -875,6 +875,14 @@
       "hash": "sha256:3a378071ada62e829f02c3ca9c907fd6adead84f9215c95fd3fe8f0d546757b3"
     },
     {
+      "name": "gap-ui-step-latency",
+      "path": "gaps/ui-step-latency.md",
+      "format": "md",
+      "mediatype": "text/markdown",
+      "bytes": 1589,
+      "hash": "sha256:49e9494a06b088e22d01e7a813735e5e2e4eaf45a6d9b498edc05d6e5914ea31"
+    },
+    {
       "name": "gap-use-case-library",
       "path": "gaps/use-case-library.md",
       "format": "md",
@@ -903,8 +911,8 @@
       "path": "index.json",
       "format": "json",
       "mediatype": "application/json",
-      "bytes": 456728,
-      "hash": "sha256:d8e0d16e0e60ccc3fc97508424879c8f835cb48f388c616974f96029162b37eb",
+      "bytes": 456849,
+      "hash": "sha256:07ccc5917c1ecb69d63e728f2cc4d21785e837f341725f13a668dd36097c9578",
       "schemaString": "avd-assess-index/v1",
       "jsonSchema": "contracts/schemas/assess-index.schema.json",
       "idPaths": [
@@ -919,8 +927,8 @@
       "path": "map.json",
       "format": "json",
       "mediatype": "application/json",
-      "bytes": 289653,
-      "hash": "sha256:13f7f26abe074dcfd1caf3cd647a79f90881c3ddf422478e078d1e1740151d6f",
+      "bytes": 293751,
+      "hash": "sha256:565b988a28c9df904cfda54d0e194a49fdbb0fc385c0fbfdb79697913f64e209",
       "schemaString": "avd-assess-map/v1",
       "jsonSchema": "contracts/schemas/assess-map.schema.json",
       "idPaths": [
@@ -1022,8 +1030,8 @@
       "path": "methods/network.md",
       "format": "md",
       "mediatype": "text/markdown",
-      "bytes": 8256,
-      "hash": "sha256:56dc3f4749ebf9c95559de1f43e0cf76902e24956d84997e9f5e7f59313f29b7"
+      "bytes": 8599,
+      "hash": "sha256:de9417f3409b8bf97b2c72a0acc741aa50dd8ab5076bd3b5f1e3b8feba411d89"
     },
     {
       "name": "method-power-platform",

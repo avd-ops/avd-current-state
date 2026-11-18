@@ -1,15 +1,15 @@
 {
-    "description":  "Byte-identical copies of avd-assess\u0027s foundation contract files (contracts/README.md there), from release `release`. Each must match the file at commit; `manifest` is the SHA-256 of the release\u0027s datapackage.json, vendored at assess/datapackage.json (tests/Facts.Tests.ps1 checks the hashes, tests/Assess.Tests.ps1 runs the verifier). Update the files, commit, release, manifest and the hashes in one PR.",
-    "source":  "https://github.com/avd-ops/avd-assess",
-    "commit":  "1520836d7dd9d18c84c2fd87f040810f84932741",
-    "release":  "v3.1.0",
-    "manifest":  "af2d59e07da7932700e6375c52b0d1bf5151993bd0072ed63ecb89b3e1d9c4e6",
-    "files":  {
-                  "fact-register.json":  "350d8d0fe1d38c1caf61ff81ad3edca0253174c22342892e48549b98513b6c19",
-                  "current-state-facts.schema.json":  "40b50deed090bbca59302c3b9770fad99785d4dc46ead50c792855aa4d99f6e9",
-                  "intake.schema.json":  "d686a4bc4c4207878bc1470a06e707d4346f2601ac01d6eaa086a66a411a9132",
-                  "assess-method.schema.json":  "24632b2cab478a2c686392e2310c027bb13d3375a6cb5edad1caaa47cc3e7b53",
-                  "assessment.schema.json":  "6597b9a08e0db64c79e091713194af7a27bbd79015071507fa1df8b8bea736e3",
-                  "remediation-plan.schema.json":  "e6eac145014877abffe652d9373972427d64d24f346b27dd37a711e98fba6ed7"
-              }
+    "description": "Byte-identical copies of avd-assess's foundation contract files (contracts/README.md there), from release `release`. Each must match the file at commit; `manifest` is the SHA-256 of the release's datapackage.json, vendored at assess/datapackage.json (tests/Facts.Tests.ps1 checks the hashes, tests/Assess.Tests.ps1 runs the verifier). Update the files, commit, release, manifest and the hashes in one PR.",
+    "source": "https://github.com/avd-ops/avd-assess",
+    "commit": "bb35da95f283b26a4c47677a51cc3c0253414524",
+    "release": "v4.0.0",
+    "manifest": "fbc19af591a813eaf0fc64842daaa6282e94024fe0fd61eff83ac8cb555744ca",
+    "files": {
+        "fact-register.json": "19bb33fa2b1288971b8b38166bd0a9adf3f7c826cb1cc2ac783d2e4da63af65c",
+        "current-state-facts.schema.json": "dbc15c3c3a78970e52cc08744a1c3bd68dee21d117815a98aa2c32c3558dd4c9",
+        "intake.schema.json": "0b3adb6a7db0c014295d3412d119efc1aa5c8819d2605adc37c1aa9c943126aa",
+        "assess-method.schema.json": "24632b2cab478a2c686392e2310c027bb13d3375a6cb5edad1caaa47cc3e7b53",
+        "assessment.schema.json": "c4ebca42b1eddb442cf54e774009d8ad9a0192ad5051b2f75c3a1a44b51058bb",
+        "remediation-plan.schema.json": "e6eac145014877abffe652d9373972427d64d24f346b27dd37a711e98fba6ed7"
+    }
 }
