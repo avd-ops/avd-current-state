@@ -143,9 +143,9 @@ Describe 'Get-AvdcsMermaidTheme' {
     $cfg.themeVariables.fontFamily | Should -Match '^"Source Sans 3"'
     $cfg.themeCSS | Should -Match '\.node rect\{rx:8px;ry:8px\}\.cluster rect\{rx:14px;ry:14px\}'
     @($m.ClassDefs) | Should -Be @(
-      'classDef resource fill:#ffffff,stroke:#bfc9d6,color:#152232,stroke-width:1px'
-      'classDef hub fill:#e0f2ef,stroke:#0b7a6e,color:#152232,stroke-width:1.5px'
-      'classDef spoke fill:#eef2f6,stroke:#bfc9d6,color:#152232,stroke-width:1px'
+      'classDef resource fill:#ffffff,stroke:#b8c3c5,color:#0f1c1e,stroke-width:1px'
+      'classDef hub fill:#e1f2ef,stroke:#0b7a6e,color:#0f1c1e,stroke-width:1.5px'
+      'classDef spoke fill:#edf1f1,stroke:#b8c3c5,color:#0f1c1e,stroke-width:1px'
       'classDef avd fill:#e4edfb,stroke:#1d4785,color:#1d4785,stroke-width:1px'
       'classDef broken fill:#fbe7e7,stroke:#b42323,color:#b42323,stroke-width:1.5px,stroke-dasharray:5 4'
     )
