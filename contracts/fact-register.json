@@ -3466,6 +3466,118 @@
         "region",
         "network"
       ]
+    },
+    {
+      "id": "c11.hostPool.hostPlacement",
+      "tier": "azure",
+      "contract": "C11",
+      "path": "/subscriptions/*/hostPools/*/hostPlacement",
+      "grain": "hostPool",
+      "unit": "enum",
+      "privacy": "public",
+      "status": "specified",
+      "evidences": [
+        "region",
+        "network"
+      ]
+    },
+    {
+      "id": "c11.hostPool.sessionHosts.azureLocalHosts",
+      "tier": "azure",
+      "contract": "C11",
+      "path": "/subscriptions/*/hostPools/*/sessionHosts/azureLocalHosts",
+      "grain": "hostPool",
+      "unit": "hosts",
+      "privacy": "count",
+      "status": "specified",
+      "evidences": [
+        "region"
+      ]
+    },
+    {
+      "id": "c11.hostPool.sessionHosts.arcConnected",
+      "tier": "azure",
+      "contract": "C11",
+      "path": "/subscriptions/*/hostPools/*/sessionHosts/arcConnected",
+      "grain": "hostPool",
+      "unit": "hosts",
+      "privacy": "count",
+      "status": "specified",
+      "evidences": [
+        "region"
+      ]
+    },
+    {
+      "id": "c11.hostPool.sessionHosts.arcAgentDisconnected",
+      "tier": "azure",
+      "contract": "C11",
+      "path": "/subscriptions/*/hostPools/*/sessionHosts/arcAgentDisconnected",
+      "grain": "hostPool",
+      "unit": "hosts",
+      "privacy": "count",
+      "status": "specified",
+      "evidences": []
+    },
+    {
+      "id": "c11.hostPool.sessionHosts.cloudDeviceExtensionFailed",
+      "tier": "azure",
+      "contract": "C11",
+      "path": "/subscriptions/*/hostPools/*/sessionHosts/cloudDeviceExtensionFailed",
+      "grain": "hostPool",
+      "unit": "hosts",
+      "privacy": "count",
+      "status": "specified",
+      "evidences": []
+    },
+    {
+      "id": "c11.azureLocal.clusters",
+      "tier": "azure",
+      "contract": "C11",
+      "path": "/subscriptions/*/azureLocal/clusters",
+      "grain": "subscription",
+      "unit": "clusters",
+      "privacy": "count",
+      "status": "specified",
+      "evidences": [
+        "region"
+      ]
+    },
+    {
+      "id": "c11.azureLocal.clustersRegistered23h2Plus",
+      "tier": "azure",
+      "contract": "C11",
+      "path": "/subscriptions/*/azureLocal/clustersRegistered23h2Plus",
+      "grain": "subscription",
+      "unit": "clusters",
+      "privacy": "count",
+      "status": "specified",
+      "evidences": [
+        "region"
+      ]
+    },
+    {
+      "id": "intake.hostPlacement",
+      "tier": "intake",
+      "contract": "C19",
+      "path": "/hostPlacement",
+      "grain": "estate",
+      "unit": "enum",
+      "privacy": "public",
+      "status": "specified",
+      "evidences": [
+        "region"
+      ]
+    },
+    {
+      "id": "intake.profileStorageType",
+      "tier": "intake",
+      "contract": "C19",
+      "path": "/profileStorageType",
+      "grain": "estate",
+      "unit": "enum",
+      "privacy": "public",
+      "status": "specified",
+      "evidences": []
     }
   ]
 }

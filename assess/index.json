@@ -10151,6 +10151,10 @@
       "title": "a repeatable tune and rightsize loop for AVD"
     },
     {
+      "id": "ui-step-latency",
+      "title": "UI step-latency thresholds for synthetic desktop benchmarks"
+    },
+    {
       "id": "use-case-library",
       "title": "use case library"
     },

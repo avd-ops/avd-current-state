@@ -22,6 +22,7 @@
       "additionalProperties": false,
       "minProperties": 1,
       "properties": {
+        "n": { "type": "integer", "minimum": 1 },
         "p10": { "type": "number" },
         "p50": { "type": "number" },
         "p90": { "type": "number" },
@@ -54,8 +55,8 @@
       "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
     },
     "source": {
-      "enum": ["sandbox", "lab", "estate"],
-      "description": "sandbox: disposable test batch; lab: standing non-production environment; estate: real estate, aggregated, with owner consent."
+      "enum": ["sandbox", "lab", "estate", "fixture"],
+      "description": "sandbox: disposable test batch; lab: standing non-production environment; estate: real estate, aggregated, with owner consent; fixture: offline CI/test fixture rejected from evidence and corpus."
     },
     "consent": {
       "type": "boolean",
@@ -67,7 +68,31 @@
     },
     "extensions": {
       "type": "object",
-      "description": "Optional upstream data, keyed by namespace; readers ignore what they don't know (contracts/README.md rule 1)."
+      "additionalProperties": false,
+      "description": "Closed upstream extension namespaces (contracts/README.md rule 1).",
+      "properties": {
+        "generator": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind"],
+          "properties": {
+            "kind": { "enum": ["native", "euc-score-byo"] },
+            "version": { "type": "string", "pattern": "^[A-Za-z0-9._-]{1,32}$" },
+            "persona": { "enum": ["light", "medium", "heavy", "power", "knowledge-worker", "task-worker"] },
+            "licenseSelfDeclared": { "const": "community-public-results" },
+            "exportSha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+          }
+        },
+        "rpa": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["engine", "version"],
+          "properties": {
+            "engine": { "enum": ["in-session-uia"] },
+            "version": { "type": "string", "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$" }
+          }
+        }
+      }
     },
     "profile": {
       "type": "object",
@@ -79,6 +104,7 @@
             "storage-fslogix-io",
             "host-logon-storm",
             "multisession-density",
+            "rpa-ui-responsiveness",
             "control-plane-autoscale",
             "bcdr-profile-recovery",
             "insights-observational"
@@ -96,6 +122,10 @@
           "pattern": "^[0-9a-f]{40}$"
         },
         "benchmarkCommit": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{40}$"
+        },
+        "manifestCommit": {
           "type": "string",
           "pattern": "^[0-9a-f]{40}$"
         }
@@ -257,7 +287,13 @@
         "backupJobSuccess": { "type": "boolean" },
         "connectionFailureRatePct": { "type": "number", "minimum": 0, "maximum": 100 },
         "shortpathUdpSharePct": { "type": "number", "minimum": 0, "maximum": 100 },
-        "turnRelaySharePct": { "type": "number", "minimum": 0, "maximum": 100 }
+        "turnRelaySharePct": { "type": "number", "minimum": 0, "maximum": 100 },
+        "appLaunchMs": { "$ref": "#/$defs/distribution" },
+        "windowReadyMs": { "$ref": "#/$defs/distribution" },
+        "actionLatencyMs": { "$ref": "#/$defs/distribution" },
+        "saveCloseMs": { "$ref": "#/$defs/distribution" },
+        "stepSuccessRatePct": { "type": "number", "minimum": 0, "maximum": 100 },
+        "stepTimeoutRatePct": { "type": "number", "minimum": 0, "maximum": 100 }
       }
     },
     "verdict": {

@@ -39,7 +39,8 @@
             "teams-ps-unavailable",
             "bap-unavailable",
             "not-applicable-intake",
-            "unsupported-in-cloud"
+            "unsupported-in-cloud",
+            "azure-local-host"
           ]
         }
       }
@@ -109,6 +110,7 @@
               "properties": {
                 "id": { "$ref": "#/$defs/hostPoolId" },
                 "region": { "type": "string", "pattern": "^([a-z0-9]{2,40}|other|unknown)$" },
+                "hostPlacement": { "enum": ["azure", "azure-local", "mixed"], "description": "Whether session hosts run on Azure VMs, Azure Local VM instances, or both (mixed)" },
                 "type": { "$ref": "#/$defs/word" },
                 "loadBalancer": { "$ref": "#/$defs/word" },
                 "preferredAppGroupType": { "$ref": "#/$defs/word" },
@@ -213,6 +215,10 @@
                     "gpuComputeSkus": { "$ref": "#/$defs/count", "description": "Hosts running NC or ND compute GPU VM sizes" },
                     "gpuRetiredSkus": { "$ref": "#/$defs/count", "description": "Hosts running retired NVv3 or NVv4 GPU VM sizes" },
                     "gpuDriverMissing": { "$ref": "#/$defs/count", "description": "NV-family GPU hosts missing the Azure-distributed NVIDIA or AMD GPU driver VM extension" },
+                    "azureLocalHosts": { "$ref": "#/$defs/count", "description": "Session hosts backed by Microsoft.AzureStackHCI/virtualMachineInstances on Azure Local" },
+                    "arcConnected": { "$ref": "#/$defs/count", "description": "Session hosts backed by an Arc-enabled server (Microsoft.HybridCompute/machines)" },
+                    "arcAgentDisconnected": { "$ref": "#/$defs/count", "description": "Arc-backed session hosts whose Connected Machine agent status is not Connected" },
+                    "cloudDeviceExtensionFailed": { "$ref": "#/$defs/count", "description": "Arc-backed session hosts where Microsoft.AzureVirtualDesktop.CloudDeviceExtension is not Succeeded" },
                     "gpuMaxSessionOver25": { "$ref": "#/$defs/count", "description": "NVIDIA GPU hosts in a pooled host pool whose maxSessionLimit exceeds 25 concurrent users" }
                   }
                 },
@@ -432,6 +438,18 @@
         "dlpDefaultGroupClassification": { "enum": ["Blocked", "Confidential", "General"] },
         "avdDay2SolutionsDeployed": { "$ref": "#/$defs/count" },
         "avdDay2FlowsActive": { "$ref": "#/$defs/countMap" }
+      }
+    },
+    "azureLocal": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Estate-level Azure Local and Arc inventory counts (gaps/hybrid-scope.md)",
+      "properties": {
+        "clusters": { "$ref": "#/$defs/count" },
+        "clustersRegistered23h2Plus": { "$ref": "#/$defs/count" },
+        "customLocations": { "$ref": "#/$defs/count" },
+        "vmInstances": { "$ref": "#/$defs/count" },
+        "connectedMachineAgentConnected": { "$ref": "#/$defs/count" }
       }
     },
     "validations": {

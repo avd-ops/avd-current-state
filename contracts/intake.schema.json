@@ -228,6 +228,24 @@
       "description": "Fact intake.profileData (optional). What the profile containers hold (avd-assess gaps/reliability-scope.md).",
       "enum": ["settings-only", "user-data", "unknown"]
     },
+    "hostPlacement": {
+      "description": "Fact intake.hostPlacement (optional). Target session host placement model (default azure).",
+      "enum": ["azure", "azure-local"]
+    },
+    "profileStorageType": {
+      "description": "Fact intake.profileStorageType (optional). FSLogix profile storage target (avd-assess gaps/hybrid-scope.md).",
+      "enum": ["azure-files", "anf", "local-smb"]
+    },
+    "azureLocal": {
+      "type": "object",
+      "description": "Optional readiness flags for AVD on Azure Local (gaps/hybrid-scope.md); booleans only, no names, IDs or paths.",
+      "additionalProperties": false,
+      "properties": {
+        "clusterRegistered23h2Plus": { "type": "boolean" },
+        "customLocationReady": { "type": "boolean" },
+        "localSmbShareReady": { "type": "boolean" }
+      }
+    },
     "extensions": {
       "type": "object",
       "description": "Optional, for upper layers only, keyed by namespace (contracts/README.md rule 1). A foundation reader ignores it.",
