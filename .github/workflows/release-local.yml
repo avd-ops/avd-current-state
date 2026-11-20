@@ -17,6 +17,19 @@ jobs:
     environment: release
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Verify SemVer tag and main ancestry (on tag)
+        if: ${{ startsWith(github.ref, 'refs/tags/') }}
+        shell: bash
+        run: |
+          TAG="${{ github.ref_name }}"
+          [[ "$TAG" =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-[0-9A-Za-z.-]+)?$ ]] || { echo "RESULT FAIL $TAG is not SemVer"; exit 1; }
+          git fetch --no-tags origin main
+          git merge-base --is-ancestor "$GITHUB_SHA" origin/main || { echo "RESULT FAIL $TAG is not an ancestor of origin/main"; exit 1; }
+          echo "RESULT PASS $TAG is a valid SemVer tag on origin/main"
 
       - name: Assemble standalone avd_current_state_local.ps1
         shell: pwsh
@@ -69,5 +82,14 @@ jobs:
         if: ${{ startsWith(github.ref, 'refs/tags/v') }}
         env:
           GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ github.ref_name }}
+        shell: bash
         run: |
-          gh release create "${{ github.ref_name }}" dist/avd_current_state_local.ps1 dist/avd_current_state_local.ps1.sha256 --title "${{ github.ref_name }}" --generate-notes
+          gh api "repos/$GH_REPO/releases/generate-notes" -f "tag_name=$TAG" --jq '.body' > release-notes.md
+          if grep -qiE '([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|ghp_|gho_|github_pat_|AKIA)' release-notes.md; then
+            echo "RESULT FAIL release notes matched leak pattern"
+            exit 1
+          fi
+          gh release create "$TAG" dist/avd_current_state_local.ps1 dist/avd_current_state_local.ps1.sha256 --draft --verify-tag --title "$TAG" --notes-file release-notes.md
+          gh release edit "$TAG" --draft=false
